@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en" style="height: 100%;">
+  <head>
+    <meta charset="utf-8">
+    <title>Beep Pakistan</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="referrer" content="no-referrer">
+    <link rel="shortcut icon" href="vector-icons/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="apple-mobile-web-app-title" content="Beep - IM">
+    <meta name="application-name" content="Beep - IM">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <meta property="og:image" content="https://averox.com/wp-content/uploads/2024/08/beep.png" />
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'none';
+        style-src 'self' 'unsafe-inline' ;
+        script-src 'self' 'wasm-unsafe-eval' https://www.recaptcha.net/recaptcha/ https://www.gstatic.com/recaptcha/ ;
+        img-src * blob: data:;
+        connect-src * blob:;
+        font-src 'self' data: ;
+        media-src * blob: data:;
+        child-src * blob: data:;
+        worker-src 'self' blob: ;
+        frame-src * blob: data:;
+        form-action 'self' ;
+        manifest-src 'self' ;
+    ">
+    
+           <link rel="stylesheet" href="bundles/3abba4c2d8549a2f8573/bundle.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Legacy-light" title="Legacy-light" href="bundles/3abba4c2d8549a2f8573/theme-legacy-light.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Legacy-dark" title="Legacy-dark" href="bundles/3abba4c2d8549a2f8573/theme-legacy-dark.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Light" title="Light" href="bundles/3abba4c2d8549a2f8573/theme-light.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Light-high-contrast" title="Light-high-contrast" href="bundles/3abba4c2d8549a2f8573/theme-light-high-contrast.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Dark" title="Dark" href="bundles/3abba4c2d8549a2f8573/theme-dark.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Light-custom" title="Light-custom" href="bundles/3abba4c2d8549a2f8573/theme-light-custom.css">
+        
+           <link rel="stylesheet" disabled="disabled" data-mx-theme="Dark-custom" title="Dark-custom" href="bundles/3abba4c2d8549a2f8573/theme-dark-custom.css">
+        
+
+    
+            <link rel="preload" as="font" href="fonts/Inter/Inter-BoldItalic.9744396.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-Bold.a808c21.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-SemiBoldItalic.c632fb9.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-SemiBold.625474d.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-MediumItalic.d29ef50.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-Medium.ba68c34.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-Italic.e2f5280.woff2" crossorigin="anonymous"/>
+        
+            <link rel="preload" as="font" href="fonts/Inter/Inter-Regular.6cc68d6.woff2" crossorigin="anonymous"/>
+        
+
+  </head>
+  <body style="height: 100%; margin: 0;">
+    <noscript>Sorry, Beep requires JavaScript to be enabled.</noscript> <!-- TODO: Translate this? -->
+    <div id="matrixchat" style="height: 100%;" class="notranslate"></div>
+
+    <script src="bundles/3abba4c2d8549a2f8573/unhomoglyph_data.js"></script>
+    <script src="bundles/3abba4c2d8549a2f8573/bundle.js"></script>
+
+    <audio id="messageAudio">
+        <source src="media/message.ogg" type="audio/ogg" />
+        <source src="media/message.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="ringAudio" loop>
+        <source src="media/ring.ogg" type="audio/ogg" />
+        <source src="media/ring.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="ringbackAudio" loop>
+        <source src="media/ringback.ogg" type="audio/ogg" />
+        <source src="media/ringback.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="callendAudio">
+        <source src="media/callend.ogg" type="audio/ogg" />
+        <source src="media/callend.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="busyAudio">
+        <source src="media/busy.ogg" type="audio/ogg" />
+        <source src="media/busy.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="errorAudio">
+        <source src="media/error.ogg" type="audio/ogg" />
+        <source src="media/error.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="remoteAudio"></audio>
+    <!-- let CSS themes pass constants to the app -->
+    <div id="mx_theme_accentColor"></div><div id="mx_theme_secondaryAccentColor"></div><div id="mx_theme_tertiaryAccentColor"></div>
+
+    <!-- We eagerly create these containers to ensure their CSS stacking context order is sensible -->
+    <div id="mx_PersistedElement_container"></div>
+    <div id="mx_Dialog_StaticContainer"></div>
+    <div id="mx_Dialog_Container"></div>
+    <div id="mx_ContextualMenu_Container"></div>
+  </body>
+</html>

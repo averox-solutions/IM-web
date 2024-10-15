@@ -44,7 +44,7 @@
             void 0 !== e
               ? e
               : [
-                  { text: "Blog", url: "https://element.io/blog" },
+                  { text: "Blog", url: "" },
                   { text: "Twitter", url: "https://twitter.com/element_hq" },
                   {
                     text: "GitHub",

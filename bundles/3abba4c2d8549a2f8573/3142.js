@@ -2234,8 +2234,8 @@
                 }
             }
             async clearStorage() {
-                window.sessionStorage.clear(),
-                window.localStorage.clear()
+                window.sessionStorage.clear();
+                window.localStorage.clear();
             }
             get baseUrl() {
                 return window.location.origin + window.location.pathname

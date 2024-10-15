@@ -9143,7 +9143,7 @@ html {
 }
 .mx_HomePage_default h2 {
   color: #a1b2d1;
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: var(--cpd-font-weight-semibold);
   line-height: 1.5625rem;
   margin-top: 4px;
@@ -26974,12 +26974,7 @@ span.mx_MVideoBody .mx_MVideoBody_container video {
   width: var(--size);
   z-index: 0;
 }
-.mx_EmojiButton:hover:after {
-  background: var(--cpd-color-bg-subtle-secondary);
-}
-.mx_EmojiButton:hover:before {
-  background-color: var(--cpd-color-icon-secondary);
-}
+
 .mx_EmojiButton_highlight {
   background: var(--cpd-color-bg-subtle-primary);
 }

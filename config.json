@@ -1,8 +1,8 @@
 {
     "default_server_config": {
         "m.homeserver": {
-            "base_url": "https://em.averox.com",
-            "server_name": "em.averox.com"
+            "base_url": "https://ms.beep.gov.pk",
+            "server_name": "ms.beep.gov.pk"
         },
         "m.identity_server": {
             "base_url": "https://vector.im"
@@ -12,7 +12,7 @@
     "disable_guests": false,
     "disable_login_language_selector": false,
     "disable_3pid_login": false,
-    "brand": "Averox",
+    "brand": "Beep Pakistan",
     "integrations_ui_url": "https://scalar.vector.im/",
     "integrations_rest_url": "https://scalar.vector.im/api",
     "integrations_widgets_urls": [
@@ -22,16 +22,16 @@
         "https://scalar-staging.vector.im/api",
         "https://scalar-staging.riot.im/scalar/api"
     ],
-"branding": {
-"welcomeBackgroundUrl": "",
-"authHeaderLogoUrl": "https://firebasestorage.googleapis.com/v0/b/laaleh-2451e.appspot.com/o/beep.svg?alt=media&token=3847db46-30c6-4a1d-8ef4-58fbcbaa7835",
-"authFooterLinks": []
-},
-"embeddedPages":{
-"loginForWelcome": true
-},
-"permalinkPrefix": "https://eweb.averox.com",
-    "default_country_code": "GB",
+    "branding": {
+        "welcomeBackgroundUrl": "",
+        "authHeaderLogoUrl": "https://firebasestorage.googleapis.com/v0/b/laaleh-2451e.appspot.com/o/beep.svg?alt=media&token=3847db46-30c6-4a1d-8ef4-58fbcbaa7835",
+        "authFooterLinks": []
+    },
+    "embeddedPages": {
+        "loginForWelcome": true
+    },
+    "permalinkPrefix": "https://wa.beep.gov.pk",
+    "default_country_code": "pk",
     "show_labs_settings": false,
     "features": {},
     "default_federate": true,
@@ -44,15 +44,14 @@
         "https://matrix-client.matrix.org": false
     },
     "setting_defaults": {
-        "breadcrumbs": true
+        "breadcrumbs": true,
+        "layout": "bubble"
     },
     "jitsi": {
         "preferred_domain": "meet.element.io"
     },
-    "element_call": {
-        "url": "https://call.element.io",
-        "participant_limit": 8,
-        "brand": "Element Call"
-    },
-    "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx"
+    "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx",
+    "e2ee": {
+        "default": true
+    }
 }

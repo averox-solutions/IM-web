@@ -9106,7 +9106,7 @@ html {
 }
 .mx_MatrixChat--with-avatar .mx_LeftPanel,
 .mx_MatrixChat--with-avatar .mx_LeftPanel .mx_LeftPanel_roomListContainer {
-  background-color: transparent;
+  background-color: white !important;
 }
 .mx_LeftPanel_outerWrapper {
   display: -webkit-box;
@@ -9117,7 +9117,7 @@ html {
   contain: layout paint;
   -ms-flex-direction: column;
   flex-direction: column;
-  max-width: 50%;
+  max-width: 80%;
   position: relative;
 }
 .mx_LeftPanel,
@@ -10893,6 +10893,39 @@ html {
 .mx_SpacePanel.collapsed {
   width: 68px;
 }
+/* Media query for mobile and tablet devices (max width 1024px) */
+/* For mobile and tablet devices (max width 1024px) */
+@media (max-width: 1024px) {
+    /* Initially collapsed panel */
+    .mx_SpacePanel {
+        width: 0;
+        position: fixed; /* Fix the panel to the left side */
+        left: 0;
+        top: 0;
+        height: 100%; /* Full height for the panel */
+        transition: width 0.5s ease; /* Smooth sliding effect */
+        overflow: hidden; /* Hide content until expanded */
+        background-color: #f1f1f1; /* Optional background color */
+        z-index: 999; /* Make sure it stays above other content */
+    }
+
+    /* Expand the panel on hover */
+    .mx_SpacePanel:hover {
+        width: 250px; /* Adjust the expanded width as needed */
+    }
+
+    /* Ensure content is visible only when panel is expanded */
+    .mx_SpacePanel .content {
+        opacity: 0; /* Initially hide the content */
+        transition: opacity 0.3s ease; /* Smooth fade-in effect for content */
+    }
+
+    .mx_SpacePanel:hover .content {
+        opacity: 1; /* Make the content visible when expanded */
+    }
+}
+
+
 .mx_SpacePanel .mx_SpacePanel_toggleCollapse {
   background-color: #2e2f32;
   border-radius: 50%;
@@ -13358,7 +13391,7 @@ div.mx_AccessibleButton_kind_link.mx_Login_forgot.mx_AccessibleButton_disabled {
   margin-bottom: 10px;
 }
 .mx_AuthBody_fieldRow > .mx_Field {
-  margin: 0 5px;
+
 }
 .mx_AuthBody_fieldRow > .mx_Field:first-child {
   margin-left: 0;
@@ -18955,6 +18988,9 @@ button.mx_BaseAvatar {
   -ms-flex-pack: center;
   justify-content: center;
   margin-bottom: 8px;
+}
+.form{
+  display: flex !important;
 }
 .mx_VerifyEMailDialog .mx_Dialog .mx_Dialog_cancelButton {
   right: 10px;
@@ -34946,30 +34982,7 @@ input[type="file"].mx_NotificationSound_soundUpload {
 .mx_UserOnboardingButton.mx_UserOnboardingButton_completed .mx_ProgressBar {
   display: none;
 }
-.mx_UserOnboardingHeader {
-  display: -webkit-box;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-orient: horizontal;
-  -webkit-box-direction: normal;
-  -webkit-animation-delay: 1.5s;
-  animation-delay: 1.5s;
-  -webkit-animation-duration: 0.3s;
-  animation-duration: 0.3s;
-  -webkit-animation-fill-mode: backwards;
-  animation-fill-mode: backwards;
-  -webkit-animation-name: mx_UserOnboardingHeader_slideIn;
-  animation-name: mx_UserOnboardingHeader_slideIn;
-  -webkit-animation-timing-function: ease-out;
-  animation-timing-function: ease-out;
-  background: #f4f6fa;
-  border-radius: 16px;
-  -ms-flex-direction: row;
-  flex-direction: row;
-  gap: 64px;
-  padding: 32px;
-  will-change: opacity, transform;
-}
+
 @media (max-width: 1280px) {
   .mx_UserOnboardingHeader {
     margin: 32px;

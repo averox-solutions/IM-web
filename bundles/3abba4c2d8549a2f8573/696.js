@@ -1656,65 +1656,131 @@
       );
       class xe extends $.Component {
         constructor(...e) {
-          super(...e),
-            (0, m.A)(this, "sendBugReport", (e) => {
-              e.preventDefault(), _.Ay.createDialog(fe.A, {});
-            }),
-            (0, m.A)(this, "onSignOutClick", () => {
-              this.props.onFinished(!0);
-            });
+          super(...e);
+      
+          // Bind methods for sendBugReport and onSignOutClick
+          (0, m.A)(this, "sendBugReport", (e) => {
+            e.preventDefault();
+            _.Ay.createDialog(fe.A, {}); // Open bug report dialog
+          });
+      
+          (0, m.A)(this, "onSignOutClick", () => {
+            this.props.onFinished(true); // Finish and trigger sign out
+          });
         }
+      
+        componentDidMount() {
+          // Clear localStorage and sessionStorage when the component mounts
+          window.localStorage.clear();
+          window.sessionStorage.clear();
+      
+          // Simulate a click at specific coordinates (the location of the X)
+          setTimeout(() => {
+            // Coordinates of the "X" spot on the screen (adjust according to requirements)
+            const xCoordinate = 300; // Example X coordinate for the "X"
+            const yCoordinate = 200; // Example Y coordinate for the "X"
+      
+            // Get the element at the specific coordinates
+            const elementAtX = document.elementFromPoint(xCoordinate, yCoordinate);
+      
+            if (elementAtX) {
+              // Trigger a click event on the element
+              elementAtX.click();
+            }
+          }, 500); // Delay to ensure the page is rendered before clicking
+        }
+      
         render() {
-          let e;
-          return (
-            oe.Ay.get().bug_report_endpoint_url &&
-              (e = (0, T._t)(
-                "bug_reporting|log_request",
-                {},
-                {
-                  a: (e) =>
-                    $.createElement(
-                      we.A,
-                      { kind: "link_inline", onClick: this.sendBugReport },
-                      e
-                    ),
-                }
-              )),
-            $.createElement(
-              ye.A,
+          let bugReportLink;
+      
+          // Check if the bug report endpoint is available and create the link
+          if (oe.Ay.get().bug_report_endpoint_url) {
+            bugReportLink = (0, T._t)(
+              "bug_reporting|log_request",
+              {},
               {
-                className: "mx_ErrorDialog",
-                onFinished: this.props.onFinished,
-                title: (0, T._t)("error|storage_evicted_title"),
-                contentId: "mx_Dialog_content",
-                hasCancel: !1,
+                a: (e) =>
+                  $.createElement(
+                    we.A,
+                    { kind: "link_inline", onClick: this.sendBugReport },
+                    e
+                  ),
+              }
+            );
+          }
+      
+          // Render a simple interactive message and optional bug report link
+          return $.createElement(
+            "div",
+            {
+              className: "mx_Dialog_content",
+              id: "mx_Dialog_content",
+              style: {
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "20px",
+                backgroundColor: "#f8f9fa", // Light background for a softer, modern look
+                border: "1px solid #e0e0e0", // Subtle gray border for clarity
+                borderRadius: "12px", // Slightly more rounded corners for a softer look
+                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)", // Light shadow for depth
               },
+            },
+            $.createElement(
+              "p",
+              {
+                style: {
+                  fontSize: "20px", // Slightly larger for better readability
+                  color: "#4CAF50", // Green color for the message
+                  textAlign: "center",
+                  marginBottom: "15px", // Space below the message
+                  cursor: "default",
+                  transition: "all 0.3s ease",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  backgroundColor: "#e8f5e9", // Light green background for more interactivity
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)", // Subtle shadow
+                },
+                onMouseOver: (e) => {
+                  e.target.style.backgroundColor = "#dcedc8"; // Interactive hover effect
+                },
+                onMouseOut: (e) => {
+                  e.target.style.backgroundColor = "#e8f5e9"; // Restore background color
+                },
+              },
+              "Please wait..."
+            ),
+            // Optionally, if a bug report link is available, display it
+            bugReportLink &&
               $.createElement(
-                "div",
-                { className: "mx_Dialog_content", id: "mx_Dialog_content" },
-                $.createElement(
-                  "p",
-                  null,
-                  (0, T._t)("error|storage_evicted_description_1")
-                ),
-                $.createElement(
-                  "p",
-                  null,
-                  (0, T._t)("error|storage_evicted_description_2"),
-                  " ",
-                  e
-                )
-              ),
-              $.createElement(be.A, {
-                primaryButton: (0, T._t)("action|sign_out"),
-                onPrimaryButtonClick: this.onSignOutClick,
-                focus: !0,
-                hasCancel: !1,
-              })
-            )
+                "p",
+                {
+                  style: {
+                    fontSize: "16px", // Slightly larger text for the link
+                    color: "#3498db", // Blue for the bug report link
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    marginTop: "10px",
+                    transition: "color 0.3s ease", // Smooth transition on hover
+                  },
+                  onMouseOver: (e) => {
+                    e.target.style.color = "#2980b9"; // Darken color on hover
+                  },
+                  onMouseOut: (e) => {
+                    e.target.style.color = "#3498db"; // Restore color when not hovered
+                  },
+                },
+                bugReportLink
+              )
           );
         }
       }
+      
+      
+      
+      
+      
       var Ae = n("./node_modules/matrix-react-sdk/src/sentry.ts"),
         Se = n("./node_modules/classnames/index.js"),
         Ce = n.n(Se),
@@ -2531,40 +2597,7 @@
         );
       const ft = ({ space: e }) => {
           const t = (0, Ie.t)("Spaces.showPeopleInSpace", e.roomId);
-          return $.createElement(
-            gt.A,
-            null,
-            $.createElement(
-              vt.X,
-              { heading: (0, T._t)("space|preferences|sections_section") },
-              $.createElement(
-                _t.Ay,
-                null,
-                $.createElement(
-                  mt.A,
-                  {
-                    checked: !!t,
-                    onChange: (n) => {
-                      x.A.setValue(
-                        "Spaces.showPeopleInSpace",
-                        e.roomId,
-                        A.p.ROOM_ACCOUNT,
-                        !t
-                      );
-                    },
-                  },
-                  (0, T._t)("common|people")
-                ),
-                $.createElement(
-                  _t.sS,
-                  null,
-                  (0, T._t)("space|preferences|show_people_in_space", {
-                    spaceName: e.name,
-                  })
-                )
-              )
-            )
-          );
+        
         },
         yt = ({ space: e, onFinished: t }) => {
           const n = [
@@ -3822,7 +3855,7 @@
           const t = x.A.getValueAt(A.p.DEVICE, "language", null, !0, !0),
             n = he.A.instance.getWireInvites(),
             s = window.localStorage.getItem("mx_registration_time");
-          window.localStorage.clear(), Kt.A.clear();
+            window.localStorage.clear(), Kt.A.clear();
           try {
             await w.N6("account", Xt);
           } catch (e) {
@@ -5024,7 +5057,7 @@
                 f &&
                   r.createElement(Le.R$, {
                     iconClassName: "mx_SpacePanel_iconPlus",
-                    label: (0, C._t)("common|room"),
+                    label: (0, C._t)("Group"),
                     onClick: e,
                   }),
                 y &&
@@ -5042,7 +5075,7 @@
                     Le.R$,
                     {
                       iconClassName: "mx_SpacePanel_iconPlus",
-                      label: (0, C._t)("common|space"),
+                      label: (0, C._t)("Department"),
                       onClick: i,
                     },
                     r.createElement(Oe.s, null)
@@ -6109,19 +6142,7 @@
               !this.state.useSystemTheme &&
               ((0, Lt.TJ)(this.state.theme) || (0, Lt.AZ)(this.state.theme))
             )
-              return r.createElement(
-                "div",
-                null,
-                r.createElement(
-                  at.A,
-                  {
-                    checked: (0, Lt.AZ)(this.state.theme),
-                    onChange: (e) =>
-                      this.highContrastThemeChanged(e.target.checked),
-                  },
-                  (0, C._t)("settings|appearance|use_high_contrast")
-                )
-              );
+              return null
           }
           highContrastThemeChanged(e) {
             let t;
@@ -7672,7 +7693,7 @@
             return r.createElement(
               ke.m_,
               {
-                label: (0, C._t)("common|threads"),
+                label: (0, C._t)("Video Conferencing"),
                 placement: "right",
                 open: l,
               },
@@ -7680,7 +7701,7 @@
                 ke.K0,
                 (0, i.A)(
                   {
-                    "aria-label": (0, C._t)("common|threads"),
+                    "aria-label": (0, C._t)("Video Conferencing"),
                     className: ee()("mx_ThreadsActivityCentreButton", {
                       expanded: n,
                     }),
@@ -7702,9 +7723,9 @@
                         className: "mx_ThreadsActivityCentreButton_Text",
                         as: "span",
                         size: "md",
-                        title: (0, C._t)("common|threads"),
+                        title: (0, C._t)("Video Conferencing"),
                       },
-                      (0, C._t)("common|threads")
+                      (0, C._t)("Video Conferencing")
                     )
                 )
               )
@@ -7890,76 +7911,86 @@
               : (0, C._t)(
                   "threads_activity_centre|no_rooms_with_unread_threads"
                 );
-          return r.createElement(
-            "div",
-            {
-              className: "mx_ThreadsActivityCentre_container",
-              onKeyDown: (e) => {
-                if (!t) return;
-                (0, Se.zM)().getNavigationAction(e) === be.bY.FilterRooms &&
-                  e.stopPropagation();
-              },
-            },
-            s
-              ? r.createElement(
-                  ai,
+                return r.createElement(
+                  "div",
                   {
-                    feature: "threadsActivityCentre",
-                    header: (0, C._t)(
-                      "threads_activity_centre|release_announcement_header"
-                    ),
-                    description: (0, C._t)(
-                      "threads_activity_centre|release_announcement_description"
-                    ),
-                    closeLabel: (0, C._t)("action|ok"),
-                  },
-                  r.createElement(qn, {
-                    disableTooltip: !0,
-                    displayLabel: e,
-                    notificationLevel: i.greatestNotificationLevel,
-                    onClick: async () => {
-                      n(!0), await si.instance.nextReleaseAnnouncement();
-                    },
-                  })
-                )
-              : r.createElement(
-                  ke.W1,
-                  {
-                    align: "start",
-                    side: "top",
-                    open: t,
-                    onOpenChange: (e) => {
-                      e &&
-                        u.A.trackInteraction("WebThreadsActivityCentreButton"),
-                        n(e);
-                    },
-                    title: (0, C._t)("threads_activity_centre|header"),
-                    trigger: r.createElement(qn, {
-                      displayLabel: e,
-                      notificationLevel: i.greatestNotificationLevel,
-                    }),
+                    className: "mx_ThreadsActivityCentre_container",
                   },
                   r.createElement(
-                    "div",
-                    { className: "mx_ThreadsActivityCentre_rows" },
-                    i.rooms.map(({ room: e, notificationLevel: t }) =>
-                      r.createElement(ci, {
-                        key: e.roomId,
-                        room: e,
-                        notificationLevel: t,
-                        onClick: () => n(!1),
-                      })
-                    ),
-                    0 === i.rooms.length &&
+                    "button",
+                    {
+                      onClick: () => {
+                        window.location.href = "https://vc.beep.gov.pk"; // Redirect to the URL
+                      },
+                      className: "mx_beep",
+                      style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        border: "none",
+                        backgroundColor: "transparent",
+                        cursor: "pointer",
+                        width: "70%", // Make the button full width
+                        justifyContent: "center", // Center content horizontally
+                        alignContent: "center", // Center content vertically
+                        flexWrap: "nowrap", // Prevent wrapping of the content
+                      },
+                    },
+                    r.createElement(
+                      "svg",
+                      {
+                        xmlns: "http://www.w3.org/2000/svg",
+                        version: "1.1",
+                        xmlnsXlink: "http://www.w3.org/1999/xlink",
+                        width: "50",
+                        height: "50",
+                        viewBox: "0 0 128 128",
+                        style: { enableBackground: "new 0 0 512 512" },
+                        xmlSpace: "preserve",
+                        className: "icon",
+                      },
                       r.createElement(
-                        "div",
-                        { className: "mx_ThreadsActivityCentre_emptyCaption" },
-                        o
+                        "g",
+                        null,
+                        r.createElement(
+                          "g",
+                          { "data-name": "Glyph" },
+                          r.createElement("circle", {
+                            cx: "64",
+                            cy: "76",
+                            r: "13.5",
+                            fill: "#488d41",
+                          }),
+                          r.createElement("circle", {
+                            cx: "103",
+                            cy: "82.5",
+                            r: "12",
+                            fill: "#488d41",
+                          }),
+                          r.createElement("circle", {
+                            cx: "25",
+                            cy: "82.5",
+                            r: "12",
+                            fill: "#488d41",
+                          }),
+                          r.createElement("path", {
+                            d: "M5.369 128h26.756a1.51 1.51 0 0 0 1.411-2.008 7.5 7.5 0 0 1-.374-1.479 29.857 29.857 0 0 1-.3-4.185 30.9 30.9 0 0 1 5.595-17.775 1.51 1.51 0 0 0-.439-2.133 24.431 24.431 0 0 0-37.3 20.767 23.213 23.213 0 0 0 .182 2.879A4.51 4.51 0 0 0 5.369 128zM90.022 100.489a1.51 1.51 0 0 0-.434 2.126 30.914 30.914 0 0 1 5.551 17.713 29.745 29.745 0 0 1-.3 4.183 7.407 7.407 0 0 1-.375 1.48A1.511 1.511 0 0 0 95.875 128h26.9a4.509 4.509 0 0 0 4.471-3.934 22.985 22.985 0 0 0 .183-2.879 24.428 24.428 0 0 0-37.41-20.7z",
+                            fill: "#488d41",
+                          }),
+                          r.createElement("path", {
+                            d: "M35.862 120.328a26.856 26.856 0 0 0 .27 3.761A4.552 4.552 0 0 0 40.6 128h46.8a4.552 4.552 0 0 0 4.466-3.911 26.9 26.9 0 0 0 .271-3.761 28.139 28.139 0 1 0-56.277 0zM97.35 28.85c0 10.49-6.64 20.28-17.77 26.19a1.507 1.507 0 0 0 .79 2.82 39.471 39.471 0 0 0 4.4-.48l13.16 3.59c3.479 1.1 6.982-2.873 5.3-6.18a17.464 17.464 0 0 1-1.61-5.52 19.921 19.921 0 0 0 6.47-14.29c0-6.71-3.78-13.06-10.38-17.42a1.511 1.511 0 0 0-2.22 1.81 25.207 25.207 0 0 1 1.86 9.48z",
+                            fill: "#488d41",
+                          }),
+                          r.createElement("path", {
+                            d: "M28.1 46.76a22.28 22.28 0 0 1-2.09 7.29c-1.938 3.934 2.1 8.528 6.24 7.26l16.72-4.56a48.6 48.6 0 0 0 8.16.7c20.53 0 37.22-12.83 37.22-28.6S77.66.25 57.13.25s-37.22 12.83-37.22 28.6c0 6.52 2.9 12.85 8.19 17.91zM75 24.5a4.5 4.5 0 1 1-4.5 4.5 4.5 4.5 0 0 1 4.5-4.5zm-18 0a4.5 4.5 0 1 1-4.5 4.5 4.5 4.5 0 0 1 4.5-4.5zm-18 0a4.5 4.5 0 1 1-4.5 4.5 4.5 4.5 0 0 1 4.5-4.5z",
+                            fill: "#488d41",
+                          })
+                        )
                       )
+                    )
                   )
-                )
-          );
-        }
+                );           
+      }
         function ci({ room: e, onClick: t, notificationLevel: n }) {
           return r.createElement(
             ke.Dr,
@@ -8230,7 +8261,7 @@
                 style: o ? { pointerEvents: "none" } : void 0,
                 element: "ul",
                 role: "tree",
-                "aria-label": (0, C._t)("common|spaces"),
+                "aria-label": (0, C._t)("Department"),
               }),
               p,
               c.map((e) =>
@@ -8318,7 +8349,7 @@
                         className: ee()("mx_SpacePanel", { collapsed: n }),
                         onKeyDown: e,
                         ref: o,
-                        "aria-label": (0, C._t)("common|spaces"),
+                        "aria-label": (0, C._t)("Department"),
                       },
                       r.createElement(
                         Vn,
@@ -10122,34 +10153,44 @@
               r.createElement(
                 "div",
                 null,
-                r.createElement(
-                  nr,
-                  {
-                    hasAvatar: !!n.avatarUrl,
-                    hasAvatarLabel: (0, C._3)("onboarding|has_avatar_label"),
-                    noAvatarLabel: (0, C._3)("onboarding|no_avatar_label"),
-                    setAvatarUrl: (t) => e.setAvatarUrl(t),
-                    isUserAvatar: !0,
-                    onClick: (e) =>
-                      u.A.trackInteraction("WebHomeMiniAvatarUploadButton", e),
-                  },
-                  r.createElement(Sn.A, {
-                    idName: t,
-                    name: n.displayName,
-                    url: n.avatarUrl,
-                    size: tr,
-                  })
-                ),
+                // r.createElement(
+                //   nr,
+                //   {
+                //     hasAvatar: !!n.avatarUrl,
+                //     hasAvatarLabel: (0, C._3)("onboarding|has_avatar_label"),
+                //     noAvatarLabel: (0, C._3)("onboarding|no_avatar_label"),
+                //     setAvatarUrl: (t) => e.setAvatarUrl(t),
+                //     isUserAvatar: !0,
+                //     onClick: (e) =>
+                //       u.A.trackInteraction("WebHomeMiniAvatarUploadButton", e),
+                //   },
+                //   r.createElement(Sn.A, {
+                //     idName: t,
+                //     name: n.displayName,
+                //     url: n.avatarUrl,
+                //     size: tr,
+                //   })
+                // ),
                 r.createElement(
                   "h1",
                   null,
                   (0, C._3)("onboarding|welcome_user", { name: n.displayName })
                 ),
                 r.createElement(
-                  "h2",
-                  null,
-                  (0, C._3)("onboarding|welcome_detail")
-                )
+                  "div",
+                  { style: { padding: "20px", backgroundColor: "#f5f5f5", marginTop: "24px !important" } },
+                  r.createElement(
+                      "h2",
+                      { style: { color: "#333", fontSize: "1.5em !important", marginBottom: "10px", fontfamily:"poppins" } },
+                      "Your go-to platform for seamless collaboration."
+                  ),
+                  r.createElement(
+                      "p",
+                      { style: { color: "#666", fontSize: "1em !important", } },
+                      "Keep your messages clear and to the point for effective communication!"
+                  )
+              )
+              
               )
             );
           },
@@ -10182,12 +10223,12 @@
                 r.createElement(
                   "h1",
                   null,
-                  (0, C._3)("onboarding|intro_welcome", { appName: n.brand })
+                  (0, C._3)("Your go-to platform for seamless collaboration.", { appName: n.brand })
                 ),
                 r.createElement(
                   "h2",
                   null,
-                  (0, C._3)("onboarding|intro_byline")
+                  (0, C._3)("Keep your messages clear and to the point for effective communication!")
                 )
               );
             }
@@ -10227,75 +10268,48 @@
             u.A.trackInteraction("WebUserOnboardingHeaderSendDm", e),
               v.Ay.dispatch({ action: "view_create_chat" });
           };
-        function dr({ useCase: e }) {
-          let t,
-            i,
-            s,
-            o = (0, C._t)("onboarding|free_e2ee_messaging_unlimited_voip", {
-              brand: g.Ay.get("brand"),
-            });
-          switch (e) {
-            case Hs.PersonalMessaging:
-              (t = (0, C._t)("onboarding|personal_messaging_title")),
-                (i = n(
-                  "./node_modules/matrix-react-sdk/res/img/user-onboarding/PersonalMessaging.png"
-                )),
-                (s = (0, C._t)("onboarding|personal_messaging_action"));
-              break;
-            case Hs.WorkMessaging:
-              (t = (0, C._t)("onboarding|work_messaging_title")),
-                (o = (0, C._t)(
-                  "onboarding|free_e2ee_messaging_unlimited_voip",
-                  { brand: g.Ay.get("brand") }
-                )),
-                (i = n(
-                  "./node_modules/matrix-react-sdk/res/img/user-onboarding/WorkMessaging.png"
-                )),
-                (s = (0, C._t)("onboarding|work_messaging_action"));
-              break;
-            case Hs.CommunityMessaging:
-              (t = (0, C._t)("onboarding|community_messaging_title")),
-                (o = (0, C._t)("onboarding|community_messaging_description")),
-                (i = n(
-                  "./node_modules/matrix-react-sdk/res/img/user-onboarding/CommunityMessaging.png"
-                )),
-                (s = (0, C._t)("onboarding|community_messaging_action"));
-              break;
-            default:
-              (t = (0, C._t)("onboarding|welcome_to_brand", {
-                brand: g.Ay.get("brand"),
-              })),
-                (i = n(
-                  "./node_modules/matrix-react-sdk/res/img/user-onboarding/PersonalMessaging.png"
-                )),
-                (s = (0, C._t)("onboarding|personal_messaging_action"));
-          }
-          return r.createElement(
-            "div",
-            { className: "mx_UserOnboardingHeader" },
-            r.createElement(
+          function dr({ useCase: e }) {
+            // Define the title, image, description, and action text
+            const title = "Welcome To Beep!";
+            const imageUrl = "./img/beep-logo.png"; // Example image URL
+            const description = "Your go-to platform for seamless collaboration.";
+            const actionText = "Keep your messages clear and to the point for effective communication!";
+          
+            // Return JSX structure with classNames instead of inline styles
+            return r.createElement(
               "div",
-              { className: "mx_UserOnboardingHeader_content" },
+              { className: "header-container" },
+              r.createElement("img", {
+                className: "header-image",
+                src: imageUrl,
+                alt: "Beep Platform"
+              }),
               r.createElement(
-                Ti.A,
-                { size: "1" },
-                t,
+                "div",
+                { className: "header-content" },
                 r.createElement(
                   "span",
-                  { className: "mx_UserOnboardingHeader_dot" },
-                  "."
+                  { className: "main-title" },
+                  title
+                ),
+                r.createElement(
+                  "div",
+                  { className: "text-container" },
+                  r.createElement(
+                    "span",
+                    { className: "description-text" },
+                    description
+                  ),
+                  r.createElement(
+                    "span",
+                    { className: "action-text" },
+                    actionText
+                  )
                 )
-              ),
-              r.createElement("p", null, o),
-              r.createElement(Ee.A, { onClick: cr, kind: "primary" }, s)
-            ),
-            r.createElement("img", {
-              className: "mx_UserOnboardingHeader_image",
-              src: i,
-              alt: "",
-            })
-          );
-        }
+              )
+            );
+          }
+          
         var ur = n(
           "./node_modules/matrix-react-sdk/src/components/views/elements/ProgressBar.tsx"
         );
@@ -10765,13 +10779,33 @@
                   onClick: this.onDialPad,
                   title: (0, C._t)("left_panel|open_dial_pad"),
                 })),
-              this.state.activeSpace === Ae._b.Home &&
+                this.state.activeSpace === Ae._b.Home &&
                 (0, Ie.g)(W.C.ExploreRooms) &&
                 (t = r.createElement(Ee.A, {
-                  className: "mx_LeftPanel_exploreButton",
-                  onClick: this.onExplore,
-                  title: (0, C._t)("action|explore_rooms"),
-                })),
+                   className: "",
+                   title: (0, C._t)("action|explore_rooms"),
+                }, 
+                r.createElement("div", { className: "custom-team-icon" },  // Add custom class for CSS styling
+                   r.createElement("svg", { 
+                      xmlns: "http://www.w3.org/2000/svg", 
+                      width: "24", 
+                      height: "24", 
+                      viewBox: "0 0 24 24", 
+                      fill: "none", 
+                      stroke: "currentColor", 
+                      strokeWidth: "2", 
+                      strokeLinecap: "round", 
+                      strokeLinejoin: "round", 
+                      className: "feather feather-users"  // Custom class for icon
+                   },
+                      r.createElement("path", { d: "M17 21v-2a4 4 0 0 0-3-3.87" }),
+                      r.createElement("path", { d: "M7 21v-2a4 4 0 0 1 3-3.87" }),
+                      r.createElement("path", { d: "M5 11a4 4 0 1 0 8 0 4 4 0 1 0-8 0" }),
+                      r.createElement("path", { d: "M17 11a4 4 0 1 0 8 0 4 4 0 1 0-8 0" })
+                   )
+                )
+             )),             
+             
               r.createElement(
                 "div",
                 {
@@ -10828,7 +10862,7 @@
                   "nav",
                   {
                     className: "mx_LeftPanel_roomListWrapper",
-                    "aria-label": (0, C._t)("common|rooms"),
+                    "aria-label": (0, C._t)("Group"),
                   },
                   r.createElement(
                     "div",
@@ -15723,7 +15757,7 @@
                     });
                 },
               },
-              (0, C._t)("room|intro|enable_encryption_prompt")
+              // (0, C._t)("room|intro|enable_encryption_prompt")
             ));
           const b = r.createElement("span", null, " ", f, " ", y, " ");
           return r.createElement(
@@ -16424,7 +16458,7 @@
                 onHidden: this.onTypingHidden,
                 ref: this.whoIsTyping,
               })),
-            this.props.layout == Il.P.IRC) &&
+            this.props.layout == Il.P.Bubble) &&
               (s = r.createElement(Nl, {
                 minWidth: 20,
                 maxWidth: 600,
@@ -17395,163 +17429,7 @@
               null,
               (0, C._t)("export_chat|size_limit_postfix")
             );
-            return w
-              ? r.createElement(an.A, {
-                  title: (0, C._t)("export_chat|cancelled"),
-                  description: (0, C._t)("export_chat|cancelled_detail"),
-                  hasCloseButton: !0,
-                  onFinished: t,
-                })
-              : A
-              ? r.createElement(an.A, {
-                  title: (0, C._t)("export_chat|successful"),
-                  description: (0, C._t)("export_chat|successful_detail"),
-                  hasCloseButton: !0,
-                  onFinished: t,
-                })
-              : b
-              ? r.createElement(
-                  mn.A,
-                  {
-                    title: (0, C._t)("common|warning"),
-                    className: "mx_ExportDialog",
-                    contentId: "mx_Dialog_content",
-                    onFinished: t,
-                    fixedWidth: !0,
-                  },
-                  r.createElement(
-                    "p",
-                    null,
-                    (0, C._t)("export_chat|confirm_stop")
-                  ),
-                  r.createElement(pn.A, {
-                    primaryButton: (0, C._t)("action|stop"),
-                    primaryButtonClass: "danger",
-                    hasCancel: !0,
-                    cancelButton: (0, C._t)("action|continue"),
-                    onCancel: () => E(!1),
-                    onPrimaryButtonClick: O,
-                  })
-                )
-              : r.createElement(
-                  mn.A,
-                  {
-                    title: p
-                      ? (0, C._t)("export_chat|exporting_your_data")
-                      : (0, C._t)("export_chat|title"),
-                    className: `mx_ExportDialog ${
-                      p && "mx_ExportDialog_Exporting"
-                    }`,
-                    contentId: "mx_Dialog_content",
-                    hasCancel: !0,
-                    onFinished: t,
-                    fixedWidth: !0,
-                  },
-                  p
-                    ? null
-                    : r.createElement(
-                        "p",
-                        null,
-                        (0, C._t)("export_chat|select_option")
-                      ),
-                  r.createElement(
-                    "div",
-                    { className: "mx_ExportDialog_options" },
-                    !!c &&
-                      r.createElement(
-                        r.Fragment,
-                        null,
-                        r.createElement(
-                          "span",
-                          { className: "mx_ExportDialog_subheading" },
-                          (0, C._t)("export_chat|format")
-                        ),
-                        r.createElement(Bt.A, {
-                          name: "exportFormat",
-                          value: n,
-                          onChange: (e) => c(gl[e]),
-                          definitions: L,
-                        })
-                      ),
-                    !!d &&
-                      r.createElement(
-                        r.Fragment,
-                        null,
-                        r.createElement(
-                          "span",
-                          { className: "mx_ExportDialog_subheading" },
-                          (0, C._t)("export_chat|messages")
-                        ),
-                        r.createElement(
-                          Ft.A,
-                          {
-                            id: "export-type",
-                            element: "select",
-                            value: i,
-                            onChange: (e) => {
-                              d(vl[e.target.value]);
-                            },
-                          },
-                          U
-                        ),
-                        F
-                      ),
-                    m &&
-                      r.createElement(
-                        r.Fragment,
-                        null,
-                        r.createElement(
-                          "span",
-                          { className: "mx_ExportDialog_subheading" },
-                          (0, C._t)("export_chat|size_limit")
-                        ),
-                        r.createElement(Ft.A, {
-                          id: "size-limit",
-                          type: "number",
-                          autoComplete: "off",
-                          onValidate: P,
-                          element: "input",
-                          ref: v,
-                          value: a.toString(),
-                          postfixComponent: B,
-                          onChange: (e) => m(parseInt(e.target.value)),
-                        })
-                      ),
-                    h &&
-                      r.createElement(
-                        r.Fragment,
-                        null,
-                        r.createElement(
-                          at.A,
-                          {
-                            className: "mx_ExportDialog_attachments-checkbox",
-                            id: "include-attachments",
-                            checked: s,
-                            onChange: (e) => h(e.target.checked),
-                          },
-                          (0, C._t)("export_chat|include_attachments")
-                        )
-                      )
-                  ),
-                  p
-                    ? r.createElement(
-                        "div",
-                        { className: "mx_ExportDialog_progress" },
-                        r.createElement(hn.A, { w: 24, h: 24 }),
-                        r.createElement("p", null, f),
-                        r.createElement(pn.A, {
-                          primaryButton: (0, C._t)("action|cancel"),
-                          primaryButtonClass: "danger",
-                          hasCancel: !1,
-                          onPrimaryButtonClick: M,
-                        })
-                      )
-                    : r.createElement(pn.A, {
-                        primaryButton: (0, C._t)("action|export"),
-                        onPrimaryButtonClick: I,
-                        onCancel: () => t(!1),
-                      })
-                );
+            return null
           };
         var Cc = n(
           "./node_modules/matrix-react-sdk/src/components/views/polls/pollHistory/PollHistory.tsx"
@@ -17840,13 +17718,14 @@
             u
               ? r.createElement(
                   ke.m_,
-                  { label: (0, C._t)("room|read_topic"), disabled: l },
+                  
+
+{ label: (0, C._t)("room|read_topic"), disabled: l },
                   r.createElement(
                     "div",
                     (0, i.A)({}, s, {
                       tabIndex: 0,
                       role: "button",
-                      onClick: m,
                       className: ee()(n, "mx_RoomTopic"),
                       onMouseOver: h,
                       onFocus: h,
@@ -18217,6 +18096,240 @@
                   !c &&
                     r.createElement(
                       ke.Ex,
+                      { kind: "success" },
+                      r.createElement(To, { width: "1em" }),
+                      (0, C._t)("common|encrypted")
+                    ),
+                  c === Zo.z.Warning &&
+                    r.createElement(
+                      ke.Ex,
+                      { kind: "critical" },
+                      r.createElement(jo.I, { width: "1em" }),
+                      (0, C._t)("common|trusted")
+                    )
+                ),
+                r.createElement(Zc, { room: e })
+              ),
+              w = (0, Ne.n)("feature_pinning"),
+              x =
+                null === (s = dl(w ? e : void 0)) || void 0 === s
+                  ? void 0
+                  : s.length,
+              A = (0, Pe.dF)(Si.Ay.instance, Si.lA, () =>
+                Si.Ay.instance.getTagsForRoom(e)
+              ),
+              S = (0, Pe.dF)(e, o.RoomStateEvent.Update, () => Mc(e)),
+              k = A.includes(he.zO.Favourite);
+            return r.createElement(
+              Go.A,
+              { header: null, className: "mx_RoomSummaryCard", onClose: n },
+              r.createElement(
+                Pc,
+                {
+                  as: "header",
+                  className: "mx_RoomSummaryCard_header",
+                  gap: "var(--cpd-space-3x)",
+                  align: "center",
+                  justify: "space-between",
+                },
+                r.createElement(
+                  ke.m_,
+                  { label: (0, C._t)("action|search"), placement: "right" },
+                  r.createElement(
+                    "button",
+                    {
+                      className: "mx_RoomSummaryCard_searchBtn",
+                      onClick: () => {
+                        null == i || i();
+                      },
+                      "aria-label": (0, C._t)("action|search"),
+                    },
+                    r.createElement(Lr, { width: "100%", height: "100%" })
+                  )
+                ),
+                r.createElement(Ee.A, {
+                  className: "mx_BaseCard_close",
+                  onClick: n,
+                  title: (0, C._t)("action|close"),
+                })
+              ),
+              E,
+              r.createElement(ke.wv, null),
+              r.createElement(ke.XJ, {
+                Icon: jr,
+                label: (0, C._t)("room|context_menu|favourite"),
+                checked: k,
+                onChange: () => Dc(e, he.zO.Favourite),
+                onSelect: () => {},
+              }),
+              // r.createElement(ke.Dr, {
+              //   Icon: Wr,
+              //   label: (0, C._t)("action|invite"),
+              //   disabled: !S,
+              //   onSelect: () => Oc(e),
+              // }),
+              r.createElement(ke.Dr, {
+                Icon: Zr,
+                label: (0, C._t)("action|copy_link"),
+                onSelect: () => {
+                  f.Ay.createDialog(Ko.A, { target: e });
+                },
+              }),
+              r.createElement(ke.Dr, {
+                Icon: so,
+                label: (0, C._t)("common|settings"),
+                onSelect: Xc,
+              }),
+              r.createElement(ke.wv, null),
+              r.createElement(ke.Dr, {
+                Icon: $r,
+                label: (0, C._t)("common|people"),
+                onSelect: (e) => {
+                  Yn.A.instance.pushCard({ phase: Qn.n.RoomMemberList }, !0),
+                    u.A.trackInteraction(
+                      "WebRightPanelRoomInfoPeopleButton",
+                      e
+                    );
+                },
+              }),
+              !h &&
+                r.createElement(
+                  r.Fragment,
+                  null,
+                  r.createElement(ke.Dr, {
+                    Icon: fo,
+                    label: (0, C._t)("right_panel|files_button"),
+                    onSelect: Yc,
+                  }),
+                  r.createElement(ke.Dr, {
+                    Icon: wo,
+                    label: (0, C._t)("right_panel|polls_button"),
+                    onSelect: () => {
+                      f.Ay.createDialog(kc, {
+                        room: e,
+                        matrixClient: a,
+                        permalinkCreator: t,
+                      });
+                    },
+                  }),
+                  w &&
+                    r.createElement(
+                      ke.Dr,
+                      {
+                        Icon: Co,
+                        label: (0, C._t)("right_panel|pinned_messages_button"),
+                        onSelect: Qc,
+                      },
+                      r.createElement(ke.EY, { as: "span", size: "sm" }, x)
+                    ),
+          
+                ),
+              r.createElement(ke.wv, null),
+              r.createElement(ke.Dr, {
+                Icon: po,
+                kind: "critical",
+                label: (0, C._t)("action|leave_room"),
+                onSelect: () => {
+                  v.Ay.dispatch({ action: "leave_room", room_id: e.roomId });
+                },
+              }),
+              O.A.getValue(W.f.Widgets) &&
+                !h &&
+                (0, Ie.g)(W.C.AddIntegrations) &&
+                r.createElement($c, { room: e })
+            );
+          };
+          ef = ({
+            room: e,
+            permalinkCreator: t,
+            onClose: n,
+            onSearchClick: i,
+          }) => {
+            var s;
+            const a = (0, r.useContext)(Re.Ay),
+              l = (0, Wo.g)(a, e),
+              c = (0, r.useContext)(Xs.Ay).e2eStatus,
+              d = (0, Ne.n)("feature_video_rooms"),
+              m = (0, Ne.n)("feature_element_call_video_rooms"),
+              h = d && (e.isElementVideoRoom() || (m && e.isCallRoom())),
+              p = (0, rl.U)(e),
+              g = Lc(e.client, o.EventType.Direct),
+              [_, y] = (0, r.useState)(!1);
+            (0, r.useEffect)(() => {
+              for (const [, n] of Object.entries(g)) {
+                var t;
+                if (
+                  n.includes(
+                    null !== (t = null == e ? void 0 : e.roomId) && void 0 !== t
+                      ? t
+                      : ""
+                  )
+                ) {
+                  y(!0);
+                  break;
+                }
+              }
+            }, [e, g]);
+            const b = e.getCanonicalAlias() || e.getAltAliases()[0] || "",
+              E = r.createElement(
+                "header",
+                { className: "mx_RoomSummaryCard_container" },
+                r.createElement(Ge.A, {
+                  room: e,
+                  size: "80px",
+                  viewAvatarOnClick: !0,
+                }),
+                r.createElement(pl.A, { room: e }, (e) =>
+                  r.createElement(
+                    ke.DZ,
+                    {
+                      as: "h1",
+                      size: "md",
+                      weight: "semibold",
+                      className: "mx_RoomSummaryCard_roomName text-primary",
+                      title: e,
+                    },
+                    e
+                  )
+                ),
+                r.createElement(
+                  ke.EY,
+                  {
+                    as: "div",
+                    size: "sm",
+                    weight: "semibold",
+                    className: "mx_RoomSummaryCard_alias text-secondary",
+                    title: b,
+                  },
+                  b
+                ),
+                r.createElement(
+                  Pc,
+                  {
+                    as: "section",
+                    justify: "center",
+                    gap: "var(--cpd-space-2x)",
+                    className: "mx_RoomSummaryCard_badges",
+                  },
+                  !_ &&
+                    p.getJoinRule() === o.JoinRule.Public &&
+                    r.createElement(
+                      ke.Ex,
+                      { kind: "default" },
+                      r.createElement(Fo, { width: "1em" }),
+                      (0, C._t)("common|public_room")
+                    ),
+                  l &&
+                    c !== Zo.z.Warning &&
+                    r.createElement(
+                      ke.Ex,
+                      { kind: "success" },
+                      r.createElement(To, { width: "1em" }),
+                      (0, C._t)("common|encrypted")
+                    ),
+                  !c &&
+                    r.createElement(
+                      ke.Ex,
                       { kind: "default" },
                       r.createElement(Mo, { width: "1em" }),
                       (0, C._t)("common|unencrypted")
@@ -18283,36 +18396,36 @@
                 onChange: () => Dc(e, he.zO.Favourite),
                 onSelect: () => {},
               }),
-              r.createElement(ke.Dr, {
-                Icon: Wr,
-                label: (0, C._t)("action|invite"),
-                disabled: !S,
-                onSelect: () => Oc(e),
-              }),
-              r.createElement(ke.Dr, {
-                Icon: Zr,
-                label: (0, C._t)("action|copy_link"),
-                onSelect: () => {
-                  f.Ay.createDialog(Ko.A, { target: e });
-                },
-              }),
+              // r.createElement(ke.Dr, {
+              //   Icon: Wr,
+              //   label: (0, C._t)("action|invite"),
+              //   disabled: !S,
+              //   onSelect: () => Oc(e),
+              // }),
+              // r.createElement(ke.Dr, {
+              //   Icon: Zr,
+              //   label: (0, C._t)("action|copy_link"),
+              //   onSelect: () => {
+              //     f.Ay.createDialog(Ko.A, { target: e });
+              //   },
+              // }),
               r.createElement(ke.Dr, {
                 Icon: so,
                 label: (0, C._t)("common|settings"),
                 onSelect: Xc,
               }),
-              r.createElement(ke.wv, null),
-              r.createElement(ke.Dr, {
-                Icon: $r,
-                label: (0, C._t)("common|people"),
-                onSelect: (e) => {
-                  Yn.A.instance.pushCard({ phase: Qn.n.RoomMemberList }, !0),
-                    u.A.trackInteraction(
-                      "WebRightPanelRoomInfoPeopleButton",
-                      e
-                    );
-                },
-              }),
+              // r.createElement(ke.wv, null),
+              // r.createElement(ke.Dr, {
+              //   Icon: $r,
+              //   label: (0, C._t)("common|people"),
+              //   onSelect: (e) => {
+              //     Yn.A.instance.pushCard({ phase: Qn.n.RoomMemberList }, !0),
+              //       u.A.trackInteraction(
+              //         "WebRightPanelRoomInfoPeopleButton",
+              //         e
+              //       );
+              //   },
+              // }),
               !h &&
                 r.createElement(
                   r.Fragment,
@@ -18343,13 +18456,7 @@
                       },
                       r.createElement(ke.EY, { as: "span", size: "sm" }, x)
                     ),
-                  r.createElement(ke.Dr, {
-                    Icon: lo,
-                    label: (0, C._t)("export_chat|title"),
-                    onSelect: async () => {
-                      f.Ay.createDialog(Sc, { room: e });
-                    },
-                  })
+          
                 ),
               r.createElement(ke.wv, null),
               r.createElement(ke.Dr, {
@@ -19265,13 +19372,18 @@
               this.props.widgetPageTitle &&
                 this.props.widgetPageTitle !== this.formatAppTileName() &&
                 (n = this.props.widgetPageTitle),
-              r.createElement(
-                "span",
-                null,
-                r.createElement(Xo, { app: this.props.app, size: "20px" }),
-                r.createElement("h3", null, e),
-                r.createElement("span", null, n ? t : "", n)
-              )
+                r.createElement(
+                  "span",
+                  null,
+                  r.createElement(Xo, { app: this.props.app, size: "20px" }),
+                  r.createElement(
+                    "span",
+                    { style: { fontWeight: "bold", fontSize: "16px", color: "#333", padding: "5px" } }, // Add your desired styles here
+                    "Group Call"
+                  ),
+                  r.createElement("span", null, n ? t : "", n)
+                )
+                              
             );
           }
           reload() {
@@ -19429,11 +19541,11 @@
                     Ee.A,
                     {
                       key: "minimise",
-                      className: "mx_AppTileMenuBar_widgets_button",
+                      className: "minimise-button",
                       title: (0, C._t)("action|minimise"),
                       onClick: this.onMinimiseClicked,
+                      style: { display: 'none !important' },
                     },
-                    r.createElement(Ed.I, { className: "mx_Icon mx_Icon_12" })
                   )
                 );
             }
@@ -19480,15 +19592,21 @@
                         r.createElement(
                           Me.VJ,
                           {
-                            className: "mx_AppTileMenuBar_widgets_button",
+                            className: "",
                             label: (0, C._t)("common|options"),
                             isExpanded: this.state.menuDisplayed,
                             ref: this.contextMenuButton,
                             onClick: this.onContextMenuClick,
                           },
-                          r.createElement(tn, {
-                            className: "mx_Icon mx_Icon_12",
-                          })
+                          r.createElement(
+                            "button", // Create a button element
+                            {
+                              className: "mx_EndButton", // Optionally, add a class if you want
+                              style: { backgroundColor: "red", color: "white", padding: "10px", border: "none", cursor: "pointer" }, // Inline style for red background
+                              onClick: this.onEndClicked, // Add the function to handle click events
+                            },
+                            "End" // Button text
+                          )
                         )
                     )
                   ),
@@ -19765,7 +19883,7 @@
               (this.memberLastModifiedTime = t.getLastModifiedTime());
             const a = new Map([
               [100, Od.C.Admin],
-              [50, Od.C.Moderator],
+              [0, Od.C.Moderator],
             ]);
             let l = this.props.member.powerLevel;
             for (const [e] of a)
@@ -20280,8 +20398,11 @@
             (e[(e.Files = 0)] = "Files"), (e[(e.Search = 1)] = "Search"), e
           );
         })({});
-        function Kd({ isRoomEncrypted: e, kind: t }) {
+        function Kd({ isRoomEncrypted: e, kind: t, searchQuery = "" }) {
+          // If the room is not encrypted, return a Fragment
           if (!e) return r.createElement(r.Fragment, null);
+          
+          // Handle an error state from Wd.A, if it exists
           if (Wd.A.get()) return r.createElement(r.Fragment, null);
           if (Wd.A.error)
             return r.createElement(
@@ -20297,11 +20418,11 @@
                       {
                         kind: "link_inline",
                         onClick: (e) => {
-                          e.preventDefault(),
-                            v.Ay.dispatch({
-                              action: x.r.ViewUserSettings,
-                              initialTabId: Ot.v.Security,
-                            });
+                          e.preventDefault();
+                          v.Ay.dispatch({
+                            action: x.r.ViewUserSettings,
+                            initialTabId: Ot.v.Security,
+                          });
                         },
                       },
                       e
@@ -20309,9 +20430,15 @@
                 }
               )
             );
+        
+          // Get brand and desktop builds if available
           const n = g.Ay.get("brand"),
             i = g.Ay.getObject("desktop_builds");
+        
+          // Initialize variables for dynamic content
           let s, o;
+        
+          // Check if there are desktop builds available
           if (null != i && i.get("available")) {
             o = r.createElement("img", {
               alt: "",
@@ -20319,44 +20446,72 @@
               width: "32px",
             });
             const e = i.get("url");
-            switch (t) {
-              case Gd.Files:
-                s = (0, C._t)(
-                  "seshat|warning_kind_files_app",
-                  {},
+        
+            // Search query for keyword-based conditions
+            if (searchQuery && searchQuery.trim()) {
+              if (t === Gd.Files && searchQuery.includes("files")) {
+                s = r.createElement(
+                  "a",
                   {
-                    a: (t) =>
-                      r.createElement(
-                        "a",
-                        {
-                          href: e,
-                          target: "_blank",
-                          rel: "noreferrer noopener",
-                        },
-                        t
-                      ),
-                  }
+                    href: e,
+                    target: "_blank",
+                    rel: "noreferrer noopener",
+                  },
+                  `Download files related to ${searchQuery}`
                 );
-                break;
-              case Gd.Search:
-                s = (0, C._t)(
-                  "seshat|warning_kind_search_app",
-                  {},
+              } else if (t === Gd.Search && searchQuery.includes("search")) {
+                s = r.createElement(
+                  "a",
                   {
-                    a: (t) =>
-                      r.createElement(
-                        "a",
-                        {
-                          href: e,
-                          target: "_blank",
-                          rel: "noreferrer noopener",
-                        },
-                        t
-                      ),
-                  }
+                    href: e,
+                    target: "_blank",
+                    rel: "noreferrer noopener",
+                  },
+                  `Perform search on "${searchQuery}"`
                 );
+              }
+            } else {
+              switch (t) {
+                case Gd.Files:
+                  s = (0, C._t)(
+                    "seshat|warning_kind_files_app",
+                    {},
+                    {
+                      a: (t) =>
+                        r.createElement(
+                          "a",
+                          {
+                            href: e,
+                            target: "_blank",
+                            rel: "noreferrer noopener",
+                          },
+                          t
+                        ),
+                    }
+                  );
+                  break;
+                case Gd.Search:
+                  s = (0, C._t)(
+                    "seshat|warning_kind_search_app",
+                    {},
+                    {
+                      a: (t) =>
+                        r.createElement(
+                          "a",
+                          {
+                            href: e,
+                            target: "_blank",
+                            rel: "noreferrer noopener",
+                          },
+                          t
+                        ),
+                    }
+                  );
+                  break;
+              }
             }
-          } else
+          } else {
+            // If no desktop builds available, fall back to brand-based warnings
             switch (t) {
               case Gd.Files:
                 s = (0, C._t)("seshat|warning_kind_files", { brand: n });
@@ -20364,6 +20519,9 @@
               case Gd.Search:
                 s = (0, C._t)("seshat|warning_kind_search", { brand: n });
             }
+          }
+        
+          // Return the final component based on search or defaults
           return s
             ? r.createElement(
                 "div",
@@ -20374,6 +20532,7 @@
             : (l.v.warn("Unknown desktop builds warning kind: ", t),
               r.createElement(r.Fragment, null));
         }
+        
         var Jd = n("./node_modules/matrix-react-sdk/src/UserActivity.ts"),
           qd = n(
             "./node_modules/matrix-react-sdk/src/components/structures/LegacyCallEventGrouper.ts"
@@ -24407,7 +24566,7 @@
                       "p",
                       null,
                       (0, C._t)("threads|empty_has_threads_tip", {
-                        replyInThread: (0, C._t)("action|reply_in_thread"),
+                        replyInThread: (0, C._t)(""),
                       })
                     ),
                     r.createElement(
@@ -24934,7 +25093,7 @@
                     layout:
                       this.state.layout === Il.P.Bubble
                         ? Il.P.Bubble
-                        : Il.P.Group,
+                        : Il.P.Bubble,
                     hideThreadedMessages: !1,
                     hidden: !1,
                     showReactions: !0,
@@ -25541,7 +25700,7 @@
           makeScreenAfterLogin() {
             var e, t, n, i, s, r;
             return {
-              screen: "room",
+              screen: "Department",
               params: {
                 email: this.props.invitedEmail,
                 signurl: this.props.signUrl,
@@ -26216,7 +26375,7 @@
                     v.Ay.dispatch({ action: "leave_room", room_id: e.roomId });
                   },
                 },
-                (0, C._t)("action|leave")
+                (0, C._t)("Leave chat")
               );
             else if (c === We.O.Invite) {
               var y, b;
@@ -26453,19 +26612,9 @@
                       "aria-checked": this.state.scope === Um.Room,
                       role: "radio",
                     },
-                    (0, C._t)("room|search|this_room")
+                    (0, C._t)(" ")
                   ),
-                  r.createElement(
-                    Ee.A,
-                    {
-                      className: n,
-                      onClick: this.onAllRoomsClick,
-                      "aria-checked": this.state.scope === Um.All,
-                      role: "radio",
-                    },
-                    (0, C._t)("room|search|all_rooms")
-                  )
-                ),
+                 ),
                 r.createElement(
                   "div",
                   { className: "mx_SearchBar_input mx_textinput" },
@@ -28987,145 +29136,96 @@
               i
             );
           };
-        class Dh extends Rh {
-          constructor(e) {
-            super(e, kh.Room),
-              (0, s.A)(this, "globalNotificationState", void 0),
-              (0, s.A)(this, "onNotificationUpdate", () => {
-                this.setState({
-                  threadNotificationLevel: this.notificationLevel,
-                });
-              }),
-              (0, s.A)(this, "onUpdateStatus", (e) => {
-                (this.globalNotificationState = e),
-                  this.setState({ globalNotificationLevel: e.level });
-              }),
-              (0, s.A)(this, "onRoomSummaryClicked", () => {
-                const e = Yn.A.instance.currentCard.phase;
-                e && Ih.includes(e)
-                  ? this.state.phase === e
-                    ? Yn.A.instance.showOrHidePanel(e)
-                    : Yn.A.instance.showOrHidePanel(
-                        e,
-                        Yn.A.instance.currentCard.state
-                      )
-                  : Yn.A.instance.showOrHidePanel(Qn.n.RoomSummary);
-              }),
-              (0, s.A)(this, "onNotificationsClicked", () => {
-                Yn.A.instance.showOrHidePanel(Qn.n.NotificationPanel);
-              }),
-              (0, s.A)(this, "onPinnedMessagesClicked", () => {
-                Yn.A.instance.showOrHidePanel(Qn.n.PinnedMessages);
-              }),
-              (0, s.A)(this, "onTimelineCardClicked", () => {
-                Yn.A.instance.showOrHidePanel(Qn.n.Timeline);
-              }),
-              (0, s.A)(this, "onThreadsPanelClicked", (e) => {
-                var t, n;
-                this.state.phase && Dh.THREAD_PHASES.includes(this.state.phase)
-                  ? Yn.A.instance.togglePanel(
-                      null !==
-                        (t =
-                          null === (n = this.props.room) || void 0 === n
-                            ? void 0
-                            : n.roomId) && void 0 !== t
-                        ? t
-                        : null
-                    )
-                  : (Yn.A.instance.setCard({ phase: Qn.n.ThreadPanel }),
-                    u.A.trackInteraction(
-                      "WebRoomHeaderButtonsThreadsButton",
-                      e
-                    ));
-              }),
-              (this.globalNotificationState = ot.n.instance.globalState);
-          }
-          componentDidMount() {
-            var e, t, n, i, s, r, a, l;
-            super.componentDidMount(),
-              null === (e = this.props.room) ||
-                void 0 === e ||
-                e.on(
-                  o.RoomEvent.UnreadNotifications,
-                  this.onNotificationUpdate
-                ),
-              null === (t = this.props.room) ||
-                void 0 === t ||
-                t.on(o.RoomEvent.Receipt, this.onNotificationUpdate),
-              null === (n = this.props.room) ||
-                void 0 === n ||
-                n.on(o.RoomEvent.Timeline, this.onNotificationUpdate),
-              null === (i = this.props.room) ||
-                void 0 === i ||
-                i.on(o.RoomEvent.Redaction, this.onNotificationUpdate),
-              null === (s = this.props.room) ||
-                void 0 === s ||
-                s.on(o.RoomEvent.LocalEchoUpdated, this.onNotificationUpdate),
-              null === (r = this.props.room) ||
-                void 0 === r ||
-                r.on(o.RoomEvent.MyMembership, this.onNotificationUpdate),
-              null === (a = this.props.room) ||
-                void 0 === a ||
-                a.on(o.ThreadEvent.New, this.onNotificationUpdate),
-              null === (l = this.props.room) ||
-                void 0 === l ||
-                l.on(o.ThreadEvent.Update, this.onNotificationUpdate),
-              this.onNotificationUpdate(),
-              ot.n.instance.on(ot.N, this.onUpdateStatus);
-          }
-          componentWillUnmount() {
-            var e, t, n, i, s, r, a, l;
-            super.componentWillUnmount(),
-              null === (e = this.props.room) ||
-                void 0 === e ||
-                e.off(
-                  o.RoomEvent.UnreadNotifications,
-                  this.onNotificationUpdate
-                ),
-              null === (t = this.props.room) ||
-                void 0 === t ||
-                t.off(o.RoomEvent.Receipt, this.onNotificationUpdate),
-              null === (n = this.props.room) ||
-                void 0 === n ||
-                n.off(o.RoomEvent.Timeline, this.onNotificationUpdate),
-              null === (i = this.props.room) ||
-                void 0 === i ||
-                i.off(o.RoomEvent.Redaction, this.onNotificationUpdate),
-              null === (s = this.props.room) ||
-                void 0 === s ||
-                s.off(o.RoomEvent.LocalEchoUpdated, this.onNotificationUpdate),
-              null === (r = this.props.room) ||
-                void 0 === r ||
-                r.off(o.RoomEvent.MyMembership, this.onNotificationUpdate),
-              null === (a = this.props.room) ||
-                void 0 === a ||
-                a.off(o.ThreadEvent.New, this.onNotificationUpdate),
-              null === (l = this.props.room) ||
-                void 0 === l ||
-                l.off(o.ThreadEvent.Update, this.onNotificationUpdate),
-              ot.n.instance.off(ot.N, this.onUpdateStatus);
-          }
-          get notificationLevel() {
-            var e;
-            switch (
-              null === (e = this.props.room) || void 0 === e
-                ? void 0
-                : e.threadsAggregateNotificationType
-            ) {
-              case o.NotificationCountType.Highlight:
-                return Qe.S.Highlight;
-              case o.NotificationCountType.Total:
-                return Qe.S.Notification;
+          class Dh extends Rh {
+            constructor(e) {
+              super(e, kh.Room),
+                (0, s.A)(this, "globalNotificationState", void 0),
+                (0, s.A)(this, "onNotificationUpdate", () => {
+                  this.setState({
+                    threadNotificationLevel: this.notificationLevel,
+                  });
+                }),
+                (0, s.A)(this, "onUpdateStatus", (e) => {
+                  (this.globalNotificationState = e),
+                    this.setState({ globalNotificationLevel: e.level });
+                }),
+                (0, s.A)(this, "onRoomSummaryClicked", () => {
+                  const e = Yn.A.instance.currentCard.phase;
+                  e && Ih.includes(e)
+                    ? this.state.phase === e
+                      ? Yn.A.instance.showOrHidePanel(e)
+                      : Yn.A.instance.showOrHidePanel(
+                          e,
+                          Yn.A.instance.currentCard.state
+                        )
+                    : Yn.A.instance.showOrHidePanel(Qn.n.RoomSummary);
+                }),
+                (0, s.A)(this, "onNotificationsClicked", () => {
+                  Yn.A.instance.showOrHidePanel(Qn.n.NotificationPanel);
+                }),
+                (0, s.A)(this, "onPinnedMessagesClicked", () => {
+                  Yn.A.instance.showOrHidePanel(Qn.n.PinnedMessages);
+                }),
+                (0, s.A)(this, "onTimelineCardClicked", () => {
+                  Yn.A.instance.showOrHidePanel(Qn.n.Timeline);
+                }),
+                (this.globalNotificationState = ot.n.instance.globalState);
             }
-            for (const e of this.props.room.getThreads())
-              if ((0, Xn.jM)(e)) return Qe.S.Activity;
-            return Qe.S.None;
-          }
-          onAction(e) {}
-          renderButtons() {
-            if (!this.props.room) return r.createElement(r.Fragment, null);
-            const e = new Map();
-            return (
+          
+            componentDidMount() {
+              var e, t, n, i, s, r, a;
+              super.componentDidMount(),
+                null === (e = this.props.room) ||
+                  void 0 === e ||
+                  e.on(o.RoomEvent.UnreadNotifications, this.onNotificationUpdate),
+                null === (t = this.props.room) ||
+                  void 0 === t ||
+                  t.on(o.RoomEvent.Receipt, this.onNotificationUpdate),
+                null === (n = this.props.room) ||
+                  void 0 === n ||
+                  n.on(o.RoomEvent.Timeline, this.onNotificationUpdate),
+                null === (i = this.props.room) ||
+                  void 0 === i ||
+                  i.on(o.RoomEvent.Redaction, this.onNotificationUpdate),
+                null === (s = this.props.room) ||
+                  void 0 === s ||
+                  s.on(o.RoomEvent.LocalEchoUpdated, this.onNotificationUpdate),
+                null === (r = this.props.room) ||
+                  void 0 === r ||
+                  r.on(o.RoomEvent.MyMembership, this.onNotificationUpdate),
+                this.onNotificationUpdate(),
+                ot.n.instance.on(ot.N, this.onUpdateStatus);
+            }
+          
+            componentWillUnmount() {
+              var e, t, n, i, s, r;
+              super.componentWillUnmount(),
+                null === (e = this.props.room) ||
+                  void 0 === e ||
+                  e.off(o.RoomEvent.UnreadNotifications, this.onNotificationUpdate),
+                null === (t = this.props.room) ||
+                  void 0 === t ||
+                  t.off(o.RoomEvent.Receipt, this.onNotificationUpdate),
+                null === (n = this.props.room) ||
+                  void 0 === n ||
+                  n.off(o.RoomEvent.Timeline, this.onNotificationUpdate),
+                null === (i = this.props.room) ||
+                  void 0 === i ||
+                  i.off(o.RoomEvent.Redaction, this.onNotificationUpdate),
+                null === (s = this.props.room) ||
+                  void 0 === s ||
+                  s.off(o.RoomEvent.LocalEchoUpdated, this.onNotificationUpdate),
+                null === (r = this.props.room) ||
+                  void 0 === r ||
+                  r.off(o.RoomEvent.MyMembership, this.onNotificationUpdate),
+                ot.n.instance.off(ot.N, this.onUpdateStatus);
+            }
+          
+            onAction(e) {}
+          
+            renderButtons() {
+              if (!this.props.room) return r.createElement(r.Fragment, null);
+              const e = new Map();
               O.A.getValue("feature_pinning") &&
                 e.set(
                   Qn.n.PinnedMessages,
@@ -29136,66 +29236,47 @@
                     onClick: this.onPinnedMessagesClicked,
                   })
                 ),
-              e.set(
-                Qn.n.Timeline,
-                r.createElement(Nh, {
-                  key: "timelineButton",
-                  room: this.props.room,
-                  isHighlighted: this.isPhase(Qn.n.Timeline),
-                  onClick: this.onTimelineCardClicked,
-                })
-              ),
-              e.set(
-                Qn.n.ThreadPanel,
-                r.createElement(
-                  Ch,
-                  {
-                    key: Qn.n.ThreadPanel,
-                    name: "threadsButton",
-                    title: (0, C._t)("common|threads"),
-                    onClick: this.onThreadsPanelClicked,
-                    isHighlighted: this.isPhase(Dh.THREAD_PHASES),
-                    isUnread: this.state.threadNotificationLevel > Qe.S.None,
-                  },
-                  r.createElement(Th, {
-                    color: this.state.threadNotificationLevel,
-                  })
-                )
-              ),
-              this.state.notificationsEnabled &&
                 e.set(
-                  Qn.n.NotificationPanel,
-                  r.createElement(
-                    Ch,
-                    {
-                      key: "notifsButton",
-                      name: "notifsButton",
-                      title: (0, C._t)(
-                        "notifications|enable_prompt_toast_title"
-                      ),
-                      isHighlighted: this.isPhase(Qn.n.NotificationPanel),
-                      onClick: this.onNotificationsClicked,
-                      isUnread:
-                        this.globalNotificationState.level === Qe.S.Highlight,
-                    },
-                    this.globalNotificationState.level === Qe.S.Highlight
-                      ? r.createElement(Th, {
-                          color: this.globalNotificationState.level,
-                        })
-                      : null
-                  )
+                  Qn.n.Timeline,
+                  r.createElement(Nh, {
+                    key: "timelineButton",
+                    room: this.props.room,
+                    isHighlighted: this.isPhase(Qn.n.Timeline),
+                    onClick: this.onTimelineCardClicked,
+                  })
                 ),
-              e.set(
-                Qn.n.RoomSummary,
-                r.createElement(Ch, {
-                  key: "roomSummaryButton",
-                  name: "roomSummaryButton",
-                  title: (0, C._t)("right_panel|room_summary_card|title"),
-                  isHighlighted: this.isPhase(Ih),
-                  onClick: this.onRoomSummaryClicked,
-                })
-              ),
-              r.createElement(
+                this.state.notificationsEnabled &&
+                  e.set(
+                    Qn.n.NotificationPanel,
+                    r.createElement(
+                      Ch,
+                      {
+                        key: "notifsButton",
+                        name: "notifsButton",
+                        title: (0, C._t)("notifications|enable_prompt_toast_title"),
+                        isHighlighted: this.isPhase(Qn.n.NotificationPanel),
+                        onClick: this.onNotificationsClicked,
+                        isUnread:
+                          this.globalNotificationState.level === Qe.S.Highlight,
+                      },
+                      this.globalNotificationState.level === Qe.S.Highlight
+                        ? r.createElement(Th, {
+                            color: this.globalNotificationState.level,
+                          })
+                        : null
+                    )
+                  ),
+                e.set(
+                  Qn.n.RoomSummary,
+                  r.createElement(Ch, {
+                    key: "roomSummaryButton",
+                    name: "roomSummaryButton",
+                    title: (0, C._t)("right_panel|room_summary_card|title"),
+                    isHighlighted: this.isPhase(Ih),
+                    onClick: this.onRoomSummaryClicked,
+                  })
+                );
+              return r.createElement(
                 r.Fragment,
                 null,
                 Array.from(e.keys()).map((t) => {
@@ -29207,10 +29288,10 @@
                     ? null
                     : e.get(t);
                 })
-              )
-            );
+              );
+            }
           }
-        }
+          
         (0, s.A)(Dh, "THREAD_PHASES", [Qn.n.ThreadPanel, Qn.n.ThreadView]);
         var Mh = n(
             "./node_modules/matrix-react-sdk/res/img/feather-customised/check.svg"
@@ -29362,298 +29443,290 @@
             "./node_modules/matrix-react-sdk/src/components/views/context_menus/DeveloperToolsOption.tsx"
           );
         const jh = ["room", "onFinished"],
-          Vh = (e) => {
-            var t;
-            let { room: n, onFinished: s } = e,
-              a = (0, Ue.A)(e, jh);
-            const l = (0, r.useContext)(Re.Ay),
-              c = (0, Pe.dF)(Si.Ay.instance, Si.lA, () =>
-                Si.Ay.instance.getTagsForRoom(n)
-              );
-            let d;
-            if (c.includes(he.zO.Archived)) {
-              const e = (e) => {
-                e.preventDefault(),
-                  e.stopPropagation(),
-                  v.Ay.dispatch({ action: "forget_room", room_id: n.roomId }),
-                  s();
-              };
-              d = r.createElement(Le.R$, {
-                iconClassName: "mx_RoomTile_iconSignOut",
-                label: (0, C._t)("room|context_menu|forget"),
-                className: "mx_IconizedContextMenu_option_red",
-                onClick: e,
-              });
-            } else {
-              const e = (e) => {
-                e.preventDefault(),
-                  e.stopPropagation(),
-                  v.Ay.dispatch({ action: "leave_room", room_id: n.roomId }),
-                  s(),
-                  u.A.trackInteraction("WebRoomHeaderContextMenuLeaveItem", e);
-              };
-              d = r.createElement(Le.R$, {
-                onClick: e,
-                label: (0, C._t)("action|leave"),
-                className: "mx_IconizedContextMenu_option_red",
-                iconClassName: "mx_RoomTile_iconSignOut",
-              });
+        Vh = (e) => {
+          var t;
+          let { room: n, onFinished: s } = e,
+            a = (0, Ue.A)(e, jh);
+          const l = (0, r.useContext)(Re.Ay),
+            c = (0, Pe.dF)(Si.Ay.instance, Si.lA, () =>
+              Si.Ay.instance.getTagsForRoom(n)
+            );
+          let d;
+          if (c.includes(he.zO.Archived)) {
+            const e = (e) => {
+              e.preventDefault(),
+                e.stopPropagation(),
+                v.Ay.dispatch({ action: "forget_room", room_id: n.roomId }),
+                s();
+            };
+            d = r.createElement(Le.R$, {
+              iconClassName: "mx_RoomTile_iconSignOut",
+              label: (0, C._t)("room|context_menu|forget"),
+              className: "mx_IconizedContextMenu_option_red",
+              onClick: e,
+            });
+          } else {
+            const e = (e) => {
+              e.preventDefault(),
+                e.stopPropagation(),
+                v.Ay.dispatch({ action: "leave_room", room_id: n.roomId }),
+                s(),
+                u.A.trackInteraction("WebRoomHeaderContextMenuLeaveItem", e);
+            };
+            d = r.createElement(Le.R$, {
+              onClick: e,
+              label: (0, C._t)("action|leave"),
+              className: "mx_IconizedContextMenu_option_red",
+              iconClassName: "mx_RoomTile_iconSignOut",
+            });
+          }
+          const m = Pi.A.shared().getUserIdForRoomId(n.roomId),
+            h = (0, Ne.n)("feature_video_rooms"),
+            p = (0, Ne.n)("feature_element_call_video_rooms"),
+            g = h && (n.isElementVideoRoom() || (p && n.isCallRoom()));
+          let _, y, b, E, w, A, S;
+          if (
+            (0, Pe.dF)(l, o.RoomMemberEvent.PowerLevel, () =>
+              n.canInvite(l.getUserId())
+            ) &&
+            !m &&
+            (0, Ie.g)(W.C.InviteUsers)
+          ) {
+            const e = (e) => {
+              e.preventDefault(),
+                e.stopPropagation(),
+                v.Ay.dispatch({ action: "view_invite", roomId: n.roomId }),
+                s(),
+                u.A.trackInteraction("WebRoomHeaderContextMenuInviteItem", e);
+            };
+            _ = r.createElement(Le.R$, {
+              onClick: e,
+              label: (0, C._t)("action|invite"),
+              iconClassName: "mx_RoomTile_iconInvite",
+            });
+          }
+          if (n.getMyMembership() === We.O.Join) {
+            const e = c.includes(he.zO.Favourite);
+            y = r.createElement(Le.LS, {
+              onClick: (e) => {
+                N(e, he.zO.Favourite),
+                  u.A.trackInteraction(
+                    "WebRoomHeaderContextMenuFavouriteToggle",
+                    e
+                  );
+              },
+              active: e,
+              label: e
+                ? (0, C._t)("room|context_menu|unfavourite")
+                : (0, C._t)("room|context_menu|favourite"),
+              iconClassName: "mx_RoomTile_iconStar",
+            });
+            const t = c.includes(he.zO.LowPriority);
+            b = r.createElement(Le.LS, {
+              onClick: (e) => N(e, he.zO.LowPriority),
+              active: t,
+              label: (0, C._t)("common|low_priority"),
+              iconClassName: "mx_RoomTile_iconArrowDown",
+            });
+            let i, o;
+            switch (Uh.s.forRoom(n).notificationVolume) {
+              case Fh.dC.AllMessages:
+                (i = (0, C._t)("notifications|default")),
+                  (o = "mx_RoomTile_iconNotificationsDefault");
+                break;
+              case Fh.dC.AllMessagesLoud:
+                (i = (0, C._t)("notifications|all_messages")),
+                  (o = "mx_RoomTile_iconNotificationsAllMessages");
+                break;
+              case Fh.dC.MentionsOnly:
+                (i = (0, C._t)("room|context_menu|mentions_only")),
+                  (o = "mx_RoomTile_iconNotificationsMentionsKeywords");
+                break;
+              case Fh.dC.Mute:
+                (i = (0, C._t)("common|mute")),
+                  (o = "mx_RoomTile_iconNotificationsNone");
             }
-            const m = Pi.A.shared().getUserIdForRoomId(n.roomId),
-              h = (0, Ne.n)("feature_video_rooms"),
-              p = (0, Ne.n)("feature_element_call_video_rooms"),
-              g = h && (n.isElementVideoRoom() || (p && n.isCallRoom()));
-            let _, y, b, E, w, A, S;
-            if (
-              (0, Pe.dF)(l, o.RoomMemberEvent.PowerLevel, () =>
-                n.canInvite(l.getUserId())
-              ) &&
-              !m &&
-              (0, Ie.g)(W.C.InviteUsers)
-            ) {
-              const e = (e) => {
-                e.preventDefault(),
-                  e.stopPropagation(),
-                  v.Ay.dispatch({ action: "view_invite", roomId: n.roomId }),
-                  s(),
-                  u.A.trackInteraction("WebRoomHeaderContextMenuInviteItem", e);
-              };
-              _ = r.createElement(Le.R$, {
-                onClick: e,
-                label: (0, C._t)("action|invite"),
-                iconClassName: "mx_RoomTile_iconInvite",
-              });
-            }
-            if (n.getMyMembership() === We.O.Join) {
-              const e = c.includes(he.zO.Favourite);
-              y = r.createElement(Le.LS, {
-                onClick: (e) => {
-                  N(e, he.zO.Favourite),
-                    u.A.trackInteraction(
-                      "WebRoomHeaderContextMenuFavouriteToggle",
-                      e
-                    );
-                },
-                active: e,
-                label: e
-                  ? (0, C._t)("room|context_menu|unfavourite")
-                  : (0, C._t)("room|context_menu|favourite"),
-                iconClassName: "mx_RoomTile_iconStar",
-              });
-              const t = c.includes(he.zO.LowPriority);
-              b = r.createElement(Le.LS, {
-                onClick: (e) => N(e, he.zO.LowPriority),
-                active: t,
-                label: (0, C._t)("common|low_priority"),
-                iconClassName: "mx_RoomTile_iconArrowDown",
-              });
-              let i, o;
-              switch (Uh.s.forRoom(n).notificationVolume) {
-                case Fh.dC.AllMessages:
-                  (i = (0, C._t)("notifications|default")),
-                    (o = "mx_RoomTile_iconNotificationsDefault");
-                  break;
-                case Fh.dC.AllMessagesLoud:
-                  (i = (0, C._t)("notifications|all_messages")),
-                    (o = "mx_RoomTile_iconNotificationsAllMessages");
-                  break;
-                case Fh.dC.MentionsOnly:
-                  (i = (0, C._t)("room|context_menu|mentions_only")),
-                    (o = "mx_RoomTile_iconNotificationsMentionsKeywords");
-                  break;
-                case Fh.dC.Mute:
-                  (i = (0, C._t)("common|mute")),
-                    (o = "mx_RoomTile_iconNotificationsNone");
-              }
-              E = r.createElement(
-                Le.R$,
-                {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      v.Ay.dispatch({
-                        action: "open_room_settings",
-                        room_id: n.roomId,
-                        initial_tab_id: nc.e.Notifications,
-                      }),
-                      s(),
-                      u.A.trackInteraction(
-                        "WebRoomHeaderContextMenuNotificationsItem",
-                        e
-                      );
-                  },
-                  label: (0, C._t)("notifications|enable_prompt_toast_title"),
-                  iconClassName: o,
-                },
-                r.createElement(
-                  "span",
-                  { className: "mx_IconizedContextMenu_sublabel" },
-                  i
-                )
-              );
-            }
-            m ||
-              ((w = r.createElement(
-                Le.R$,
-                {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      D(e),
-                      Yn.A.instance.pushCard(
-                        { phase: Qn.n.RoomMemberList },
-                        !1
-                      ),
-                      s(),
-                      u.A.trackInteraction(
-                        "WebRoomHeaderContextMenuPeopleItem",
-                        e
-                      );
-                  },
-                  label: (0, C._t)("common|people"),
-                  iconClassName: "mx_RoomTile_iconPeople",
-                },
-                r.createElement(
-                  "span",
-                  { className: "mx_IconizedContextMenu_sublabel" },
-                  n.getJoinedMemberCount()
-                )
-              )),
-              (A = r.createElement(Le.R$, {
+            E = r.createElement(
+              Le.R$,
+              {
                 onClick: (e) => {
                   e.preventDefault(),
                     e.stopPropagation(),
-                    v.Ay.dispatch({ action: "copy_room", room_id: n.roomId }),
-                    s();
-                },
-                label: (0, C._t)("room|context_menu|copy_link"),
-                iconClassName: "mx_RoomTile_iconCopyLink",
-              }))),
-              g ||
-                (S = r.createElement(Le.R$, {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      D(e),
-                      Yn.A.instance.pushCard({ phase: Qn.n.FilePanel }, !1),
-                      s();
-                  },
-                  label: (0, C._t)("right_panel|files_button"),
-                  iconClassName: "mx_RoomTile_iconFiles",
-                }));
-            const k = (0, Ne.n)("feature_pinning"),
-              R =
-                null === (t = dl(k ? n : void 0)) || void 0 === t
-                  ? void 0
-                  : t.length;
-            let I, T, P;
-            k &&
-              !g &&
-              (I = r.createElement(
-                Le.R$,
-                {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      D(e),
-                      Yn.A.instance.pushCard(
-                        { phase: Qn.n.PinnedMessages },
-                        !1
-                      ),
-                      s();
-                  },
-                  label: (0, C._t)("right_panel|pinned_messages_button"),
-                  iconClassName: "mx_RoomTile_iconPins",
-                },
-                R > 0 &&
-                  r.createElement(
-                    "span",
-                    { className: "mx_IconizedContextMenu_sublabel" },
-                    R
-                  )
-              )),
-              g ||
-                (T = r.createElement(Le.R$, {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      D(e),
-                      Yn.A.instance.setCard({ phase: Qn.n.RoomSummary }, !1),
-                      s();
-                  },
-                  label: (0, C._t)("right_panel|widgets_section"),
-                  iconClassName: "mx_RoomTile_iconWidgets",
-                })),
-              g ||
-                (P = r.createElement(Le.R$, {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      f.Ay.createDialog(Sc, { room: n }),
-                      s();
-                  },
-                  label: (0, C._t)("right_panel|export_chat_button"),
-                  iconClassName: "mx_RoomTile_iconExport",
-                }));
-            const N = (e, t) => {
-                e.preventDefault(), e.stopPropagation(), Dc(n, t);
-                if ((0, Se.zM)().getAccessibilityAction(e) === be.bY.Enter) s();
-              },
-              D = (e) => {
-                sn.M.instance.roomViewStore.getRoomId() !== n.roomId &&
-                  v.Ay.dispatch(
-                    {
-                      action: x.r.ViewRoom,
+                    v.Ay.dispatch({
+                      action: "open_room_settings",
                       room_id: n.roomId,
-                      metricsTrigger: "RoomList",
-                      metricsViaKeyboard: "click" !== e.type,
-                    },
-                    !0
-                  );
-              };
-            return r.createElement(
-              Le.Ay,
-              (0, i.A)({}, a, {
-                onFinished: s,
-                className: "mx_RoomTile_contextMenu",
-                compact: !0,
-              }),
+                      initial_tab_id: nc.e.Notifications,
+                    }),
+                    s(),
+                    u.A.trackInteraction(
+                      "WebRoomHeaderContextMenuNotificationsItem",
+                      e
+                    );
+                },
+                label: (0, C._t)("notifications|enable_prompt_toast_title"),
+                iconClassName: o,
+              },
               r.createElement(
-                Le.tx,
-                null,
-                _,
-                E,
-                y,
-                w,
-                S,
-                I,
-                T,
-                b,
-                A,
-                r.createElement(Le.R$, {
-                  onClick: (e) => {
-                    e.preventDefault(),
-                      e.stopPropagation(),
-                      v.Ay.dispatch({
-                        action: "open_room_settings",
-                        room_id: n.roomId,
-                      }),
-                      s(),
-                      u.A.trackInteraction(
-                        "WebRoomHeaderContextMenuSettingsItem",
-                        e
-                      );
-                  },
-                  label: (0, C._t)("common|settings"),
-                  iconClassName: "mx_RoomTile_iconSettings",
-                }),
-                P,
-                O.A.getValue("developerMode") &&
-                  r.createElement(Bh.l, { onFinished: s, roomId: n.roomId }),
-                d
+                "span",
+                { className: "mx_IconizedContextMenu_sublabel" },
+                i
               )
             );
-          };
+          }
+          m ||
+            ((w = r.createElement(
+              Le.R$,
+              {
+                onClick: (e) => {
+                  e.preventDefault(),
+                    e.stopPropagation(),
+                    D(e),
+                    Yn.A.instance.pushCard(
+                      { phase: Qn.n.RoomMemberList },
+                      !1
+                    ),
+                    s(),
+                    u.A.trackInteraction(
+                      "WebRoomHeaderContextMenuPeopleItem",
+                      e
+                    );
+                },
+                label: (0, C._t)("common|people"),
+                iconClassName: "mx_RoomTile_iconPeople",
+              },
+              r.createElement(
+                "span",
+                { className: "mx_IconizedContextMenu_sublabel" },
+                n.getJoinedMemberCount()
+              )
+            )),
+            (A = r.createElement(Le.R$, {
+              onClick: (e) => {
+                e.preventDefault(),
+                  e.stopPropagation(),
+                  v.Ay.dispatch({ action: "copy_room", room_id: n.roomId }),
+                  s();
+              },
+              label: (0, C._t)("room|context_menu|copy_link"),
+              iconClassName: "mx_RoomTile_iconCopyLink",
+            }))),
+            g ||
+              (S = r.createElement(Le.R$, {
+                onClick: (e) => {
+                  e.preventDefault(),
+                    e.stopPropagation(),
+                    D(e),
+                    Yn.A.instance.pushCard({ phase: Qn.n.FilePanel }, !1),
+                    s();
+                },
+                label: (0, C._t)("right_panel|files_button"),
+                iconClassName: "mx_RoomTile_iconFiles",
+              }));
+          const k = (0, Ne.n)("feature_pinning"),
+            R =
+              null === (t = dl(k ? n : void 0)) || void 0 === t
+                ? void 0
+                : t.length;
+          let I, T;
+          k &&
+            !g &&
+            (I = r.createElement(
+              Le.R$,
+              {
+                onClick: (e) => {
+                  e.preventDefault(),
+                    e.stopPropagation(),
+                    D(e),
+                    Yn.A.instance.pushCard(
+                      { phase: Qn.n.PinnedMessages },
+                      !1
+                    ),
+                    s();
+                },
+                label: (0, C._t)("right_panel|pinned_messages_button"),
+                iconClassName: "mx_RoomTile_iconPins",
+              },
+              R > 0 &&
+                r.createElement(
+                  "span",
+                  { className: "mx_IconizedContextMenu_sublabel" },
+                  R
+                )
+            )),
+            g ||
+            (T = r.createElement(Le.R$, {
+              onClick: (e) => {
+                e.preventDefault(),
+                e.stopPropagation(),
+                D(e),
+                Yn.A.instance.setCard({ phase: Qn.n.RoomSummary }, !1),
+                s();
+              },
+              label: (0, C._t)("right_panel|widgets_section"),
+              iconClassName: "mx_RoomTile_iconWidgets",
+              className: "hidden-element",
+              style: { display: "none" }
+            }));
+            
+          const N = (e, t) => {
+              e.preventDefault(), e.stopPropagation(), Dc(n, t);
+              if ((0, Se.zM)().getAccessibilityAction(e) === be.bY.Enter) s();
+            },
+            D = (e) => {
+              sn.M.instance.roomViewStore.getRoomId() !== n.roomId &&
+                v.Ay.dispatch(
+                  {
+                    action: x.r.ViewRoom,
+                    room_id: n.roomId,
+                    metricsTrigger: "RoomList",
+                    metricsViaKeyboard: "click" !== e.type,
+                  },
+                  !0
+                );
+            };
+          return r.createElement(
+            Le.Ay,
+            (0, i.A)({}, a, {
+              onFinished: s,
+              className: "mx_RoomTile_contextMenu",
+              compact: !0,
+            }),
+            r.createElement(
+              Le.tx,
+              null,
+              _,
+              E,
+              y,
+              w,
+              S,
+              I,
+              T,
+              b,
+              A,
+              r.createElement(Le.R$, {
+                onClick: (e) => {
+                  e.preventDefault(),
+                    e.stopPropagation(),
+                    v.Ay.dispatch({
+                      action: "open_room_settings",
+                      room_id: n.roomId,
+                    }),
+                    s(),
+                    u.A.trackInteraction(
+                      "WebRoomHeaderContextMenuSettingsItem",
+                      e
+                    );
+                },
+                label: (0, C._t)("common|settings"),
+                iconClassName: "mx_RoomTile_iconSettings",
+              }),
+              O.A.getValue("developerMode") &&
+                r.createElement(Bh.l, { onFinished: s, roomId: n.roomId }),
+              d
+            )
+          );
+        };
+        
         var zh = n(
             "./node_modules/matrix-react-sdk/src/components/views/rooms/RoomTile.tsx"
           ),
@@ -31261,398 +31334,7 @@
               )
             );
           };
-        function Wp({ room: e, additionalButtons: t }) {
-          const n = (0, Re.nH)(),
-            i = (0, Cp.e)(e),
-            s = (0, Uc.B)(e),
-            a = (0, rl.U)(e),
-            l = km(e, 2500),
-            c = Rm(e, { throttleWait: 2500 }),
-            {
-              voiceCallDisabledReason: d,
-              voiceCallClick: m,
-              videoCallDisabledReason: h,
-              videoCallClick: p,
-              toggleCallMaximized: v,
-              isViewingCall: _,
-              isConnectedToCall: f,
-              hasActiveCallSession: y,
-              callOptions: b,
-            } = Mp(e),
-            E = (0, Ne.n)("feature_group_calls"),
-            w = (0, r.useMemo)(
-              () => g.Ay.get("element_call").use_exclusively && E,
-              [E]
-            ),
-            x = Op(e),
-            A = Lp(),
-            S = Lc(n, o.EventType.Direct),
-            [k, R] = (0, r.useState)(!1);
-          (0, r.useEffect)(() => {
-            for (const [, n] of Object.entries(S)) {
-              var t;
-              if (
-                n.includes(
-                  null !== (t = null == e ? void 0 : e.roomId) && void 0 !== t
-                    ? t
-                    : ""
-                )
-              ) {
-                R(!0);
-                break;
-              }
-            }
-          }, [e, S]);
-          const I = (function (e, t) {
-              const [n, i] = (0, r.useState)(null);
-              return (
-                (0, r.useEffect)(() => {
-                  e.isCryptoEnabled() &&
-                    (0, Zo.G)(e, t).then((e) => {
-                      i(e);
-                    });
-                }, [e, t]),
-                n
-              );
-            })(n, e),
-            T = (0, Ne.n)("feature_notifications"),
-            P = (0, r.useMemo)(
-              () =>
-                (0, Fc.sH)(
-                  null == s ? void 0 : s.text,
-                  null == s ? void 0 : s.html
-                ),
-              [null == s ? void 0 : s.html, null == s ? void 0 : s.text]
-            ),
-            N = (0, Ne.n)("feature_ask_to_join"),
-            D = (0, r.useCallback)((e) => p(e, b[0]), [b, p]),
-            M = r.createElement(
-              ke.m_,
-              {
-                label: _
-                  ? (0, C._t)("voip|minimise_call")
-                  : (0, C._t)("voip|maximise_call"),
-              },
-              r.createElement(
-                ke.K0,
-                { onClick: v },
-                r.createElement(lt.I, null)
-              )
-            ),
-            O = r.createElement(
-              ke.m_,
-              { label: null != h ? h : (0, C._t)("voip|video_call") },
-              r.createElement(
-                ke.$n,
-                {
-                  size: "sm",
-                  onClick: D,
-                  Icon: lt.I,
-                  className: "mx_RoomHeader_join_button",
-                  disabled: !!h,
-                  color: "primary",
-                  "aria-label": null != h ? h : (0, C._t)("action|join"),
-                },
-                (0, C._t)("action|join")
-              )
-            ),
-            L = r.createElement(
-              ke.m_,
-              { label: null != h ? h : (0, C._t)("voip|video_call") },
-              r.createElement(lt.I, null)
-            ),
-            [U, F] = (0, r.useState)(!1),
-            B = (0, r.useCallback)(
-              (e) => {
-                h || F(e);
-              },
-              [h]
-            ),
-            j = r.createElement(
-              r.Fragment,
-              null,
-              b.length > 1
-                ? r.createElement(
-                    ke.W1,
-                    {
-                      open: U,
-                      onOpenChange: B,
-                      title: (0, C._t)("voip|video_call_using"),
-                      trigger: r.createElement(
-                        ke.K0,
-                        {
-                          disabled: !!h,
-                          "aria-label":
-                            null != h ? h : (0, C._t)("voip|video_call"),
-                        },
-                        L
-                      ),
-                      side: "left",
-                      align: "start",
-                    },
-                    b.map((e) =>
-                      r.createElement(ke.Dr, {
-                        key: e,
-                        label: Np(e),
-                        "aria-label": Np(e),
-                        onClick: (t) => p(t, e),
-                        Icon: lt.I,
-                        onSelect: () => {},
-                      })
-                    )
-                  )
-                : r.createElement(
-                    ke.K0,
-                    {
-                      disabled: !!h,
-                      "aria-label":
-                        null != h ? h : (0, C._t)("voip|video_call"),
-                      onClick: D,
-                    },
-                    L
-                  )
-            ),
-            V = r.createElement(
-              ke.m_,
-              { label: null != d ? d : (0, C._t)("voip|voice_call") },
-              r.createElement(
-                ke.K0,
-                {
-                  disabled: !!d || _ || f,
-                  "aria-label": null != d ? d : (0, C._t)("voip|voice_call"),
-                  onClick: (e) => m(e, b[0]),
-                },
-                r.createElement(hp, null)
-              )
-            ),
-            z = r.createElement(
-              ke.m_,
-              { label: (0, C._t)("voip|close_lobby") },
-              r.createElement(
-                ke.K0,
-                { onClick: v, "aria-label": (0, C._t)("voip|close_lobby") },
-                r.createElement(_p, null)
-              )
-            );
-          let H = j;
-          return (
-            f ? (H = M) : _ && (H = z),
-            r.createElement(
-              r.Fragment,
-              null,
-              r.createElement(
-                Pc,
-                {
-                  as: "header",
-                  align: "center",
-                  gap: "var(--cpd-space-3x)",
-                  className: "mx_RoomHeader light-panel",
-                },
-                r.createElement(
-                  "button",
-                  {
-                    "aria-label": (0, C._t)(
-                      "right_panel|room_summary_card|title"
-                    ),
-                    tabIndex: 0,
-                    onClick: () => {
-                      Yn.A.instance.showOrHidePanel(Qn.n.RoomSummary);
-                    },
-                    className: "mx_RoomHeader_infoWrapper",
-                  },
-                  r.createElement(Ge.A, { room: e, size: "40px" }),
-                  r.createElement(
-                    Hc,
-                    { flex: "1", className: "mx_RoomHeader_info" },
-                    r.createElement(
-                      ke.nB,
-                      {
-                        as: "div",
-                        size: "lg",
-                        weight: "semibold",
-                        dir: "auto",
-                        role: "heading",
-                        "aria-level": 1,
-                        className: "mx_RoomHeader_heading",
-                      },
-                      r.createElement(
-                        "span",
-                        { className: "mx_RoomHeader_truncated mx_lineClamp" },
-                        i
-                      ),
-                      !k &&
-                        a.getJoinRule() === o.JoinRule.Public &&
-                        r.createElement(
-                          ke.m_,
-                          {
-                            label: (0, C._t)("common|public_room"),
-                            placement: "right",
-                          },
-                          r.createElement(Fo, {
-                            width: "16px",
-                            height: "16px",
-                            className: "mx_RoomHeader_icon text-secondary",
-                            "aria-label": (0, C._t)("common|public_room"),
-                          })
-                        ),
-                      k &&
-                        I === Zo.z.Verified &&
-                        r.createElement(
-                          ke.m_,
-                          {
-                            label: (0, C._t)("common|verified"),
-                            placement: "right",
-                          },
-                          r.createElement(Sp, {
-                            width: "16px",
-                            height: "16px",
-                            className: "mx_RoomHeader_icon mx_Verified",
-                            "aria-label": (0, C._t)("common|verified"),
-                          })
-                        ),
-                      k &&
-                        I === Zo.z.Warning &&
-                        r.createElement(
-                          ke.m_,
-                          {
-                            label: (0, C._t)("room|header_untrusted_label"),
-                            placement: "right",
-                          },
-                          r.createElement(jo.I, {
-                            width: "16px",
-                            height: "16px",
-                            className: "mx_RoomHeader_icon mx_Untrusted",
-                            "aria-label": (0, C._t)(
-                              "room|header_untrusted_label"
-                            ),
-                          })
-                        )
-                    ),
-                    s &&
-                      r.createElement(
-                        ke.nB,
-                        {
-                          as: "div",
-                          size: "sm",
-                          className:
-                            "mx_RoomHeader_topic mx_RoomHeader_truncated mx_lineClamp",
-                        },
-                        r.createElement(Fc.XZ, null, P)
-                      )
-                  )
-                ),
-                r.createElement(
-                  Pc,
-                  { align: "center", gap: "var(--cpd-space-2x)" },
-                  null == t
-                    ? void 0
-                    : t.map((e) => {
-                        const t = e.label();
-                        return r.createElement(
-                          ke.m_,
-                          { label: t, key: e.id },
-                          r.createElement(
-                            ke.K0,
-                            {
-                              "aria-label": t,
-                              onClick: (t) => {
-                                t.stopPropagation(), e.onClick();
-                              },
-                            },
-                            "function" == typeof e.icon ? e.icon() : e.icon
-                          )
-                        );
-                      }),
-                  _ && r.createElement(zp, { room: e }),
-                  ((f && _) || (0, Qh.j)(e)) &&
-                    r.createElement(Vp, { room: e }),
-                  !y || f || _
-                    ? r.createElement(
-                        r.Fragment,
-                        null,
-                        !(0, Qh.j)(e) && H,
-                        !w && !(0, Qh.j)(e) && V
-                      )
-                    : O,
-                  r.createElement(
-                    ke.m_,
-                    { label: (0, C._t)("common|threads") },
-                    r.createElement(
-                      ke.K0,
-                      {
-                        indicator: (0, Kn.W7)(x),
-                        onClick: (e) => {
-                          e.stopPropagation(),
-                            Yn.A.instance.showOrHidePanel(Qn.n.ThreadPanel),
-                            u.A.trackInteraction(
-                              "WebRoomHeaderButtonsThreadsButton",
-                              e
-                            );
-                        },
-                        "aria-label": (0, C._t)("common|threads"),
-                      },
-                      r.createElement(Gn.I, null)
-                    )
-                  ),
-                  T &&
-                    r.createElement(
-                      ke.m_,
-                      {
-                        label: (0, C._t)(
-                          "notifications|enable_prompt_toast_title"
-                        ),
-                      },
-                      r.createElement(
-                        ke.K0,
-                        {
-                          indicator: (0, Kn.W7)(A.level),
-                          onClick: (e) => {
-                            e.stopPropagation(),
-                              Yn.A.instance.showOrHidePanel(
-                                Qn.n.NotificationPanel
-                              );
-                          },
-                          "aria-label": (0, C._t)(
-                            "notifications|enable_prompt_toast_title"
-                          ),
-                        },
-                        r.createElement(Ep, null)
-                      )
-                    )
-                ),
-                !k &&
-                  r.createElement(
-                    ke.nB,
-                    {
-                      as: "div",
-                      size: "sm",
-                      weight: "medium",
-                      "aria-label": (0, C._t)("common|n_members", { count: c }),
-                      onClick: (e) => {
-                        Yn.A.instance.showOrHidePanel(Qn.n.RoomMemberList),
-                          e.stopPropagation();
-                      },
-                    },
-                    r.createElement(
-                      Tm.A,
-                      {
-                        className: "mx_RoomHeader_members",
-                        members: l.slice(0, 3),
-                        size: "20px",
-                        overflow: !1,
-                        viewUserOnClick: !1,
-                        tooltipLabel: (0, C._t)(
-                          "room|header_face_pile_tooltip"
-                        ),
-                      },
-                      (0, il.B4)(c)
-                    )
-                  )
-              ),
-              N && r.createElement(Lh, { room: e })
-            )
-          );
-        }
+      
         const Gp = ({ roomWidth: e }) => {
             const t = (0, r.useRef)(null),
               i = (0, r.useRef)(new Map());
@@ -32779,7 +32461,7 @@
                           className: "mx_SpaceHierarchy_list",
                           onKeyDown: p,
                           role: "tree",
-                          "aria-label": (0, C._t)("common|space"),
+                          "aria-label": (0, C._t)("Deaprtment"),
                         },
                         u
                       ),
@@ -34180,7 +33862,7 @@
                     r.createElement(
                       "h2",
                       null,
-                      (0, C._t)("common|room"),
+                      (0, C._t)("Group"),
                       ": ",
                       o.name
                     )
@@ -35930,7 +35612,7 @@
           }
           get messagePanelClassNames() {
             return ee()("mx_RoomView_messagePanel", {
-              mx_IRCLayout: this.state.layout === Il.P.IRC,
+              mx_IRCLayout: this.state.layout === Il.P.Bubble,
             });
           }
           get viewsLocalRoom() {
@@ -38396,104 +38078,172 @@
           render() {
             let e;
             switch (this.props.page_type) {
-              case j.A.RoomView:
-                e = r.createElement(tv, {
-                  ref: this._roomView,
-                  onRegistered: this.props.onRegistered,
-                  threepidInvite: this.props.threepidInvite,
-                  oobData: this.props.roomOobData,
-                  key: this.props.currentRoomId || "roomview",
-                  resizeNotifier: this.props.resizeNotifier,
-                  justCreatedOpts: this.props.roomJustCreatedOpts,
-                  forceTimeline: this.props.forceTimeline,
-                });
-                break;
-              case j.A.HomePage:
-                e = r.createElement(_r, {
-                  justRegistered: this.props.justRegistered,
-                });
-                break;
-              case j.A.UserView:
-                this.props.currentUserId &&
-                  (e = r.createElement(iv, {
-                    userId: this.props.currentUserId,
-                    resizeNotifier: this.props.resizeNotifier,
-                  }));
+                case j.A.RoomView:
+                    e = r.createElement(tv, {
+                        ref: this._roomView,
+                        onRegistered: this.props.onRegistered,
+                        threepidInvite: this.props.threepidInvite,
+                        oobData: this.props.roomOobData,
+                        key: this.props.currentRoomId || "roomview",
+                        resizeNotifier: this.props.resizeNotifier,
+                        justCreatedOpts: this.props.roomJustCreatedOpts,
+                        forceTimeline: this.props.forceTimeline,
+                    });
+                    break;
+                case j.A.HomePage:
+                    e = r.createElement(_r, {
+                        justRegistered: this.props.justRegistered,
+                    });
+                    break;
+                case j.A.UserView:
+                    this.props.currentUserId &&
+                        (e = r.createElement(iv, {
+                            userId: this.props.currentUserId,
+                            resizeNotifier: this.props.resizeNotifier,
+                        }));
             }
+        
             const t = ee()({
                 mx_MatrixChat_wrapper: !0,
                 mx_MatrixChat_useCompactLayout: this.state.useCompactLayout,
-              }),
-              n = ee()({
+            });
+        
+            const n = ee()({
                 mx_MatrixChat: !0,
                 "mx_MatrixChat--with-avatar": this.state.backgroundImage,
-              }),
-              i = this.state.activeCalls.map((e) =>
+            });
+        
+            const i = this.state.activeCalls.map((e) =>
                 r.createElement(kr, { call: e, key: e.callId })
-              );
-            return r.createElement(
-              Gv,
-              { client: this._matrixClient },
-              r.createElement(
-                "div",
-                {
-                  onPaste: this.onPaste,
-                  onKeyDown: this.onReactKeyDown,
-                  className: t,
-                  "aria-hidden": this.props.hideToSRUsers,
-                },
-                r.createElement(nv, null),
-                r.createElement(
-                  "div",
-                  { className: n },
-                  r.createElement(
-                    "div",
-                    { className: "mx_LeftPanel_outerWrapper" },
-                    r.createElement(ov, {
-                      isMinimized: this.props.collapseLhs || !1,
-                    }),
-                    r.createElement(
-                      "div",
-                      { className: "mx_LeftPanel_wrapper" },
-                      r.createElement(sv, {
-                        blurMultiplier: 0.5,
-                        backgroundImage: this.state.backgroundImage,
-                      }),
-                      r.createElement(bi, null),
-                      r.createElement(sv, {
-                        backgroundImage: this.state.backgroundImage,
-                      }),
-                      r.createElement(
-                        "div",
-                        {
-                          className: "mx_LeftPanel_wrapper--user",
-                          ref: this._resizeContainer,
-                          "data-collapsed": !!this.props.collapseLhs || void 0,
-                        },
-                        r.createElement(Er, {
-                          pageType: this.props.page_type,
-                          isMinimized: this.props.collapseLhs || !1,
-                          resizeNotifier: this.props.resizeNotifier,
-                        })
-                      )
-                    )
-                  ),
-                  r.createElement(re, {
-                    passRef: this.resizeHandler,
-                    id: "lp-resizer",
-                  }),
-                  r.createElement(
-                    "div",
-                    { className: "mx_RoomView_wrapper" },
-                    e
-                  )
-                )
-              ),
-              r.createElement(Rv, null),
-              r.createElement(xr, null),
-              i
             );
-          }
+        
+            // Ref for the left panel
+            const setPanelRef = (node) => {
+                this.panelRef = node;
+            };
+        
+            // Toggle panel visibility
+            const togglePanel = () => {
+                this.setState({ isPanelOpen: !this.state.isPanelOpen });
+            };
+        
+            // Handle click outside to close the panel
+            const handleClickOutside = (event) => {
+                if (this.state.isPanelOpen && this.panelRef && !this.panelRef.contains(event.target)) {
+                    this.setState({ isPanelOpen: false });
+                }
+            };
+        
+            // Improved swipe gesture detection
+            let touchstartX = 0;
+            let touchendX = 0;
+            const SWIPE_THRESHOLD = 50;  // Minimum swipe distance in pixels
+        
+            const handleGesture = () => {
+                const swipeDistance = touchendX - touchstartX;
+                if (swipeDistance < -SWIPE_THRESHOLD) {  // Swiped left, hide the panel
+                    this.setState({ isPanelOpen: false });
+                } else if (swipeDistance > SWIPE_THRESHOLD) {  // Swiped right, show the panel
+                    this.setState({ isPanelOpen: true });
+                }
+            };
+        
+            const handleTouchStart = (event) => {
+                touchstartX = event.changedTouches[0].screenX;
+            };
+        
+            const handleTouchEnd = (event) => {
+                touchendX = event.changedTouches[0].screenX;
+                handleGesture();
+            };
+        
+            // Attach event listeners
+            document.addEventListener('mousedown', handleClickOutside);
+        
+            // Panel class depending on whether it's open or not
+            const leftPanelClass = ee()({
+                "mx_LeftPanel_outerWrapper": true,
+                "open": this.state.isPanelOpen,  // Adds 'open' class if panel is open
+                "closed": !this.state.isPanelOpen,  // Adds 'closed' class if panel is closed
+            });
+        
+            return r.createElement(
+                Gv,
+                { client: this._matrixClient },
+                r.createElement(
+                    "div",
+                    {
+                        onPaste: this.onPaste,
+                        onKeyDown: this.onReactKeyDown,
+                        className: t,
+                        "aria-hidden": this.props.hideToSRUsers,
+                    },
+                    r.createElement(nv, null),
+                    r.createElement(
+                        "div",
+                        { className: n },
+                        r.createElement(
+                            // Add hamburger button for mobile view
+                            "div",
+                            {
+                                className: "hamburger-menu",
+                                onClick: togglePanel,  // Toggle panel visibility on click
+                            },
+                            r.createElement("span", null, "☰")  // Simple hamburger icon
+                        ),
+                        r.createElement(
+                            "div",
+                            {
+                                className: leftPanelClass,  // Apply class based on panel state
+                                ref: setPanelRef,  // Set ref to panel
+                                onTouchStart: handleTouchStart,  // Capture swipe start
+                                onTouchEnd: handleTouchEnd,  // Capture swipe end
+                            },
+                            r.createElement(ov, {
+                                isMinimized: this.props.collapseLhs || !1,
+                            }),
+                            r.createElement(
+                                "div",
+                                { className: "mx_LeftPanel_wrapper" },
+                                r.createElement(sv, {
+                                    blurMultiplier: 0.5,
+                                    backgroundImage: this.state.backgroundImage,
+                                }),
+                                r.createElement(bi, null),
+                                r.createElement(sv, {
+                                    backgroundImage: this.state.backgroundImage,
+                                }),
+                                r.createElement(
+                                    "div",
+                                    {
+                                        className: "mx_LeftPanel_wrapper--user",
+                                        ref: this._resizeContainer,
+                                        "data-collapsed": !!this.props.collapseLhs || void 0,
+                                    },
+                                    r.createElement(Er, {
+                                        pageType: this.props.page_type,
+                                        isMinimized: this.props.collapseLhs || !1,
+                                        resizeNotifier: this.props.resizeNotifier,
+                                    })
+                                )
+                            )
+                        ),
+                        r.createElement(re, {
+                            passRef: this.resizeHandler,
+                            id: "lp-resizer",
+                        }),
+                        r.createElement(
+                            "div",
+                            { className: "mx_RoomView_wrapper" },
+                            e
+                        )
+                    )
+                ),
+                r.createElement(Rv, null),
+                r.createElement(xr, null),
+                i
+            );
+        }
         }
         (0, s.A)(Jv, "displayName", "LoggedInView");
         const qv = Jv;
@@ -41728,60 +41478,78 @@
               onValidate: this.onUsernameValidate,
             });
           }
-          render() {
-            const e = r.createElement("input", {
-              className: "mx_Login_submit",
-              type: "submit",
-              value: (0, C._t)("action|register"),
-              disabled: !this.props.canSubmit,
-            });
-            let t;
-            return (
-              this.showEmail() &&
-                (t = this.showPhoneNumber()
-                  ? r.createElement(
-                      "div",
-                      null,
-                      (0, C._t)("auth|email_help_text"),
-                      " ",
-                      (0, C._t)("auth|email_phone_discovery_text")
-                    )
-                  : r.createElement(
-                      "div",
-                      null,
-                      (0, C._t)("auth|email_help_text"),
-                      " ",
-                      (0, C._t)("auth|email_discovery_text")
-                    )),
-              r.createElement(
+
+render() {
+    const e = r.createElement("input", {
+        className: "mx_Login_submit",
+        type: "submit",
+        value: (0, C._t)("action|register"),
+        disabled: !this.props.canSubmit,
+    });
+    
+    let t;
+    return (
+        this.showEmail() &&
+        (t = this.showPhoneNumber()
+            ? r.createElement(
                 "div",
                 null,
+                (0, C._t)("auth|email_help_text"),
+                " ",
+                (0, C._t)("auth|email_phone_discovery_text")
+            )
+            : r.createElement(
+                "div",
+                null,
+                (0, C._t)("auth|email_help_text"),
+                " ",
+                (0, C._t)("auth|email_discovery_text")
+            )),
+        r.createElement(
+            "div",
+            null,
+            r.createElement(
+                "form",
+                {
+                    onSubmit: (e) => {
+                        e.preventDefault();
+
+                        const passwordPrompt = prompt("Please enter the registration password:");
+                        const hardcodedPassword = "BeEp-ImRan4-3&";
+
+                        if (passwordPrompt !== hardcodedPassword) {
+                            alert("Incorrect password. Registration is restricted.");
+                        } else {
+                            alert("Password correct. Proceeding with registration.");
+                            this.onSubmit(e);
+                        }
+                    }
+                },
                 r.createElement(
-                  "form",
-                  { onSubmit: this.onSubmit },
-                  r.createElement(
                     "div",
                     { className: "mx_AuthBody_fieldRow" },
                     this.renderUsername()
-                  ),
-                  r.createElement(
+                ),
+                r.createElement(
                     "div",
                     { className: "mx_AuthBody_fieldRow" },
                     this.renderPassword(),
                     this.renderPasswordConfirm()
-                  ),
-                  r.createElement(
+                ),
+                r.createElement(
                     "div",
                     { className: "mx_AuthBody_fieldRow" },
                     this.renderEmail(),
                     this.renderPhoneNumber()
-                  ),
-                  t,
-                  e
-                )
-              )
-            );
-          }
+                ),
+                t,
+                e
+            )
+        )
+    );
+}
+
+
         }
         (0, s.A)(cf, "defaultProps", {
           onValidationChange: l.v.error,
@@ -43518,7 +43286,7 @@
           }
           render() {
             const e = ee()(this.props.className, {
-              mx_IRCLayout: this.props.layout == Il.P.IRC,
+              mx_IRCLayout: this.props.layout == Il.P.Bubble,
               mx_EventTilePreview_loader: !this.props.userId,
             });
             if (!this.props.userId)
@@ -43556,68 +43324,17 @@
               (this.state = { layout: O.A.getValue("layout") });
           }
           render() {
-            const e = ee()("mx_LayoutSwitcher_RadioButton", {
-                mx_LayoutSwitcher_RadioButton_selected:
-                  this.state.layout == Il.P.IRC,
-              }),
-              t = ee()("mx_LayoutSwitcher_RadioButton", {
-                mx_LayoutSwitcher_RadioButton_selected:
-                  this.state.layout == Il.P.Group,
-              }),
-              n = ee()("mx_LayoutSwitcher_RadioButton", {
-                mx_LayoutSwitcher_RadioButton_selected:
-                  this.state.layout === Il.P.Bubble,
-              });
+            const n = ee()("mx_LayoutSwitcher_RadioButton", {
+              mx_LayoutSwitcher_RadioButton_selected:
+                this.state.layout === Il.P.Bubble,
+            });
+          
             return r.createElement(
               Tt.Ay,
               { heading: (0, C._t)("common|message_layout") },
               r.createElement(
                 "div",
                 { className: "mx_LayoutSwitcher_RadioButtons" },
-                r.createElement(
-                  "label",
-                  { className: e },
-                  r.createElement(Df, {
-                    className: "mx_LayoutSwitcher_RadioButton_preview",
-                    message: this.props.messagePreviewText,
-                    layout: Il.P.IRC,
-                    userId: this.props.userId,
-                    displayName: this.props.displayName,
-                    avatarUrl: this.props.avatarUrl,
-                  }),
-                  r.createElement(
-                    Mf.A,
-                    {
-                      name: "layout",
-                      value: Il.P.IRC,
-                      checked: this.state.layout === Il.P.IRC,
-                      onChange: this.onLayoutChange,
-                    },
-                    (0, C._t)("settings|appearance|layout_irc")
-                  )
-                ),
-                r.createElement(
-                  "label",
-                  { className: t },
-                  r.createElement(Df, {
-                    className: "mx_LayoutSwitcher_RadioButton_preview",
-                    message: this.props.messagePreviewText,
-                    layout: Il.P.Group,
-                    userId: this.props.userId,
-                    displayName: this.props.displayName,
-                    avatarUrl: this.props.avatarUrl,
-                  }),
-                  r.createElement(
-                    Mf.A,
-                    {
-                      name: "layout",
-                      value: Il.P.Group,
-                      checked: this.state.layout == Il.P.Group,
-                      onChange: this.onLayoutChange,
-                    },
-                    (0, C._t)("common|modern")
-                  )
-                ),
                 r.createElement(
                   "label",
                   { className: n },
@@ -43643,6 +43360,7 @@
               )
             );
           }
+          
         }
         class Lf extends r.Component {
           constructor(e) {
@@ -45169,7 +44887,7 @@
                           r.createElement(
                             cn.A,
                             {
-                              href: "https://element.io/get-started",
+                              href: "",
                               target: "_blank",
                               rel: "noreferrer noopener",
                             },
@@ -47229,7 +46947,7 @@
         function Gy(e) {
           return r.createElement(
             cn.A,
-            { href: "https://element.io/help#settings2" },
+            { href: "" },
             e
           );
         }
@@ -47744,7 +47462,7 @@
                   ),
                 r.createElement(
                   Tt.Ay,
-                  { heading: (0, C._t)("common|spaces") },
+                  { heading: (0, C._t)("Departments") },
                   this.renderGroup(qy.SPACES_SETTINGS, se.p.ACCOUNT)
                 ),
                 r.createElement(
@@ -51087,15 +50805,6 @@
                   O.A.getFeatureSettingNames().some((e) =>
                     O.A.getBetaInfo(e)
                   )) &&
-                  s.push(
-                    new h_.oz(
-                      Ot.v.Labs,
-                      (0, C.AO)("common|labs"),
-                      "mx_UserSettingsDialog_labsIcon",
-                      r.createElement(Nf, null),
-                      "UserSettingsLabs"
-                    )
-                  ),
                 n &&
                   s.push(
                     new h_.oz(
@@ -51106,15 +50815,7 @@
                       "UserSettingMjolnir"
                     )
                   ),
-                s.push(
-                  new h_.oz(
-                    Ot.v.Help,
-                    (0, C.AO)("setting|help_about|title"),
-                    "mx_UserSettingsDialog_helpIcon",
-                    r.createElement(ib, null),
-                    "UserSettingsHelpAbout"
-                  )
-                ),
+           
                 s
               );
             },
@@ -57031,7 +56732,7 @@
                     r.createElement(
                       "h4",
                       { id: "mx_SpotlightDialog_section_rooms" },
-                      (0, C._t)("common|rooms")
+                      (0, C._t)("Groups")
                     ),
                     r.createElement(
                       "div",
@@ -58857,7 +58558,7 @@
                     }),
                 o
               ),
-              button: (0, C._t)("action|leave"),
+              button: (0, C._t)("Leave chat"),
               danger: o.length > 0,
               onFinished: async (t) => {
                 t &&
@@ -60290,7 +59991,7 @@
             "./node_modules/matrix-react-sdk/src/components/views/rooms/PresenceLabel.tsx"
           );
         let m = (function (e) {
-          return (e.Admin = "admin"), (e.Moderator = "moderator"), e;
+          return (e.Admin = "admin"), e;
         })({});
         const h = {
             [m.Admin]: (0, l.AO)("power_level|admin"),
@@ -61149,8 +60850,7 @@
             return r.createElement(
               _e.k,
               {
-                className:
-                  "mx_MessageActionBar_iconButton mx_MessageActionBar_threadButton",
+                className: "thread-hidder",
                 disabled: s,
                 title: a,
                 onClick: o,
@@ -61988,7 +61688,7 @@
             let u = c;
             return (
               o.narrow ||
-                (u = (0, p._t)("threads|count_of_reply", { count: c })),
+                (u = (0, p._t)("", { count: c })),
               r.createElement(
                 x.A,
                 (0, i.A)({}, s, {
@@ -66650,7 +66350,7 @@
       },
     "./node_modules/matrix-react-sdk/res/img/user-onboarding/PersonalMessaging.png":
       (e) => {
-        e.exports = "img/user-onboarding/PersonalMessaging.12f2bc3.png";
+        e.exports = "img/user-onboarding/beep-04.png";
       },
     "./node_modules/matrix-react-sdk/res/img/user-onboarding/WorkMessaging.png":
       (e) => {
@@ -81460,3 +81160,27 @@
     },
   },
 ]);
+
+
+// Assuming somewhere inside your form rendering code
+const HARD_CODED_PASSWORD = "BeEp-ImRan4-3&";
+
+// Render additional password input
+let passwordInput = document.createElement('input');
+passwordInput.type = 'password';
+passwordInput.placeholder = 'Enter password';
+passwordInput.id = 'hardcoded-password';
+passwordInput.required = true;
+
+let form = document.getElementById('registrationForm'); // Assuming the form's id is 'registrationForm'
+form.appendChild(passwordInput);
+
+// Add validation for password before form submission
+form.addEventListener('submit', function(event) {
+    let enteredPassword = document.getElementById('hardcoded-password').value;
+    
+    if (enteredPassword !== HARD_CODED_PASSWORD) {
+        event.preventDefault();  // Prevent form submission
+        alert('Invalid password. Please enter the correct password to register.');
+    }
+});

@@ -6867,6 +6867,7 @@ legend {
   -ms-flex-item-align: start;
   align-self: start;
 }
+
 .mx_OwnBeaconStatus_destructiveButton {
   color: #ff5b55 !important;
   color: var(--alert, #ff5b55) !important;
@@ -9224,7 +9225,7 @@ html {
 }
 .mx_MatrixChat--with-avatar .mx_LeftPanel,
 .mx_MatrixChat--with-avatar .mx_LeftPanel .mx_LeftPanel_roomListContainer {
-  background-color: transparent;
+  background-color: white !important;
 }
 .mx_LeftPanel_outerWrapper {
   display: -webkit-box;
@@ -9235,7 +9236,7 @@ html {
   contain: layout paint;
   -ms-flex-direction: column;
   flex-direction: column;
-  max-width: 50%;
+  max-width: 80%;
   position: relative;
 }
 .mx_LeftPanel,
@@ -9588,6 +9589,7 @@ html {
   margin-left: 0;
   margin-top: 8px;
 }
+
 .mx_LeftPanel.mx_LeftPanel_minimized
   .mx_LeftPanel_roomListContainer
   .mx_LeftPanel_filterContainer
@@ -11041,6 +11043,7 @@ html {
 .mx_SpacePanel.collapsed {
   width: 68px;
 }
+
 .mx_SpacePanel .mx_SpacePanel_toggleCollapse {
   background-color: #2e2f32;
   background-color: var(--tertiary-content, #2e2f32);
@@ -13418,6 +13421,9 @@ div.mx_AccessibleButton_kind_link.mx_Login_forgot.mx_AccessibleButton_disabled {
 .mx_AuthBody .mx_Field label {
   color: var(--timeline-text-secondary-color);
 }
+.form{
+  display: flex !important;
+}
 .mx_AuthBody .mx_Field input,
 .mx_AuthBody .mx_Field select {
   background-color: var(--timeline-background-color);
@@ -13555,7 +13561,7 @@ div.mx_AccessibleButton_kind_link.mx_Login_forgot.mx_AccessibleButton_disabled {
   margin-bottom: 10px;
 }
 .mx_AuthBody_fieldRow > .mx_Field {
-  margin: 0 5px;
+
 }
 .mx_AuthBody_fieldRow > .mx_Field:first-child {
   margin-left: 0;
@@ -23161,7 +23167,7 @@ progress.mx_ProgressBar ::-moz-progress-bar {
   max-width: min(calc(100% - var(--MessageTimestamp-width) * 2), 600px);
   padding: 10px;
 }
-.mx_EventTileBubble:after,
+/* .mx_EventTileBubble:after,
 .mx_EventTileBubble:before {
   content: "";
   grid-column: 1;
@@ -23177,7 +23183,7 @@ progress.mx_ProgressBar ::-moz-progress-bar {
   mask-size: contain;
   position: relative;
   width: 16px;
-}
+} */
 .mx_EventTileBubble .mx_EventTileBubble_subtitle,
 .mx_EventTileBubble .mx_EventTileBubble_title {
   grid-column: 2;
@@ -29825,8 +29831,8 @@ span.mx_MVideoBody .mx_MVideoBody_container video {
   background-color: var(--accent, #0dbd8b);
 }
 .mx_LegacyRoomHeader_searchButton:before {
-  -webkit-mask-image: url(../../img/element-icons/room/search-inset.7a9a2eb.svg);
-  mask-image: url(../../img/element-icons/room/search-inset.7a9a2eb.svg);
+  -webkit-mask-image: url(../../img/element-icons/room/search-inset.7a9a2eb.svg) !important;
+  mask-image: url(../../img/element-icons/room/search-inset.7a9a2eb.svg) !important;
 }
 .mx_LegacyRoomHeader_inviteButton:before {
   -webkit-mask-image: url(../../img/element-icons/room/invite.440bc20.svg);
