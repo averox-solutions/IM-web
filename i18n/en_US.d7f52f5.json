@@ -1,0 +1,18 @@
+{
+    "call": {
+        "participant_you": "You",
+        "mute_audio": "Mute microphone",
+        "unmute_audio": "Unmute microphone",
+        "disable_video": "Turn off camera",
+        "enable_video": "Turn on camera",
+        "end_call": "End call"
+    },
+    "voip": {
+        "you": "You",
+        "mute_call": "Mute microphone",
+        "unmute_call": "Unmute microphone",
+        "disable_video": "Turn off camera",
+        "enable_video": "Turn on camera",
+        "end_call": "End call"
+    }
+}
