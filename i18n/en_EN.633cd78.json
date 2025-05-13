@@ -74,7 +74,7 @@
         "join": "Join",
         "learn_more": "Learn more",
         "leave": "Leave",
-        "leave_room": "Leave Group",
+        "leave_room": "Leave",
         "logout": "Logout",
         "manage": "Manage",
         "maximise": "Maximise",
@@ -642,9 +642,9 @@
         "stop_voice_message": "Stop recording",
         "voice_message_button": "Voice Message"
     },
-    "console_dev_note": "If you know what you're doing, Element is open-source, be sure to check out our GitHub (https://github.com/vector-im/element-web/) and contribute!",
-    "console_scam_warning": "If someone told you to copy/paste something here, there is a high likelihood you're being scammed!",
-    "console_wait": "Wait!",
+    "console_dev_note": "@__@",
+    "console_scam_warning": "_____________________",
+    "console_wait": "________",
     "create_room": {
         "action_create_room": "Create Group",
         "action_create_video_room": "Create video Group",
@@ -876,7 +876,7 @@
         "cancel_search_label": "Cancel search"
     },
     "empty_room": "Empty Group",
-    "empty_room_was_name": "Empty Groups (was %(oldName)s)",
+    "empty_room_was_name": "%(oldName)s has ended the chat",
     "encryption": {
         "access_secret_storage_dialog": {
             "enter_phrase_or_key_prompt": "Enter your Security Phrase or <button>use your Security Key</button> to continue.",
@@ -1464,7 +1464,7 @@
         "custom_themes": "Support adding custom themes",
         "dynamic_room_predecessors": "Dynamic Groups predecessors",
         "dynamic_room_predecessors_description": "Enable MSC3946 (to support late-arriving Groups archives)",
-        "element_call_video_rooms": "Element Call video Groups",
+        "element_call_video_rooms": "Beep Pakistan Call video Groups",
         "exclude_insecure_devices": "Exclude insecure devices when sending/receiving messages",
         "exclude_insecure_devices_description": "When this mode is enabled, encrypted messages will not be shared with unverified devices, and messages from unverified devices will be shown as an error. Note that if you enable this mode, you may be unable to communicate with users who have not verified their devices.",
         "experimental_description": "Feeling experimental? Try out our latest ideas in development. These features are not finalised; they may be unstable, may change, or may be dropped altogether. <a>Learn more</a>.",
@@ -1561,11 +1561,11 @@
     "language_dropdown_label": "Language Dropdown",
     "leave_room_dialog": {
         "last_person_warning": "You are the only person here. If you leave, no one will be able to join in the future, including you.",
-        "leave_room_question": "Are you sure you want to leave the Groups '%(roomName)s'?",
+        "leave_room_question": "Are you sure you want to leave?",
         "leave_space_question": "Are you sure you want to leave the Department '%(spaceName)s'?",
         "room_leave_admin_warning": "You're the only administrator in this Group. If you leave, nobody will be able to change Groups settings or take other important actions.",
         "room_leave_mod_warning": "You're the only moderator in this Group. If you leave, nobody will be able to change Groups settings or take other important actions.",
-        "room_rejoin_warning": "This Groups is not public. You will not be able to rejoin without an invite.",
+        "room_rejoin_warning": " ",
         "space_rejoin_warning": "This Department is not public. You will not be able to rejoin without an invite."
     },
     "left_panel": {
@@ -1914,7 +1914,7 @@
             "title": "Groups options",
             "unfavourite": "Favourited"
         },
-        "creating_room_text": "We're creating a Groups with %(names)s",
+        "creating_room_text": "Please wait!",
         "dm_invite_action": "Start chatting",
         "dm_invite_subtitle": "<userName/> wants to chat",
         "dm_invite_title": "Do you want to chat with %(user)s?",
@@ -2040,7 +2040,7 @@
         "rejecting": "Rejecting invite…",
         "rejoin_button": "Re-join",
         "search": {
-            "all_rooms_button": "Search all Groups",
+            "all_rooms_button": "Search all",
             "placeholder": "Search messages…",
             "summary": {
                 "one": "1 result found for “<query/>”",
@@ -2068,7 +2068,7 @@
         "upgrade_error_description": "Double check that your server supports the Groups version chosen and try again.",
         "upgrade_error_title": "Error upgrading Group",
         "upgrade_warning_bar": "Upgrading this Groups will shut down the current instance of the Groups and create an upgraded Groups with the same name.",
-        "upgrade_warning_bar_admins": "Only Groups administrators will see this warning",
+        "upgrade_warning_bar_admins": "Only administrators will see this warning",
         "upgrade_warning_bar_unstable": "This Groups is running Groups version <roomVersion />, which this homeserver has marked as <i>unstable</i>.",
         "upgrade_warning_bar_upgraded": "This Groups has already been upgraded.",
         "upload": {
@@ -3900,7 +3900,7 @@
         "disabled_no_perms_start_video_call": "You do not have permission to start video calls",
         "disabled_no_perms_start_voice_call": "You do not have permission to start voice calls",
         "disabled_ongoing_call": "Ongoing call",
-        "element_call": "Element Call",
+        "element_call": "Beep PakistanCall",
         "enable_camera": "Turn on camera",
         "enable_microphone": "Unmute microphone",
         "expand": "Return to call",
