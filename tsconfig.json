@@ -1,0 +1,37 @@
+{
+    "compilerOptions": {
+        "allowImportingTsExtensions": false,
+        "experimentalDecorators": false,
+        "emitDecoratorMetadata": false,
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "useDefineForClassFields": true,
+        "module": "es2022",
+        "moduleResolution": "node",
+        "target": "es2022",
+        "noUnusedLocals": true,
+        "sourceMap": false,
+        "outDir": "./lib",
+        "declaration": true,
+        "jsx": "react",
+        "lib": ["es2022", "dom", "dom.iterable"],
+        "strict": true,
+        "paths": {
+            "jest-matrix-react": ["./test/test-utils/jest-matrix-react"]
+        }
+    },
+    "include": [
+        "./node_modules/matrix-js-sdk/src/@types/*.d.ts",
+        "./src/**/*.ts",
+        "./src/**/*.tsx",
+        "./test/**/*.ts",
+        "./test/**/*.tsx",
+        "./scripts/*.ts"
+, "src/components/views/rooms/RoomHeader/ZegoProvider.js"    ],
+    "ts-node": {
+        "files": true,
+        "moduleTypes": {
+            "*": "cjs"
+        }
+    }
+}

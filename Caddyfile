@@ -1,0 +1,43 @@
+mk2.averox.com {
+    # Root directory where your webapp files are located
+    root * /var/www/mk2.averox.com
+    
+    # Enable file serving
+    file_server
+    
+    # Security headers
+    header {
+        X-Frame-Options SAMEORIGIN
+        X-Content-Type-Options nosniff
+        X-XSS-Protection "1; mode=block"
+        Content-Security-Policy "frame-ancestors 'self'"
+    }
+    
+    # Prevent caching for critical files
+    @no_cache {
+        path *.html /config.json
+    }
+    header @no_cache {
+        Cache-Control "no-cache, no-store, must-revalidate"
+        Pragma "no-cache"
+        Expires "0"
+    }
+    
+    # Cache static assets for 1 year
+    @static {
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+    }
+    header @static {
+        Cache-Control "public, max-age=31536000, immutable"
+    }
+    
+    # Handle single page application routing
+    # Try to serve the file, if not found serve index.html
+    try_files {path} /index.html
+    
+    # Security: Don't serve .git files
+    @git {
+        path /.git*
+    }
+    respond @git 404
+} 
