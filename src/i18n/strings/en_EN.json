@@ -1565,8 +1565,8 @@
         "leave_space_question": "Are you sure you want to leave?",
         "room_leave_admin_warning": "You're the only administrator in this Group. If you leave, nobody will be able to change Groups settings or take other important actions.",
         "room_leave_mod_warning": "You're the only moderator in this Group. If you leave, nobody will be able to change Groups settings or take other important actions.",
-        "room_rejoin_warning": "This Groups is not public. You will not be able to rejoin without an invite.",
-        "space_rejoin_warning": "This Department is not public. You will not be able to rejoin without an invite."
+        "room_rejoin_warning": " ",
+        "space_rejoin_warning": "This Department is not public."
     },
     "left_panel": {
         "open_dial_pad": "Open dial pad"

@@ -420,13 +420,15 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                         fontSize: "24px", 
                         marginRight: "5px",
                         transition: "transform 0.2s ease",
+                        zIndex: "9999",
                     }} className="plus-icon" /> 
                     <h1 style={{
                         margin: "0",
                         fontSize: "17px",
                         fontWeight: "600",
+                        zIndex: "9999",
                         fontFamily: "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                    }}>Start chat</h1>
+                    }}>chat</h1>
                     </ContextMenuTooltipButton>
             )}
             

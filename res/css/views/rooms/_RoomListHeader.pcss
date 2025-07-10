@@ -9,7 +9,7 @@ Please see LICENSE files in the repository root for full details.
 .position_class2 {
     background-color: #488d41;
     border-radius: 8px;
-    bottom: 100px;
+    bottom: 20px;
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
     height: 49px;
@@ -20,12 +20,22 @@ Please see LICENSE files in the repository root for full details.
     position: absolute;
     width: 119px;
     -ms-flex-negative: 0;
-    bottom: 20px;
-    flex-shrink: 0;
+    display: -webkit-box;
+    display: -ms-flexbox;
     display: flex;
+    flex-shrink: 0;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
     align-items: center;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
     justify-content: center;
+    -ms-flex-line-pack: center;
     align-content: center;
+    color: #fff;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* added shadow */
+
 }
 
 .position_class {

@@ -416,7 +416,7 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                 className="position_class2"
                 title={_t("action|start_chat")}
                     >
-                                            <BsPlus
+                         <BsPlus
                             style={{
                                 fontSize: "24px",
                                 marginRight: "5px",
@@ -436,7 +436,7 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                                 zIndex: "9999",  // Set z-index to ensure it is on top
                             }}
                         >
-                            Start chat
+                            chat
                         </h1>
                     </ContextMenuTooltipButton>
             )}
