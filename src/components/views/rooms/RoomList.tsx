@@ -57,7 +57,6 @@ import { getKeyBindingsManager } from "../../../KeyBindingsManager";
 import AccessibleButton from "../elements/AccessibleButton";
 import { Landmark, LandmarkNavigation } from "../../../accessibility/LandmarkNavigation";
 import LegacyCallHandler, { LegacyCallHandlerEvent } from "../../../LegacyCallHandler.tsx";
-import DMRoomMap from "../../../utils/DMRoomMap";
 
 interface IProps {
     onKeyDown: (ev: React.KeyboardEvent, state: IRovingTabIndexState) => void;
@@ -576,16 +575,9 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
         }
     };
 
-private renderSuggestedRooms(): ReactComponentElement<typeof ExtraTile>[] {
-    return this.state.suggestedRooms.map((room) => {
-        try {
-            if (!room || !room.room_id) {
-                console.warn("⚠️ Skipping invalid suggested room:", room);
-                return null;
-            }
-
+    private renderSuggestedRooms(): ReactComponentElement<typeof ExtraTile>[] {
+        return this.state.suggestedRooms.map((room) => {
             const name = room.name || room.canonical_alias || room.aliases?.[0] || _t("empty_room");
-
             const avatar = (
                 <RoomAvatar
                     oobData={{
@@ -595,14 +587,12 @@ private renderSuggestedRooms(): ReactComponentElement<typeof ExtraTile>[] {
                     size="32px"
                 />
             );
-
             const viewRoom = (ev: SyntheticEvent): void => {
-                console.log("📨 Clicking suggested room:", room);
                 defaultDispatcher.dispatch<ViewRoomPayload>({
                     action: Action.ViewRoom,
                     room_alias: room.canonical_alias || room.aliases?.[0],
                     room_id: room.room_id,
-                    via_servers: room.viaServers || [],
+                    via_servers: room.viaServers,
                     oob_data: {
                         avatarUrl: room.avatar_url,
                         name,
@@ -611,7 +601,6 @@ private renderSuggestedRooms(): ReactComponentElement<typeof ExtraTile>[] {
                     metricsViaKeyboard: ev.type !== "click",
                 });
             };
-
             return (
                 <ExtraTile
                     isMinimized={this.props.isMinimized}
@@ -622,132 +611,136 @@ private renderSuggestedRooms(): ReactComponentElement<typeof ExtraTile>[] {
                     key={`suggestedRoomTile_${room.room_id}`}
                 />
             );
-        } catch (error) {
-            console.error("❌ Failed to render suggested room tile:", room, error);
-            return null;
-        }
-    }).filter(Boolean); // filter out nulls
-}
-
-
-private renderSublists(): React.ReactElement[] {
-    const showSkeleton =
-        !this.state.suggestedRooms?.length &&
-        Object.values(RoomListStore.instance.orderedLists).every((list) => !list?.length);
-
-    const orderedLists = RoomListStore.instance.orderedLists;
-
-    // 🔍 Deduplicate suggested rooms by userId (keep most recent)
-    const deduplicatedSuggestedRooms = (() => {
-        const invites = this.state.suggestedRooms || [];
-        console.log("[SuggestedRooms] Original invites:", invites);
-
-        const latestMap = new Map<string, typeof invites[0]>();
-
-        for (const invite of invites) {
-            const existing = latestMap.get(invite.userId);
-            if (!existing || invite.timestamp > existing.timestamp) {
-                latestMap.set(invite.userId, invite);
-            }
-        }
-
-        const result = Array.from(latestMap.values());
-        console.log("[SuggestedRooms] Deduplicated invites:", result);
-        return result;
-    })();
-
-    return TAG_ORDER.map((orderedTagId) => {
-        let extraTiles: ReactComponentElement<typeof ExtraTile>[] | undefined;
-
-        if (orderedTagId === DefaultTagID.Suggested) {
-            extraTiles = deduplicatedSuggestedRooms.map((invite) => (
-                <ExtraTile key={invite.roomId} invite={invite} />
-            ));
-            console.log(`[Render] ExtraTiles for tag "${orderedTagId}":`, extraTiles);
-        }
-
-        const aesthetics = TAG_AESTHETICS[orderedTagId];
-        if (!aesthetics) {
-            throw new Error(`Tag ${orderedTagId} does not have aesthetics defined.`);
-        }
-
-        let allRooms = orderedLists[orderedTagId] || [];
-        console.log(`[Render] Raw rooms for tag "${orderedTagId}":`, allRooms);
-
-        // 🧹 Filter out placeholder/empty-named rooms
-        allRooms = allRooms.filter((room) => {
-            const name = room.name?.toLowerCase() || "";
-            return name !== "empty_room" && !name.includes("empty group");
         });
-        console.log(`[Render] Filtered rooms for tag "${orderedTagId}":`, allRooms);
+    }
 
-        // 📛 Deduplicate Invite rooms based on DM inviter
-        if (orderedTagId === DefaultTagID.Invite) {
-            const seenInviters = new Set<string>();
-            allRooms = allRooms.filter((room) => {
-                try {
-                    const inviter = room?.getDMInviter?.();
-                    if (inviter && typeof inviter === "string") {
-                        if (seenInviters.has(inviter)) return false;
-                        seenInviters.add(inviter);
-                        return true;
-                    }
-                } catch (e) {
-                    console.error("❌ Error getting inviter for room", room?.roomId, e);
-                }
-                return true;
+    // private renderSublists(): React.ReactElement[] {
+    //     // show a skeleton UI if the user is in no rooms and they are not filtering and have no suggested rooms
+    //     const showSkeleton =
+    //         !this.state.suggestedRooms?.length &&
+    //         Object.values(RoomListStore.instance.orderedLists).every((list) => !list?.length);
+
+    //     return TAG_ORDER.map((orderedTagId) => {
+    //         let extraTiles: ReactComponentElement<typeof ExtraTile>[] | undefined;
+    //         if (orderedTagId === DefaultTagID.Suggested) {
+    //             extraTiles = this.renderSuggestedRooms();
+    //         }
+
+    //         const aesthetics = TAG_AESTHETICS[orderedTagId];
+    //         if (!aesthetics) throw new Error(`Tag ${orderedTagId} does not have aesthetics`);
+
+    //         let alwaysVisible = ALWAYS_VISIBLE_TAGS.includes(orderedTagId);
+    //         if (
+    //             (this.props.activeSpace === MetaSpace.Favourites && orderedTagId !== DefaultTagID.Favourite) ||
+    //             (this.props.activeSpace === MetaSpace.People && orderedTagId !== DefaultTagID.DM) ||
+    //             (this.props.activeSpace === MetaSpace.Orphans && orderedTagId === DefaultTagID.DM) ||
+    //             (this.props.activeSpace === MetaSpace.VideoRooms && orderedTagId === DefaultTagID.DM) ||
+    //             (!isMetaSpace(this.props.activeSpace) &&
+    //                 orderedTagId === DefaultTagID.DM &&
+    //                 !SettingsStore.getValue("Spaces.showPeopleInSpace", this.props.activeSpace))
+    //         ) {
+    //             alwaysVisible = false;
+    //         }
+
+    //         let forceExpanded = false;
+    //         if (
+    //             (this.props.activeSpace === MetaSpace.Favourites && orderedTagId === DefaultTagID.Favourite) ||
+    //             (this.props.activeSpace === MetaSpace.People && orderedTagId === DefaultTagID.DM)
+    //         ) {
+    //             forceExpanded = true;
+    //         }
+    //         // The cost of mounting/unmounting this component offsets the cost
+    //         // of keeping it in the DOM and hiding it when it is not required
+    //         return (
+    //             <RoomSublist
+    //                 key={`sublist-${orderedTagId}`}
+    //                 tagId={orderedTagId}
+    //                 forRooms={true}
+    //                 startAsHidden={aesthetics.defaultHidden}
+    //                 label={aesthetics.sectionLabelRaw ? aesthetics.sectionLabelRaw : _t(aesthetics.sectionLabel)}
+    //                 AuxButtonComponent={aesthetics.AuxButtonComponent}
+    //                 isMinimized={this.props.isMinimized}
+    //                 showSkeleton={showSkeleton}
+    //                 extraTiles={extraTiles}
+    //                 resizeNotifier={this.props.resizeNotifier}
+    //                 alwaysVisible={alwaysVisible}
+    //                 onListCollapse={this.props.onListCollapse}
+    //                 forceExpanded={forceExpanded}
+    //             />
+    //         );
+    //     });
+    // }
+    private renderSublists(): React.ReactElement[] {
+        const showSkeleton =
+            !this.state.suggestedRooms?.length &&
+            Object.values(RoomListStore.instance.orderedLists).every((list) => !list?.length);
+    
+        const orderedLists = RoomListStore.instance.orderedLists;
+    
+        return TAG_ORDER.map((orderedTagId) => {
+            let extraTiles: ReactComponentElement<typeof ExtraTile>[] | undefined;
+    
+            if (orderedTagId === DefaultTagID.Suggested) {
+                extraTiles = this.renderSuggestedRooms();
+            }
+    
+            const aesthetics = TAG_AESTHETICS[orderedTagId];
+            if (!aesthetics) {
+                throw new Error(`Tag ${orderedTagId} does not have aesthetics defined.`);
+            }
+    
+            // 🔒 Filter out rooms with name "empty_room" or containing "empty group"
+            const allRooms = orderedLists[orderedTagId] || [];
+            const filteredRooms = allRooms.filter((room) => {
+                const name = room.name?.toLowerCase() || "";
+                return name !== "empty_room" && !name.includes("empty group");
             });
-            console.log(`[Invite] Deduplicated Invite rooms:`, allRooms);
-        }
-
-        if (allRooms.length === 0 && !extraTiles?.length) {
-            console.log(`[Skip] No rooms or tiles to render for tag "${orderedTagId}"`);
-            return null;
-        }
-
-        let alwaysVisible = ALWAYS_VISIBLE_TAGS.includes(orderedTagId);
-        if (
-            (this.props.activeSpace === MetaSpace.Favourites && orderedTagId !== DefaultTagID.Favourite) ||
-            (this.props.activeSpace === MetaSpace.People && orderedTagId !== DefaultTagID.DM) ||
-            (this.props.activeSpace === MetaSpace.Orphans && orderedTagId === DefaultTagID.DM) ||
-            (this.props.activeSpace === MetaSpace.VideoRooms && orderedTagId === DefaultTagID.DM) ||
-            (!isMetaSpace(this.props.activeSpace) &&
-                orderedTagId === DefaultTagID.DM &&
-                !SettingsStore.getValue("Spaces.showPeopleInSpace", this.props.activeSpace))
-        ) {
-            alwaysVisible = false;
-        }
-
-        let forceExpanded = false;
-        if (
-            (this.props.activeSpace === MetaSpace.Favourites && orderedTagId === DefaultTagID.Favourite) ||
-            (this.props.activeSpace === MetaSpace.People && orderedTagId === DefaultTagID.DM)
-        ) {
-            forceExpanded = true;
-        }
-
-        console.log(`[Render] Rendering RoomSublist for tag "${orderedTagId}"`);
-        return (
-            <RoomSublist
-                key={`sublist-${orderedTagId}`}
-                tagId={orderedTagId}
-                forRooms={true}
-                rooms={allRooms}
-                startAsHidden={aesthetics.defaultHidden}
-                label={aesthetics.sectionLabelRaw ? aesthetics.sectionLabelRaw : _t(aesthetics.sectionLabel)}
-                AuxButtonComponent={aesthetics.AuxButtonComponent}
-                isMinimized={this.props.isMinimized}
-                showSkeleton={showSkeleton}
-                extraTiles={extraTiles}
-                resizeNotifier={this.props.resizeNotifier}
-                alwaysVisible={alwaysVisible}
-                onListCollapse={this.props.onListCollapse}
-                forceExpanded={forceExpanded}
-            />
-        );
-    }).filter(Boolean); // 🧹 Remove null entries
-}
-
+    
+            if (filteredRooms.length === 0 && !extraTiles?.length) {
+                return null;
+            }
+    
+            let alwaysVisible = ALWAYS_VISIBLE_TAGS.includes(orderedTagId);
+            if (
+                (this.props.activeSpace === MetaSpace.Favourites && orderedTagId !== DefaultTagID.Favourite) ||
+                (this.props.activeSpace === MetaSpace.People && orderedTagId !== DefaultTagID.DM) ||
+                (this.props.activeSpace === MetaSpace.Orphans && orderedTagId === DefaultTagID.DM) ||
+                (this.props.activeSpace === MetaSpace.VideoRooms && orderedTagId === DefaultTagID.DM) ||
+                (!isMetaSpace(this.props.activeSpace) &&
+                    orderedTagId === DefaultTagID.DM &&
+                    !SettingsStore.getValue("Spaces.showPeopleInSpace", this.props.activeSpace))
+            ) {
+                alwaysVisible = false;
+            }
+    
+            let forceExpanded = false;
+            if (
+                (this.props.activeSpace === MetaSpace.Favourites && orderedTagId === DefaultTagID.Favourite) ||
+                (this.props.activeSpace === MetaSpace.People && orderedTagId === DefaultTagID.DM)
+            ) {
+                forceExpanded = true;
+            }
+    
+            return (
+                <RoomSublist
+                    key={`sublist-${orderedTagId}`}
+                    tagId={orderedTagId}
+                    forRooms={true}
+                    rooms={filteredRooms} // ✅ Pass filtered rooms
+                    startAsHidden={aesthetics.defaultHidden}
+                    label={aesthetics.sectionLabelRaw ? aesthetics.sectionLabelRaw : _t(aesthetics.sectionLabel)}
+                    AuxButtonComponent={aesthetics.AuxButtonComponent}
+                    isMinimized={this.props.isMinimized}
+                    showSkeleton={showSkeleton}
+                    extraTiles={extraTiles}
+                    resizeNotifier={this.props.resizeNotifier}
+                    alwaysVisible={alwaysVisible}
+                    onListCollapse={this.props.onListCollapse}
+                    forceExpanded={forceExpanded}
+                />
+            );
+        }).filter(Boolean); // remove nulls
+    }
     
     
 

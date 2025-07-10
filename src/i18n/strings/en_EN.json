@@ -875,8 +875,8 @@
     "emoji_picker": {
         "cancel_search_label": "Cancel search"
     },
-    "empty_room": "Empty Group",
-    "empty_room_was_name": "Empty Groups (was %(oldName)s)",
+    "empty_room": "chat ended",
+    "empty_room_was_name": "chat ended by %(oldName)s",
     "encryption": {
         "access_secret_storage_dialog": {
             "enter_phrase_or_key_prompt": "Enter your Security Phrase or <button>use your Security Key</button> to continue.",
@@ -1560,9 +1560,9 @@
     },
     "language_dropdown_label": "Language Dropdown",
     "leave_room_dialog": {
-        "last_person_warning": "You are the only person here. If you leave, no one will be able to join in the future, including you.",
-        "leave_room_question": "Are you sure you want to leave the Groups '%(roomName)s'?",
-        "leave_space_question": "Are you sure you want to leave the Department '%(spaceName)s'?",
+        "last_person_warning": " ",
+        "leave_room_question": "Are you sure you want to leave?",
+        "leave_space_question": "Are you sure you want to leave?",
         "room_leave_admin_warning": "You're the only administrator in this Group. If you leave, nobody will be able to change Groups settings or take other important actions.",
         "room_leave_mod_warning": "You're the only moderator in this Group. If you leave, nobody will be able to change Groups settings or take other important actions.",
         "room_rejoin_warning": "This Groups is not public. You will not be able to rejoin without an invite.",

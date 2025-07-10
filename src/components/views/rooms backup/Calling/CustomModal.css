@@ -1,0 +1,129 @@
+/* CustomModal.css */
+.modal-open {
+  overflow: hidden;
+}
+
+.mx_CustomModal_wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mx_CustomModal_backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+.mx_CustomModal {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px;
+  max-height: 100vh;
+  max-width: 100vw;
+  box-sizing: border-box;
+}
+
+.mx_CustomModal_centered {
+  align-items: center;
+}
+
+.mx_CustomModal_content {
+  position: relative;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.mx_CustomModal_header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #eee;
+  font-weight: 500;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.mx_CustomModal_body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.mx_CustomModal_footer {
+  padding: 10px 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mx_CustomModal_closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.mx_CustomModal_closeButton:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.85);
+}
+
+/* Animation */
+.mx_CustomModal_wrapper {
+  animation: mx_CustomModal_fadeIn 0.3s;
+}
+
+.mx_CustomModal_content {
+  animation: mx_CustomModal_zoomIn 0.3s;
+}
+
+@keyframes mx_CustomModal_fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mx_CustomModal_zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+} 

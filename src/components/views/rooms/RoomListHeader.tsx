@@ -416,30 +416,21 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                 className="position_class2"
                 title={_t("action|start_chat")}
                     >
-                                            <BsPlus
-                            style={{
-                                fontSize: "24px",
-                                marginRight: "5px",
-                                color: "white",
-                                transition: "transform 0.2s ease",
-                                zIndex: "9999",  // Set z-index to ensure it is on top
-                            }}
-                            className="plus-icon"
-                        />
-                        <h1
-                            style={{
-                                margin: "0",
-                                fontSize: "17px",
-                                fontWeight: "600",
-                                color: "white",  // Corrected 'Color' to 'color'
-                                fontFamily: "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                zIndex: "9999",  // Set z-index to ensure it is on top
-                            }}
-                        >
-                            Start chat
-                        </h1>
+                    <BsPlus style={{
+                        fontSize: "24px", 
+                        marginRight: "5px",
+                        transition: "transform 0.2s ease",
+                    }} className="plus-icon" /> 
+                    <h1 style={{
+                        margin: "0",
+                        fontSize: "17px",
+                        fontWeight: "600",
+                        fontFamily: "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+                    }}>Start chat</h1>
                     </ContextMenuTooltipButton>
             )}
+            
+
             {contextMenu}
         </aside>
     );

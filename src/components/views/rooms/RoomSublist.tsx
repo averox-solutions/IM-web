@@ -74,7 +74,6 @@ interface IProps {
     resizeNotifier: ResizeNotifier;
     extraTiles?: ReactComponentElement<typeof ExtraTile>[] | null;
     onListCollapse?: (isExpanded: boolean) => void;
-    rooms?: Room[];
 }
 
 function getLabelId(tagId: TagID): string {
@@ -157,12 +156,8 @@ export default class RoomSublist extends React.Component<IProps, IState> {
         return this.props.extraTiles ?? null;
     }
 
-    private get roomsToDisplay(): Room[] {
-        return this.props.rooms ?? this.state.rooms;
-    }
-
     private get numTiles(): number {
-        return RoomSublist.calcNumTiles(this.roomsToDisplay, this.extraTiles);
+        return RoomSublist.calcNumTiles(this.state.rooms, this.extraTiles);
     }
 
     private static calcNumTiles(rooms: Room[], extraTiles?: any[] | null): number {
@@ -171,7 +166,7 @@ export default class RoomSublist extends React.Component<IProps, IState> {
 
     private get numVisibleTiles(): number {
         if (this.slidingSyncMode) {
-            return this.roomsToDisplay.length;
+            return this.state.rooms.length;
         }
         const nVisible = Math.ceil(this.layout.visibleTiles);
         return Math.min(nVisible, this.numTiles);
@@ -519,8 +514,8 @@ export default class RoomSublist extends React.Component<IProps, IState> {
 
         const tiles: React.ReactElement[] = [];
 
-        if (this.roomsToDisplay) {
-            let visibleRooms = this.roomsToDisplay;
+        if (this.state.rooms) {
+            let visibleRooms = this.state.rooms;
             if (!this.props.forceExpanded) {
                 visibleRooms = visibleRooms.slice(0, this.numVisibleTiles);
             }
@@ -733,7 +728,7 @@ export default class RoomSublist extends React.Component<IProps, IState> {
 
     public render(): React.ReactElement {
         const visibleTiles = this.renderVisibleTiles();
-        const hidden = !this.roomsToDisplay.length && !this.props.extraTiles?.length && this.props.alwaysVisible !== true;
+        const hidden = !this.state.rooms.length && !this.props.extraTiles?.length && this.props.alwaysVisible !== true;
         const classes = classNames({
             mx_RoomSublist: true,
             mx_RoomSublist_hasMenuOpen: !!this.state.contextMenuPosition,
@@ -769,7 +764,7 @@ export default class RoomSublist extends React.Component<IProps, IState> {
             // tiles visible, it becomes 'show less'.
             let showNButton: JSX.Element | undefined;
             const hasMoreSlidingSync =
-                this.slidingSyncMode && RoomListStore.instance.getCount(this.props.tagId) > this.roomsToDisplay.length;
+                this.slidingSyncMode && RoomListStore.instance.getCount(this.props.tagId) > this.state.rooms.length;
 
             if (maxTilesPx > this.state.height || hasMoreSlidingSync) {
                 // the height of all the tiles is greater than the section height: we need a 'show more' button

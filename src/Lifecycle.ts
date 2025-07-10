@@ -81,6 +81,7 @@ import {
 } from "./utils/tokens/tokens";
 import { TokenRefresher } from "./utils/oidc/TokenRefresher";
 import { checkBrowserSupport } from "./SupportedBrowser";
+import GlobalSocketManager from "./components/views/rooms/Calling/GlobalSocketManager";
 
 const HOMESERVER_URL_KEY = "mx_hs_url";
 const ID_SERVER_URL_KEY = "mx_is_url";
@@ -960,6 +961,10 @@ async function startMatrixClient(
     // to work).
     dis.dispatch({ action: "will_start_client" }, true);
 
+    // Initialize global socket manager for calling backend connection
+    // This must be done early so it can listen for client_started events
+    GlobalSocketManager.getInstance().initialize();
+
     // reset things first just in case
     SdkContextClass.instance.typingStore.reset();
     ToastStore.sharedInstance().reset();
@@ -1020,6 +1025,10 @@ export async function onLoggedOut(): Promise<void> {
     // that React components unmount first. This avoids React soft crashes
     // that can occur when components try to use a null client.
     dis.fire(Action.OnLoggedOut, true);
+
+    // Clean up global socket manager before stopping the client
+    GlobalSocketManager.getInstance().destroy();
+
     stopMatrixClient();
     await clearStorage({ deleteEverything: true });
     LifecycleCustomisations.onLoggedOutAndStorageCleared?.();

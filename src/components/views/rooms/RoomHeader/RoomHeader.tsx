@@ -45,18 +45,12 @@ import RightPanelStore from "../../../../stores/right-panel/RightPanelStore";
 import { RoomKnocksBar } from "../RoomKnocksBar";
 import { ToggleableIcon } from "./toggle/ToggleableIcon";
 import { CurrentRightPanelPhaseContextProvider } from "../../../../contexts/CurrentRightPanelPhaseContext";
-import { initializeSocketIfNeeded } from "../../rooms/Calling/socketInitializer";
+import GlobalSocketManager from "../../rooms/Calling/GlobalSocketManager";
 import CallModal from "../Calling/CallModal";
-import { VideoRoom } from "../livekit_calling/VideoRoom";
-import LiveKitRoomManager from "../livekit_calling/LiveKitRoomManager";
+import { VideoRoom } from "../livekit-calling/VideoRoom";
+import LiveKitRoomManager from "../livekit-calling/LiveKitRoomManager";
 import LegacyCallHandler, { AudioID } from "../../../../LegacyCallHandler";
 import { showToast } from "../Calling/notificationUtils";
-import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
-import { isVideoRoom as calcIsVideoRoom } from "../../../../utils/video-rooms.ts";
-import { MainSplitContentType } from "../../../structures/RoomView.tsx";
-import { VideoRoomChatButton } from "./VideoRoomChatButton.tsx";
-import Modal from "../../../../Modal";
-import SetupEncryptionDialog from "../../dialogs/security/SetupEncryptionDialog";
 
 export default function RoomHeader({
     room,
@@ -138,8 +132,8 @@ export default function RoomHeader({
             // Stop ring sound when rejecting
             LegacyCallHandler.instance.pause(AudioID.Ring);
 
-            // Send rejection response to backend
-            const socket = initializeSocketIfNeeded();
+            // Send rejection response to backend using global socket
+            const socket = GlobalSocketManager.getInstance().getSocket();
             if (socket && callData) {
                 const declineData = {
                     roomId: callData.roomId,
@@ -158,82 +152,43 @@ export default function RoomHeader({
         [currentUserId],
     );
 
-    // Initialize socket when component mounts
+    // The socket is now managed globally, no need to initialize in component
     useEffect(() => {
-        const initSocket = async (): Promise<void> => {
-            try {
-                const socket = initializeSocketIfNeeded();
-                if (socket) {
-                    console.log("Socket initialized successfully");
+        // Socket connection is managed by GlobalSocketManager at app level
+        // Check if socket is available
+        const socket = GlobalSocketManager.getInstance().getSocket();
+        if (socket) {
+            console.log("✅ Global socket available in RoomHeader:", socket.connected ? "connected" : "disconnected");
+        } else {
+            console.warn("⚠️ Global socket not yet available in RoomHeader");
+        }
 
-                    // Listen for socket connection events
-                    socket.on("connect", () => {
-                        console.log("Socket connected");
-                    });
+        // REMOVED: Incoming call handling is now done globally by GlobalSocketManager
+        // This prevents duplicate event registration and notification issues
 
-                    socket.on("disconnect", () => {
-                        console.log("Socket disconnected");
-                    });
-
-                    // If socket is already connected when initialized
-                    if (socket.connected) {
-                        console.log("Socket already connected");
-                    }
-                } else {
-                    console.error("Failed to initialize socket");
-                }
-            } catch (error) {
-                console.error("Error initializing socket:", error);
-            }
-        };
-
-        initSocket();
-
-        // Listen for incoming LiveKit calls
-        const handleIncomingLiveKitCall = (event: Event): void => {
+        // Note: incoming calls are now handled globally by GlobalSocketManager
+        // But we still need to listen for when a call is accepted to show the UI
+        const handleGlobalCallAccepted = (event: Event): void => {
             const customEvent = event as CustomEvent;
-            if (customEvent.detail) {
-                console.log("📞 Received incoming LiveKit call in RoomHeader:", customEvent.detail);
+            const activeCall = customEvent.detail;
 
-                // Show our professional notification for incoming call
-                const callData = customEvent.detail;
-                const caller = callData.isGroup ? callData.groupName : callData.fromUsername;
+            console.log("✅ RoomHeader: Received global call accepted event", activeCall);
+            console.log("🏠 Current room ID:", room.roomId);
+            console.log("📞 Call room ID:", activeCall?.roomId);
 
-                // Start playing ring sound for incoming LiveKit call
-                console.log("🔊 Starting ring sound for incoming LiveKit call");
-                LegacyCallHandler.instance.play(AudioID.Ring).catch((error) => {
-                    console.warn("Failed to play ring sound:", error);
-                });
-
-                // Show notification using our professional system - this handles everything
-                const notificationId = (window as any).showLiveKitCallNotification("incoming", {
-                    caller: caller,
-                    isVideo: callData.isVideo,
-                    onAccept: () => {
-                        console.log("Incoming call accepted from notification");
-                        // Stop ring sound when accepting from notification
-                        LegacyCallHandler.instance.pause(AudioID.Ring);
-                        handleAcceptIncomingCall(callData);
-                    },
-                    onDecline: () => {
-                        console.log("Incoming call declined from notification");
-                        // Stop ring sound when declining from notification
-                        LegacyCallHandler.instance.pause(AudioID.Ring);
-                        handleRejectIncomingCall(callData);
-                    },
-                    onDismiss: () => {
-                        console.log("Incoming call notification dismissed (30s timeout)");
-                        // Stop ring sound when auto-dismissed after 30s
-                        LegacyCallHandler.instance.pause(AudioID.Ring);
-                        handleRejectIncomingCall(callData);
-                    },
-                });
-
-                console.log("📤 Showed incoming LiveKit call notification:", notificationId);
+            // Only handle calls for this room
+            if (activeCall && activeCall.roomId === room.roomId) {
+                console.log("📞 Setting up call UI for accepted call in this room");
+                console.log("📞 Setting activeCallData to:", activeCall);
+                setActiveCallData(activeCall);
+            } else {
+                console.log("❌ Call is not for this room, ignoring");
             }
         };
 
-        window.addEventListener("incomingLiveKitCall", handleIncomingLiveKitCall);
+        window.addEventListener("globalCallAccepted", handleGlobalCallAccepted);
+
+        // NOTE: incomingLiveKitCall events are now handled globally by GlobalSocketManager
 
         // Unified handler for call decline events
         const handleCallDeclined = (data: any): void => {
@@ -262,8 +217,8 @@ export default function RoomHeader({
             }
         };
 
-        // Listen for both socket and custom events
-        const currentSocket = initializeSocketIfNeeded();
+        // Listen for both socket and custom events using global socket
+        const currentSocket = GlobalSocketManager.getInstance().getSocket();
         if (currentSocket) {
             currentSocket.on("call_declined", handleCallDeclined);
         }
@@ -276,18 +231,37 @@ export default function RoomHeader({
             }
         });
 
+        // Listen for auto-timeout events to show appropriate message
+        window.addEventListener("liveKitCallTimeout", () => {
+            console.log("📞 Received call timeout event");
+
+            // Close any active call screen
+            if (isLiveKitCallActive) {
+                console.log("📞 Closing active LiveKit call due to timeout");
+                closeLiveKitCall();
+            }
+
+            // Clear any outgoing call notifications
+            if ((window as any).clearAllLiveKitCallNotifications) {
+                (window as any).clearAllLiveKitCallNotifications();
+            }
+
+            // Show toast notification that no one answered
+            showToast("No answer - call ended", "info", 3000);
+            console.log("📞 Call timeout handled successfully");
+        });
+
         // Cleanup function
         return () => {
-            const cleanupSocket = initializeSocketIfNeeded();
+            const cleanupSocket = GlobalSocketManager.getInstance().getSocket();
             if (cleanupSocket) {
-                cleanupSocket.off("connect");
-                cleanupSocket.off("disconnect");
                 cleanupSocket.off("call_declined", handleCallDeclined);
             }
-            window.removeEventListener("incomingLiveKitCall", handleIncomingLiveKitCall);
+            window.removeEventListener("globalCallAccepted", handleGlobalCallAccepted);
             window.removeEventListener("liveKitCallDeclined", handleCallDeclined);
+            window.removeEventListener("liveKitCallTimeout", () => {});
         };
-    }, [handleAcceptIncomingCall, handleRejectIncomingCall, currentUserId, isLiveKitCallActive]);
+    }, [handleAcceptIncomingCall, handleRejectIncomingCall, currentUserId, isLiveKitCallActive, room.roomId]);
 
     const allSamePowerLevel = React.useMemo(() => {
         const allMembers = [currentUser, ...otherMember];
@@ -308,17 +282,8 @@ export default function RoomHeader({
         });
     };
 
-    // Helper: check if session is marked verified in localStorage
-    const isSessionVerifiedLocally = (): boolean => {
-        return localStorage.getItem("sessionVerified") === "true";
-    };
-
     // Modified group call functions to use LiveKit with proper participant data
     async function GroupCallVideo(): Promise<void> {
-        if (!isSessionVerifiedLocally()) {
-            Modal.createDialog(SetupEncryptionDialog, { onFinished: () => {} });
-            return;
-        }
         console.log("🎥 Starting LiveKit video call");
 
         // Remove any existing notifications before starting outgoing call
@@ -360,10 +325,6 @@ export default function RoomHeader({
     }
 
     async function GroupCallVoice(): Promise<void> {
-        if (!isSessionVerifiedLocally()) {
-            Modal.createDialog(SetupEncryptionDialog, { onFinished: () => {} });
-            return;
-        }
         console.log("🎙️ Starting LiveKit voice call");
 
         // Remove any existing notifications before starting outgoing call
@@ -403,11 +364,7 @@ export default function RoomHeader({
         setLiveKitCallData(participantData);
         setLiveKitCallType("voice");
     }
-    const roomContext = useScopedRoomContext("mainSplitContentType");
-    const isVideoRoom = calcIsVideoRoom(room);
-    const showChatButton = isVideoRoom || roomContext.mainSplitContentType === MainSplitContentType.MaximisedWidget ||
-        roomContext.mainSplitContentType === MainSplitContentType.Call;
-    
+
     // Helper function to gather participant data for the call
     const gatherParticipantData = (): any => {
         try {
@@ -481,6 +438,16 @@ export default function RoomHeader({
         setLiveKitCallData(null);
         setActiveCallData(null);
     };
+
+    // Monitor activeCallData changes
+    useEffect(() => {
+        console.log("📞 activeCallData changed:", activeCallData);
+        if (activeCallData) {
+            console.log("✅ Active call data is set, LiveKitRoomManager should render");
+        } else {
+            console.log("❌ Active call data is null, no call UI should render");
+        }
+    }, [activeCallData]);
 
     // Hide sidebar when any LiveKit call is active
     useEffect(() => {
@@ -575,6 +542,7 @@ export default function RoomHeader({
                             </BodyText>
                         </Box>
                     </button>
+
                     <button
                         onClick={GroupCallVoice}
                         disabled={isLiveKitCallActive || !!activeCallData}
@@ -618,39 +586,6 @@ export default function RoomHeader({
                     >
                         <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
                     </button>
-                                    {showChatButton && (
-                        <>
-                        {/* FacePile (Member List) - show if showChatButton is true */}
-                        <FacePile
-                            className="mx_RoomHeader_members"
-                            members={members.slice(0, 3)}  // Show first 3 members
-                            size="20px"
-                            overflow={false}
-                            viewUserOnClick={false}
-                            tooltipLabel={_t("room|header_face_pile_tooltip")}
-                            onClick={(e: ButtonEvent) => {
-                                RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
-                                e.stopPropagation();
-                            }}
-                            aria-label={_t("common|n_members", { count: memberCount })}
-                        >
-                            {formatCount(memberCount)}
-                        </FacePile>
-
-                        <Tooltip label={_t("right_panel|room_summary_card|title")}>
-                            <IconButton
-                                onClick={(evt) => {
-                                    evt.stopPropagation();
-                                    RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
-                                }}
-                                aria-label={_t("right_panel|room_summary_card|title")}
-                            >
-                                <ToggleableIcon Icon={RoomInfoIcon} phase={RightPanelPhases.RoomSummary} />
-                            </IconButton>
-                        </Tooltip>
-                        <VideoRoomChatButton room={room} />
-                    </>
-                )}
 
                     {notificationsEnabled && !allSamePowerLevel && (
                         <Tooltip label={_t("notifications|enable_prompt_toast_title")}>

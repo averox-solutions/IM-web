@@ -1,0 +1,3328 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+import React, { useEffect, useRef, useState } from "react";
+
+import {
+    ParticipantTile,
+    ControlBar,
+    LiveKitRoom,
+    useRoomContext,
+    useParticipants,
+    useTracks,
+} from "@livekit/components-react";
+import type { TrackReference } from "@livekit/components-react";
+import "@livekit/components-styles";
+
+import { useRoom } from "./hooks/useRoom";
+import GlobalSocketManager from "../Calling/GlobalSocketManager";
+import { getCurrentMatrixUserId } from "../Calling/MatrixUtils";
+import { CALL_ENDED } from "../Calling/socketEvents";
+
+// Utility function to emit call ended event to backend
+const emitCallEndedEvent = (roomId: string, toUserIds: string[]): void => {
+    try {
+        console.log("🚀 emitCallEndedEvent called with:", { roomId, toUserIds });
+        const socket = GlobalSocketManager.getGlobalSocket();
+        const fromUserId = getCurrentMatrixUserId();
+
+        console.log("🔌 Global socket and user check:", {
+            hasSocket: !!socket,
+            isSocketConnected: socket?.connected,
+            fromUserId,
+        });
+
+        if (!socket || !fromUserId) {
+            console.warn("❌ Cannot emit call ended event: global socket or user ID not available", {
+                hasSocket: !!socket,
+                isSocketConnected: socket?.connected,
+                fromUserId,
+            });
+            return;
+        }
+
+        const callEndedData = {
+            roomId,
+            initiatorUserId: fromUserId,
+            participantIds: toUserIds || [],
+        };
+
+        console.log("📤 Emitting CALL_ENDED event to backend via global socket:", callEndedData);
+        socket.emit(CALL_ENDED, callEndedData);
+        console.log("✅ CALL_ENDED event emitted successfully via global socket");
+    } catch (error) {
+        console.error("💥 Failed to emit call ended event:", error);
+    }
+};
+
+// Add CSS to hide sidebar and other UI elements during LiveKit calls
+const livekitCallStyles = `
+    .mx_LiveKitCall_active .mx_LeftPanel,
+    .mx_LiveKitCall_active .mx_RightPanel,
+    .mx_LiveKitCall_active .mx_HeaderWrapper,
+    .mx_LiveKitCall_active .mx_ResizeHandle {
+        display: none !important;
+    }
+    
+    .mx_LiveKitCall_active .mx_RoomView {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+    }
+    
+    .mx_LiveKitCall_active {
+        overflow: hidden;
+    }
+
+    /* Professional Video Flex Layout - Responsive Design */
+    .lk-video-grid {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 16px !important;
+        padding: 20px !important;
+        width: 100% !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+        align-content: flex-start !important;
+        justify-content: center !important;
+        flex: 1 !important;
+        background: #1a1a1a !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        align-items: flex-start !important;
+    }
+
+    /* Center placeholder when no participants */
+    .lk-video-grid:empty,
+    .lk-video-grid[data-participant-count="0"] {
+        align-content: center !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Dynamic sizing based on participant count using CSS custom properties */
+    .lk-video-grid[data-participant-count="1"] {
+        --tile-width: min(80vw, 600px);
+        --tile-height: min(60vh, 450px);
+        --name-font-size: 16px;
+        --name-padding: 8px 16px;
+        align-content: center !important;
+        align-items: center !important;
+    }
+
+    .lk-video-grid[data-participant-count="2"] {
+        --tile-width: min(45vw, 400px);
+        --tile-height: min(50vh, 350px);
+        --name-font-size: 14px;
+        --name-padding: 6px 14px;
+        align-content: center !important;
+        align-items: center !important;
+    }
+
+    .lk-video-grid[data-participant-count="3"] {
+        --tile-width: min(30vw, 320px);
+        --tile-height: min(35vh, 280px);
+        --name-font-size: 13px;
+        --name-padding: 6px 12px;
+        align-content: center !important;
+        align-items: center !important;
+    }
+
+    .lk-video-grid[data-participant-count="4"] {
+        --tile-width: min(40vw, 320px);
+        --tile-height: min(35vh, 240px);
+        --name-font-size: 12px;
+        --name-padding: 5px 12px;
+        align-content: center !important;
+        align-items: center !important;
+    }
+
+    .lk-video-grid[data-participant-count="5"],
+    .lk-video-grid[data-participant-count="6"] {
+        --tile-width: min(30vw, 280px);
+        --tile-height: min(30vh, 200px);
+        --name-font-size: 11px;
+        --name-padding: 4px 10px;
+    }
+
+    .lk-video-grid[data-participant-count="7"],
+    .lk-video-grid[data-participant-count="8"],
+    .lk-video-grid[data-participant-count="9"] {
+        --tile-width: min(28vw, 250px);
+        --tile-height: min(25vh, 180px);
+        --name-font-size: 10px;
+        --name-padding: 4px 8px;
+    }
+
+    .lk-video-grid[data-participant-count="10"],
+    .lk-video-grid[data-participant-count="11"],
+    .lk-video-grid[data-participant-count="12"] {
+        --tile-width: min(22vw, 220px);
+        --tile-height: min(20vh, 160px);
+        --name-font-size: 10px;
+        --name-padding: 3px 8px;
+    }
+
+    /* For more than 12 participants */
+    .lk-video-grid[data-participant-count]:not([data-participant-count="1"]):not([data-participant-count="2"]):not([data-participant-count="3"]):not([data-participant-count="4"]):not([data-participant-count="5"]):not([data-participant-count="6"]):not([data-participant-count="7"]):not([data-participant-count="8"]):not([data-participant-count="9"]):not([data-participant-count="10"]):not([data-participant-count="11"]):not([data-participant-count="12"]) {
+        --tile-width: min(18vw, 180px);
+        --tile-height: min(15vh, 130px);
+        --name-font-size: 9px;
+        --name-padding: 3px 6px;
+    }
+
+    /* Mobile responsive adjustments */
+    @media (max-width: 768px) {
+        .lk-video-grid {
+            gap: 8px !important;
+            padding: 12px !important;
+        }
+
+        .lk-video-grid[data-participant-count="1"] {
+            --tile-width: 90vw;
+            --tile-height: 50vh;
+            --name-font-size: 14px;
+        }
+
+        .lk-video-grid[data-participant-count="2"] {
+            --tile-width: 85vw;
+            --tile-height: 35vh;
+            --name-font-size: 12px;
+            flex-direction: column !important;
+        }
+
+        .lk-video-grid[data-participant-count="3"],
+        .lk-video-grid[data-participant-count="4"] {
+            --tile-width: 42vw;
+            --tile-height: 25vh;
+            --name-font-size: 10px;
+        }
+
+        /* For 5+ participants on mobile, use smaller tiles */
+        .lk-video-grid[data-participant-count]:not([data-participant-count="1"]):not([data-participant-count="2"]):not([data-participant-count="3"]):not([data-participant-count="4"]) {
+            --tile-width: 40vw;
+            --tile-height: 20vh;
+            --name-font-size: 9px;
+            --name-padding: 2px 6px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .lk-video-grid[data-participant-count]:not([data-participant-count="1"]):not([data-participant-count="2"]) {
+            --tile-width: 38vw;
+            --tile-height: 18vh;
+            --name-font-size: 8px;
+            --name-padding: 2px 4px;
+        }
+    }
+
+    /* Clean Video Tile Styling with Dynamic Sizing */
+    .lk-participant-tile {
+        background: transparent !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        position: relative !important;
+        box-shadow: none !important;
+        border: none !important;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+        /* Use CSS custom properties for dynamic sizing */
+        width: var(--tile-width, 300px) !important;
+        height: var(--tile-height, 200px) !important;
+        min-width: var(--tile-width, 300px) !important;
+        min-height: var(--tile-height, 200px) !important;
+        max-width: var(--tile-width, 300px) !important;
+        max-height: var(--tile-height, 200px) !important;
+        flex-shrink: 0 !important;
+        z-index: 1 !important;
+        contain: layout style paint !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Ensure LiveKit's internal participant tile doesn't have conflicting positioning */
+    .lk-participant-tile .lk-participant-tile {
+        position: static !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Override any absolute positioning from LiveKit components */
+    .lk-video-grid .lk-participant-tile,
+    .lk-video-grid .lk-participant-tile > *,
+    .lk-video-grid .lk-participant-tile .lk-participant-tile {
+        position: relative !important;
+    }
+
+    /* Ensure video tracks display correctly within grid */
+    .lk-video-grid .lk-participant-tile video,
+    .lk-video-grid .lk-participant-tile canvas {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        border-radius: 8px !important;
+    }
+
+    /* Ensure video container has proper styling */
+    .lk-participant-video-container video,
+    .lk-participant-video-container canvas {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        background: transparent !important;
+        border-radius: 8px !important;
+    }
+
+    .lk-participant-tile:hover {
+        /* No hover effects for clean look */
+    }
+
+    /* Video element styling */
+    .lk-participant-tile video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        border-radius: 8px !important;
+        background: transparent !important;
+    }
+
+    /* Default: NO mirroring for all videos */
+    .lk-video-grid video,
+    .lk-participant-tile video,
+    .lk-participant-video-container video,
+    video {
+        transform: none !important;
+    }
+
+    /* Override any LiveKit default mirroring for remote participants */
+    .lk-participant-tile.remote-participant video,
+    .lk-participant-tile[data-local="false"] video,
+    .lk-video-grid .lk-participant-tile:not(.local-participant) video,
+    .lk-video-grid .lk-participant-tile:not([data-local="true"]) video,
+    .lk-video-grid .remote-participant video,
+    [data-lk-local-participant="false"] video {
+        transform: scaleX(-1) !important;
+        -webkit-transform: scaleX(-1) !important;
+        -moz-transform: scaleX(-1) !important;
+        -ms-transform: scaleX(-1) !important;
+        -o-transform: scaleX(-1) !important;
+    }
+
+    /* ONLY mirror local participant - highest specificity */
+    .lk-video-grid .lk-participant-tile.local-participant video,
+    .lk-video-grid .lk-participant-tile[data-local="true"] video,
+    .lk-participant-tile.local-participant video,
+    .lk-participant-tile[data-local="true"] video,
+    [data-lk-local-participant="true"] video {
+        transform: scaleX(-1) !important;
+        -webkit-transform: scaleX(-1) !important;
+        -moz-transform: scaleX(-1) !important;
+        -ms-transform: scaleX(-1) !important;
+        -o-transform: scaleX(-1) !important;
+    }
+
+    /* Video content container - takes up most space */
+    .lk-participant-video-container {
+        flex: 1 !important;
+        position: relative !important;
+        overflow: hidden !important;
+        border-radius: 8px !important;
+        background: transparent !important;
+        margin: 0 !important;
+    }
+
+    /* Ensure the inner LiveKit participant tile fills the container */
+    .lk-participant-video-container > .lk-participant-tile {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    /* Participant overlays container */
+    .lk-participant-overlays {
+        position: absolute !important;
+        top: 12px !important;
+        right: 12px !important;
+        z-index: 10 !important;
+        display: flex !important;
+        gap: 10px !important;
+        flex-direction: row !important;
+    }
+
+    /* Speaking indicator overlay with responsive sizing */
+    .lk-speaking-indicator {
+        position: relative !important;
+    }
+
+    .speaking-ring {
+        width: calc(var(--name-font-size, 12px) * 0.8) !important;
+        height: calc(var(--name-font-size, 12px) * 0.8) !important;
+        border: none !important;
+        border-radius: 50% !important;
+        background: #10b981 !important;
+        backdrop-filter: none !important;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.6) !important;
+        animation: speaking-pulse-dot 2s ease-in-out infinite !important;
+    }
+
+    /* Connection quality indicator - HIDDEN */
+    .lk-connection-indicator {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    @keyframes speaking-pulse {
+        0%, 100% {
+            transform: scale(1) !important;
+            opacity: 1 !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+        }
+        50% {
+            transform: scale(1.15) !important;
+            opacity: 0.9 !important;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+        }
+    }
+
+    @keyframes speaking-pulse-dot {
+        0%, 100% {
+            opacity: 1 !important;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6) !important;
+        }
+        50% {
+            opacity: 0.7 !important;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.8) !important;
+        }
+    }
+
+    /* Speaking participant tile highlighting */
+    .lk-participant-tile.speaking {
+        /* No speaking highlights for clean look */
+    }
+
+    /* Simple centered name bar at bottom with responsive sizing */
+    .lk-participant-info-bar {
+        position: absolute !important;
+        bottom: 8px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: rgba(0, 0, 0, 0.7) !important;
+        backdrop-filter: blur(8px) !important;
+        border: none !important;
+        /* Use CSS custom properties for responsive padding */
+        padding: var(--name-padding, 4px 12px) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: calc(var(--name-font-size, 12px) + 8px) !important;
+        border-radius: calc(var(--name-font-size, 12px) + 4px) !important;
+        flex-shrink: 0 !important;
+        margin: 0 !important;
+        z-index: 10 !important;
+        box-sizing: border-box !important;
+        white-space: nowrap !important;
+        max-width: calc(100% - 16px) !important;
+        gap: 4px !important;
+    }
+
+    /* Participant name styling - centered with responsive font size */
+    .lk-participant-name {
+        color: white !important;
+        /* Use CSS custom property for responsive font size */
+        font-size: var(--name-font-size, 12px) !important;
+        font-weight: 500 !important;
+        text-overflow: ellipsis !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+        margin: 0 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Participant indicators container - shown with name */
+    .lk-participant-indicators {
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Microphone muted indicator and other metadata with responsive sizing */
+    .lk-participant-metadata {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: calc(var(--name-font-size, 12px) + 2px) !important;
+        opacity: 0.9 !important;
+        flex: 0 0 auto !important;
+        flex-shrink: 0 !important;
+        padding: 2px !important;
+        min-width: calc(var(--name-font-size, 12px) + 4px) !important;
+        text-align: center !important;
+        position: relative !important;
+    }
+
+    .lk-participant-metadata.muted {
+        color: #e72828 !important;
+        background: rgba(24, 18, 7, 0.3) !important;
+        border-radius: 3px !important;
+        width: calc(var(--name-font-size, 12px) + 6px) !important;
+        height: calc(var(--name-font-size, 12px) + 6px) !important;
+        backdrop-filter: blur(4px) !important;
+        font-size: calc(var(--name-font-size, 12px) - 2px) !important;
+        flex-shrink: 0 !important;
+    }
+
+    .lk-participant-metadata.camera-off {
+        color: #ffa502 !important;
+        background: rgba(255, 165, 2, 0.3) !important;
+        border-radius: 3px !important;
+        width: calc(var(--name-font-size, 12px) + 6px) !important;
+        height: calc(var(--name-font-size, 12px) + 6px) !important;
+        backdrop-filter: blur(4px) !important;
+        font-size: calc(var(--name-font-size, 12px) - 3px) !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Control bar styling */
+    .lk-control-bar {
+        background: rgba(26, 26, 26, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 12px 20px !important;
+        gap: 12px !important;
+        /* Fix z-index to ensure control bar appears above video grid */
+        position: relative !important;
+        z-index: 1000 !important;
+        justify-content: center !important;
+    }
+
+    /* Ensure control bar container also has proper z-index */
+    .lk-control-bar-container,
+    .lk-control-bar-wrapper {
+        position: relative !important;
+        z-index: 1000 !important;
+    }
+
+    /* Override LiveKit's default control bar positioning */
+    .lk-focus-layout .lk-control-bar,
+    .lk-grid-layout .lk-control-bar {
+        position: relative !important;
+        z-index: 1000 !important;
+    }
+
+    /* Ensure any LiveKit control bar dropdowns also have proper z-index */
+    .lk-control-bar .lk-dropdown,
+    .lk-control-bar .lk-device-menu,
+    .lk-control-bar .lk-menu {
+        z-index: 1001 !important;
+    }
+
+    /* Fix any potential overflow issues that might hide the control bar */
+    .professional-video-room {
+        overflow: visible !important;
+    }
+
+    /* Ensure the main video container doesn't hide controls */
+    .lk-video-grid {
+        /* Reduce z-index of video grid to ensure control bar appears above */
+        z-index: 1 !important;
+    }
+
+    /* Hide screen share button specifically - Multiple selectors to ensure it's hidden */
+    .lk-control-bar .lk-button[data-lk-source="screen_share"],
+    .lk-control-bar .lk-button[data-testid="button-screen-share"],
+    .lk-control-bar .lk-button[title*="screen"],
+    .lk-control-bar .lk-button[title*="Screen"],
+    .lk-control-bar .lk-button[aria-label*="screen"],
+    .lk-control-bar .lk-button[aria-label*="Screen"],
+    .lk-control-bar button[title*="screen"],
+    .lk-control-bar button[title*="Screen"],
+    .lk-control-bar button[aria-label*="screen"],
+    .lk-control-bar button[aria-label*="Screen"],
+    .lk-control-bar [data-lk-button="screen_share"],
+    .lk-control-bar [class*="screenshare"],
+    .lk-control-bar [class*="ScreenShare"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Alternative approach - hide the third button which is typically screen share */
+    .lk-control-bar > button:nth-child(3),
+    .lk-control-bar > div:nth-child(3) > button,
+    .lk-control-bar > *:nth-child(3) {
+        display: none !important;
+    }
+
+    /* Hide dropdown arrows for microphone and video buttons */
+    .lk-control-bar [data-lk-source="microphone"] .lk-device-selector-trigger,
+    .lk-control-bar [data-lk-source="camera"] .lk-device-selector-trigger,
+    .lk-control-bar .lk-device-selector-trigger,
+    .lk-control-bar .lk-device-menu-trigger,
+    .lk-control-bar .lk-button-menu,
+    .lk-control-bar button[aria-label*="device"] .lk-chevron,
+    .lk-control-bar button[aria-label*="microphone"] + button,
+    .lk-control-bar button[aria-label*="camera"] + button,
+    .lk-control-bar .lk-track-toggle + .lk-device-selector,
+    .lk-control-bar .lk-track-toggle + button[aria-label*="device"],
+    .lk-control-bar .lk-button + .lk-button[class*="device"],
+    .lk-control-bar [class*="device-selector"],
+    .lk-control-bar [class*="dropdown"],
+    .lk-control-bar .lk-button + .lk-button-menu,
+    .lk-control-bar [class*="menu"],
+    .lk-control-bar [class*="Menu"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Additional specific targeting for button menus */
+    .lk-button-menu,
+    [class*="lk-button-menu"],
+    .lk-control-bar > * > .lk-button-menu,
+    .lk-control-bar .lk-button[aria-haspopup="true"] + *,
+    .lk-control-bar .lk-button[aria-expanded="true"] + * {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Make disconnect/leave button more prominent with red styling */
+    .lk-control-bar .lk-disconnect-button,
+    .lk-control-bar .lk-button[data-lk-source="disconnect"],
+    .lk-control-bar button[aria-label*="disconnect"],
+    .lk-control-bar button[aria-label*="leave"],
+    .lk-control-bar button[title*="disconnect"],
+    .lk-control-bar button[title*="leave"],
+    .lk-control-bar .lk-button:last-child {
+        background: rgba(220, 53, 69, 0.9) !important;
+        border-color: rgba(220, 53, 69, 1) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3) !important;
+    }
+
+    .lk-control-bar .lk-disconnect-button:hover,
+    .lk-control-bar .lk-button[data-lk-source="disconnect"]:hover,
+    .lk-control-bar button[aria-label*="disconnect"]:hover,
+    .lk-control-bar button[aria-label*="leave"]:hover,
+    .lk-control-bar button[title*="disconnect"]:hover,
+    .lk-control-bar button[title*="leave"]:hover,
+    .lk-control-bar .lk-button:last-child:hover {
+        background: rgba(220, 53, 69, 1) !important;
+        border-color: rgba(220, 53, 69, 1) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4) !important;
+    }
+
+    .lk-button {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 12px !important;
+        color: white !important;
+        padding: 12px 16px !important;
+        transition: all 0.3s ease !important;
+        backdrop-filter: blur(10px) !important;
+    }
+
+    .lk-button:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .lk-button.lk-button-danger {
+        background: rgba(220, 53, 69, 0.8) !important;
+        border-color: rgba(220, 53, 69, 1) !important;
+    }
+
+    .lk-button.lk-button-danger:hover {
+        background: rgba(220, 53, 69, 1) !important;
+    }
+
+    /* Professional loading and connection states */
+    .professional-loading {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100vh !important;
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        color: white !important;
+        animation: fadeIn 0.3s ease-out !important;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0 !important;
+            transform: translateY(20px) !important;
+        }
+        to {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+        }
+    }
+
+    /* Join call confirmation dialog styling */
+    .professional-loading button {
+        transition: all 0.3s ease !important;
+    }
+
+    .professional-loading button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .professional-loading button:active {
+        transform: translateY(-1px) !important;
+    }
+
+    .loading-spinner {
+        width: 40px !important;
+        height: 40px !important;
+        border: 3px solid rgba(255, 255, 255, 0.1) !important;
+        border-top: 3px solid #4285f4 !important;
+        border-radius: 50% !important;
+        animation: spin 1s linear infinite !important;
+        margin-bottom: 16px !important;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Status bar styling */
+    .professional-status-bar {
+        background: rgba(26, 26, 26, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 10px 20px !important;
+        color: white !important;
+        font-size: 13px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        min-height: 50px !important;
+        position: relative !important;
+        z-index: 100 !important;
+    }
+
+    .status-indicator {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        font-size: 12px !important;
+    }
+
+    .status-indicator.e2ee-enabled {
+        background: rgba(76, 175, 80, 0.2) !important;
+        border-color: rgba(76, 175, 80, 0.4) !important;
+        color: #81c784 !important;
+    }
+
+    .status-indicator.e2ee-disabled {
+        background: rgba(244, 67, 54, 0.2) !important;
+        border-color: rgba(244, 67, 54, 0.4) !important;
+        color: #e57373 !important;
+    }
+
+    /* Responsive status bar */
+    @media (max-width: 768px) {
+        .professional-status-bar {
+            padding: 8px 16px !important;
+            font-size: 13px !important;
+            min-height: 50px !important;
+            gap: 8px !important;
+        }
+        
+        .status-indicator {
+            font-size: 12px !important;
+            padding: 4px 8px !important;
+            gap: 6px !important;
+        }
+    }
+
+    /* Professional LiveKit Call Notifications */
+    .mx_LiveKitCallNotification {
+        position: fixed !important;
+        top: 20px !important;
+        right: 20px !important;
+        background: rgba(0, 0, 0, 0.95) !important;
+        color: white !important;
+        padding: 16px 20px !important;
+        border-radius: 12px !important;
+        font-size: 14px !important;
+        max-width: 350px !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        z-index: 20000 !important;
+        animation: slideInFromRight 0.3s ease-out !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-header {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-icon {
+        width: 24px !important;
+        height: 24px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #4285f4 0%, #34a853 100%) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 12px !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-title {
+        font-weight: 600 !important;
+        font-size: 16px !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-message {
+        color: rgba(255, 255, 255, 0.8) !important;
+        margin-bottom: 16px !important;
+        line-height: 1.4 !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-buttons {
+        display: flex !important;
+        gap: 12px !important;
+        justify-content: flex-end !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button {
+        padding: 8px 16px !important;
+        border-radius: 8px !important;
+        border: none !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button.accept {
+        background: linear-gradient(135deg, #34a853 0%, #4285f4 100%) !important;
+        color: white !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button.accept:hover {
+        background: linear-gradient(135deg, #2d8f47 0%, #3367d6 100%) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button.decline {
+        background: rgba(244, 67, 54, 0.8) !important;
+        color: white !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button.decline:hover {
+        background: rgba(244, 67, 54, 1) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button.dismiss {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+    }
+
+    .mx_LiveKitCallNotification .notification-button.dismiss:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    @keyframes slideInFromRight {
+        from {
+            transform: translateX(100%) !important;
+            opacity: 0 !important;
+        }
+        to {
+            transform: translateX(0) !important;
+            opacity: 1 !important;
+        }
+    }
+
+    /* WhatsApp-style Audio Call Interface */
+    .whatsapp-audio-call {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        color: white !important;
+        padding: 40px 20px !important;
+        box-sizing: border-box !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 10000 !important;
+    }
+
+    /* Hide all LiveKit default UI components when in audio call mode */
+    .whatsapp-audio-call ~ *,
+    .whatsapp-audio-call + * {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Ensure the audio call interface is above everything */
+    .lk-room-container .whatsapp-audio-call {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        z-index: 99999 !important;
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+    }
+
+    /* Hide LiveKit default components when audio call is active */
+    .lk-room-container:has(.whatsapp-audio-call) .lk-control-bar,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-video-grid,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-grid-layout,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-focus-layout,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-participant-tile {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Additional rules to ensure clean audio interface */
+    .lk-room-container .whatsapp-audio-call {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1000 !important;
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+    }
+
+    /* Hide any potential overlay elements from LiveKit */
+    .lk-room-container:has(.whatsapp-audio-call) .lk-track-muted-indicator,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-participant-metadata,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-participant-name,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-button-menu,
+    .lk-room-container:has(.whatsapp-audio-call) .lk-device-selector,
+    .lk-room-container:has(.whatsapp-audio-call) [class*="lk-"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Ensure the audio interface shows over everything */
+    .whatsapp-audio-call {
+        position: relative !important;
+        z-index: 999999 !important;
+    }
+
+    /* Fallback: Force hide all LiveKit components when audio call is present */
+    body:has(.whatsapp-audio-call) .lk-control-bar,
+    body:has(.whatsapp-audio-call) .lk-video-grid,
+    body:has(.whatsapp-audio-call) .lk-grid-layout,
+    body:has(.whatsapp-audio-call) .lk-focus-layout,
+    body:has(.whatsapp-audio-call) .lk-participant-tile:not(.whatsapp-audio-call *) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Ensure parent containers don't interfere */
+    .whatsapp-audio-call-container {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 10000 !important;
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+    }
+
+    .audio-call-content {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 1 !important;
+        max-width: 400px !important;
+        width: 100% !important;
+    }
+
+    .audio-call-avatar {
+        width: 200px !important;
+        height: 200px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #4a4a4a 0%, #6a6a6a 100%) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 80px !important;
+        color: white !important;
+        margin-bottom: 32px !important;
+        border: 4px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+
+    .audio-call-avatar::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%) !important;
+        border-radius: 50% !important;
+    }
+
+    .audio-call-avatar.talking {
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(74, 175, 79, 0.3), 0 0 0 16px rgba(74, 175, 79, 0.2) !important;
+        animation: pulse-talking 2s ease-in-out infinite !important;
+    }
+
+    @keyframes pulse-talking {
+        0%, 100% {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(74, 175, 79, 0.3), 0 0 0 16px rgba(74, 175, 79, 0.2) !important;
+        }
+        50% {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 12px rgba(74, 175, 79, 0.4), 0 0 0 24px rgba(74, 175, 79, 0.3) !important;
+        }
+    }
+
+    /* Additional keyframe for guaranteed avatar visibility */
+    @keyframes avatarGlow {
+        0%, 100% {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        50% {
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    .audio-call-name {
+        font-size: 32px !important;
+        font-weight: 400 !important;
+        color: white !important;
+        margin-bottom: 12px !important;
+        text-align: center !important;
+        letter-spacing: -0.5px !important;
+    }
+
+    .audio-call-status {
+        font-size: 16px !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+        margin-bottom: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .audio-call-timer {
+        font-size: 18px !important;
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 300 !important;
+        margin-bottom: 60px !important;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+    }
+
+    .audio-call-controls {
+        display: flex !important;
+        gap: 24px !important;
+        align-items: center !important;
+        margin-bottom: 40px !important;
+    }
+
+    .audio-control-button {
+        width: 64px !important;
+        height: 64px !important;
+        border-radius: 50% !important;
+        border: none !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 24px !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+
+    /* Smaller buttons for group calls */
+    .audio-control-button.group-call {
+        width: 48px !important;
+        height: 48px !important;
+        font-size: 18px !important;
+    }
+
+    .audio-control-button::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-radius: 50% !important;
+        transform: scale(0) !important;
+        transition: transform 0.3s ease !important;
+    }
+
+    .audio-control-button:hover::before {
+        transform: scale(1) !important;
+    }
+
+    .audio-control-button.mute {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+    }
+
+    .audio-control-button.mute.muted {
+        background: rgba(220, 53, 69, 0.8) !important;
+        color: white !important;
+    }
+
+    .audio-control-button.speaker {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+    }
+
+    .audio-control-button.speaker.active {
+        background: rgba(74, 175, 79, 0.8) !important;
+        color: white !important;
+    }
+
+    .audio-control-button.end-call {
+        background: rgba(206, 202, 203, 0.9) !important;
+        color: white !important;
+        width: 72px !important;
+        height: 72px !important;
+        font-size: 28px !important;
+    }
+
+    .audio-control-button.end-call.group-call {
+        width: 56px !important;
+        height: 56px !important;
+        font-size: 22px !important;
+    }
+
+    .audio-control-button.end-call:hover {
+        background: rgba(220, 53, 69, 1) !important;
+        transform: scale(1.05) !important;
+    }
+
+    /* Connection status indicator for audio calls */
+    .audio-connection-status {
+        position: absolute !important;
+        top: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: rgba(0, 0, 0, 0.7) !important;
+        color: white !important;
+        padding: 8px 16px !important;
+        border-radius: 20px !important;
+        font-size: 14px !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .connection-dot {
+        width: 8px !important;
+        height: 8px !important;
+        border-radius: 50% !important;
+        background: #4caf50 !important;
+        animation: pulse 2s ease-in-out infinite !important;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1 !important;
+        }
+        50% {
+            opacity: 0.5 !important;
+        }
+    }
+
+    /* E2EE indicator for audio calls */
+    .audio-e2ee-status {
+        position: absolute !important;
+        top: 20px !important;
+        right: 20px !important;
+        background: rgba(74, 175, 79, 0.2) !important;
+        border: 1px solid rgba(74, 175, 79, 0.4) !important;
+        color: #81c784 !important;
+        padding: 8px 12px !important;
+        border-radius: 16px !important;
+        font-size: 12px !important;
+        backdrop-filter: blur(10px) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    .audio-e2ee-status.disabled {
+        background: rgba(244, 67, 54, 0.2) !important;
+        border-color: rgba(244, 67, 54, 0.4) !important;
+        color: #e57373 !important;
+    }
+`;
+
+// Inject styles if not already present
+if (!document.getElementById("livekit-call-styles")) {
+    const styleSheet = document.createElement("style");
+    styleSheet.id = "livekit-call-styles";
+    styleSheet.textContent = livekitCallStyles;
+    document.head.appendChild(styleSheet);
+}
+
+// Simple incoming call sound management
+// Usage:
+// - Call startIncomingCallSound() when showing incoming call notification
+// - Call stopIncomingCallSound() when user accepts, declines, or notification times out
+let currentIncomingCallAudio: HTMLAudioElement | null = null;
+
+const startIncomingCallSound = (): void => {
+    console.log("🔔 Starting incoming call sound");
+
+    try {
+        // Stop any existing call sound first
+        stopIncomingCallSound();
+
+        // Create new audio element for incoming call
+        currentIncomingCallAudio = new Audio();
+        currentIncomingCallAudio.src = "/sounds/ring.mp3"; // Adjust path as needed
+        currentIncomingCallAudio.loop = true;
+        currentIncomingCallAudio.volume = 0.7;
+
+        // Add ID for easy identification
+        currentIncomingCallAudio.id = "incoming-call-sound";
+
+        // Play the sound
+        currentIncomingCallAudio.play().catch((error) => {
+            console.warn("Failed to play incoming call sound:", error);
+        });
+
+        console.log("🔔 Incoming call sound started");
+    } catch (error) {
+        console.warn("Error starting incoming call sound:", error);
+    }
+};
+
+const stopIncomingCallSound = (): void => {
+    console.log("🔇 Stopping incoming call sound");
+
+    try {
+        // Stop our tracked audio
+        if (currentIncomingCallAudio) {
+            currentIncomingCallAudio.pause();
+            currentIncomingCallAudio.currentTime = 0;
+            currentIncomingCallAudio.src = "";
+            currentIncomingCallAudio = null;
+        }
+
+        // Also stop any audio with incoming call IDs (fallback)
+        const callSounds = document.querySelectorAll("#incoming-call-sound, #call-ring-sound, #ring-sound");
+        callSounds.forEach((audio: any) => {
+            if (audio && audio.pause) {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.volume = 0;
+                audio.muted = true;
+            }
+        });
+
+        console.log("🔇 Incoming call sound stopped");
+    } catch (error) {
+        console.warn("Error stopping incoming call sound:", error);
+    }
+};
+
+// Make functions available globally
+(window as any).startIncomingCallSound = startIncomingCallSound;
+(window as any).stopIncomingCallSound = stopIncomingCallSound;
+
+interface VideoRoomProps {
+    // Old format (backward compatibility)
+    roomName?: string;
+    participantName?: string;
+    // New format
+    roomId?: string;
+    toUserIds?: string[];
+    toUsernames?: { [userId: string]: string };
+    isVideo?: boolean;
+    fromUsername?: string;
+    groupName?: string;
+    testMode?: {
+        useWrongKey?: boolean;
+        customKey?: string;
+    };
+    // Call state flags
+    isAcceptingIncomingCall?: boolean; // True when user accepts an incoming call
+    // Callback to close the modal when leave is clicked
+    onLeave?: () => void;
+}
+
+// Enhanced professional participant tile component
+const ProfessionalParticipantTile: React.FC<{ trackRef: TrackReference }> = ({ trackRef }) => {
+    const participant = trackRef.participant;
+    const isLocal = participant.isLocal;
+    const rawDisplayName = participant.name || participant.identity || "Unknown User";
+    const displayName = normalizeDisplayName(rawDisplayName);
+    const isMuted = participant.isMicrophoneEnabled === false;
+    const isSpeaking = participant.isSpeaking;
+    const connectionQuality = participant.connectionQuality;
+
+    // Connection quality indicators removed for cleaner UI
+
+    return (
+        <div
+            className={`lk-participant-tile ${isLocal ? "local-participant" : "remote-participant"} ${isSpeaking ? "speaking" : ""}`}
+            data-participant-name={displayName}
+            data-connection-quality={connectionQuality}
+            data-local={isLocal ? "true" : "false"}
+            data-lk-local-participant={isLocal ? "true" : "false"}
+        >
+            {/* Video content area */}
+            <div className="lk-participant-video-container">
+                <ParticipantTile trackRef={trackRef} />
+
+                {/* Top overlay indicators */}
+                <div className="lk-participant-overlays">{/* Connection quality indicator - REMOVED */}</div>
+            </div>
+
+            {/* Info bar with name and status indicators */}
+            <div className="lk-participant-info-bar">
+                <div className="lk-participant-name" title={displayName}>
+                    {isLocal ? `${displayName} (You)` : displayName}
+                </div>
+
+                <div className="lk-participant-indicators">
+                    {isMuted && (
+                        <div className="lk-participant-metadata muted" title="Microphone muted">
+                            🔇
+                        </div>
+                    )}
+                    {participant.isCameraEnabled === false && (
+                        <div className="lk-participant-metadata camera-off" title="Camera off">
+                            📹
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Function to normalize display names (remove @ prefix and domain suffix)
+const normalizeDisplayName = (name: string): string => {
+    if (!name) return "Unknown User";
+
+    let normalized = name;
+
+    // Remove @ prefix if present
+    if (normalized.startsWith("@")) {
+        normalized = normalized.substring(1);
+    }
+
+    // Remove domain part after : if present (e.g., ":ms2.beep.gov.pk")
+    const colonIndex = normalized.indexOf(":");
+    if (colonIndex !== -1) {
+        normalized = normalized.substring(0, colonIndex);
+    }
+
+    return normalized || "Unknown User";
+};
+
+// WhatsApp-style Audio Call Component
+const AudioCallInterface: React.FC<{ isVideo: boolean }> = ({ isVideo }) => {
+    const room = useRoomContext();
+    const participants = useParticipants();
+    const [callTimer, setCallTimer] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
+    const callStartTime = useRef<number | null>(null);
+    const callEstablished = useRef(false);
+    const autoLeaveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const isAutoEndingRef = useRef<boolean>(false);
+
+    // Get all tracks for audio handling
+    const audioTracks = useTracks(["microphone"], {
+        onlySubscribed: false,
+    });
+
+    // Get participants
+    const remoteParticipants = participants.filter((p) => !p.isLocal);
+    const localParticipant = participants.find((p) => p.isLocal);
+    const participantCount = participants.length;
+
+    // Determine if this is a group call (more than 2 participants total)
+    const isGroupCall = participantCount > 2;
+
+    // For 1-to-1 calls, get the single remote participant
+    const singleRemoteParticipant = remoteParticipants[0];
+
+    // Auto-leave logic for audio calls
+    useEffect(() => {
+        // Clear any existing timeout
+        if (autoLeaveTimeout.current) {
+            clearTimeout(autoLeaveTimeout.current);
+            autoLeaveTimeout.current = null;
+        }
+
+        if (!room) return;
+
+        // Track call start time when we have exactly 1 participant (the caller)
+        if (participantCount === 1 && !callStartTime.current) {
+            callStartTime.current = Date.now();
+            console.log("🎯 Audio call started - 30s no-answer timeout activated");
+        }
+
+        // Mark call as established if we have 2 or more participants
+        if (participantCount >= 2) {
+            if (!callEstablished.current) {
+                callEstablished.current = true;
+                callStartTime.current = null; // Clear no-answer timeout
+                console.log("🎯 Audio call established - multiple participants detected");
+            }
+        }
+
+        // Scenario 1: No-answer timeout (30 seconds with only 1 participant)
+        if (participantCount === 1 && !callEstablished.current && callStartTime.current) {
+            const timeElapsed = Date.now() - callStartTime.current;
+            const remainingTime = 30000 - timeElapsed; // 30 seconds total
+
+            if (remainingTime > 0) {
+                console.log(`🎯 Audio call no-answer timeout: ${Math.ceil(remainingTime / 1000)}s remaining`);
+                autoLeaveTimeout.current = setTimeout(() => {
+                    if (room && room.state === "connected" && participantCount === 1 && !callEstablished.current) {
+                        console.log("🎯 Auto-leaving audio call - no one answered within 30 seconds");
+
+                        // Emit call ended event for no-answer timeout
+                        const roomData = (window as any).__currentLiveKitRoomData;
+                        if (roomData?.roomId && roomData?.toUserIds) {
+                            console.log("📞 No-answer timeout - emitting CALL_ENDED event");
+                            emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                        }
+
+                        isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
+                        isAutoEndingCall = true; // Set global flag
+                        room.disconnect().catch((err: any) => {
+                            console.warn("Error during no-answer auto-leave:", err);
+                        });
+                    }
+                }, remainingTime);
+            } else {
+                // Time already exceeded, leave immediately
+                console.log("🎯 Auto-leaving audio call - 30s no-answer timeout exceeded");
+
+                // Emit call ended event for immediate timeout
+                const roomData = (window as any).__currentLiveKitRoomData;
+                if (roomData?.roomId && roomData?.toUserIds) {
+                    console.log("📞 Immediate timeout - emitting CALL_ENDED event");
+                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                }
+
+                isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
+                isAutoEndingCall = true; // Set global flag
+                room.disconnect().catch((err: any) => {
+                    console.warn("Error during immediate no-answer auto-leave:", err);
+                });
+            }
+        }
+
+        // Scenario 2: Everyone left after call was established (immediate for 1-to-1, 3s grace for group)
+        else if (callEstablished.current && participantCount === 1) {
+            const graceTime = isGroupCall ? 3000 : 1000; // 1s for 1-to-1, 3s for group
+            console.log(
+                `🎯 Only one participant left after audio call was established - scheduling auto-leave in ${graceTime}ms`,
+            );
+            autoLeaveTimeout.current = setTimeout(() => {
+                if (room && room.state === "connected" && participantCount === 1) {
+                    console.log("🎯 Auto-leaving audio call - only one participant remaining");
+                    room.disconnect().catch((err: any) => {
+                        console.warn("Error during everyone-left auto-leave:", err);
+                    });
+                }
+            }, graceTime);
+        }
+    }, [participantCount, room, isGroupCall]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (autoLeaveTimeout.current) {
+                clearTimeout(autoLeaveTimeout.current);
+            }
+        };
+    }, []);
+
+    // Call timer effect - separate from auto-leave timer
+    useEffect(() => {
+        let timerStartTime: number | null = null;
+
+        if (participants.length >= 2) {
+            timerStartTime = Date.now();
+        }
+
+        const timer = setInterval(() => {
+            if (timerStartTime && participants.length >= 2) {
+                const elapsed = Math.floor((Date.now() - timerStartTime) / 1000);
+                setCallTimer(elapsed);
+            } else {
+                setCallTimer(0);
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [participants.length]);
+
+    // Format timer display
+    const formatTime = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    };
+
+    // Get status text
+    const getStatusText = (): string => {
+        if (participants.length < 2) {
+            return "Calling...";
+        }
+        if (isMuted) {
+            return "Muted";
+        }
+        return "Connected";
+    };
+
+    // Handle mute toggle
+    const handleMuteToggle = async (): Promise<void> => {
+        if (room && localParticipant) {
+            try {
+                const newMutedState = !isMuted;
+                await room.localParticipant.setMicrophoneEnabled(!newMutedState);
+                setIsMuted(newMutedState);
+                console.log(`🎙️ Microphone ${newMutedState ? "muted" : "unmuted"}`);
+            } catch (error) {
+                console.error("Failed to toggle microphone:", error);
+            }
+        }
+    };
+
+    // Handle end call
+    const handleEndCall = (): void => {
+        console.log("📞 Ending audio call");
+
+        // Emit call ended event if user is the only participant (no one answered)
+        if (participantCount === 1) {
+            // Get room data from VideoRoom props to emit call ended event
+            const roomData = (window as any).__currentLiveKitRoomData;
+            if (roomData?.roomId && roomData?.toUserIds) {
+                console.log("📞 User ending call as only participant - emitting CALL_ENDED event");
+                emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+            }
+        }
+
+        if (room) {
+            room.disconnect().catch((err: any) => {
+                console.warn("Error ending call:", err);
+            });
+        }
+    };
+
+    // Get first letter for avatar fallback - guaranteed to return visible content
+    const getAvatarFallback = (name: string): string => {
+        if (!name || name.trim().length === 0) {
+            return "?";
+        }
+        const firstChar = name.trim().charAt(0).toUpperCase();
+        return firstChar || "U"; // Fallback to "U" for User if somehow empty
+    };
+
+    const isE2EEEnabled = room?.isE2EEEnabled;
+
+    // Calculate optimal layout for any number of participants
+    const calculateLayout = (count: number): { columns: number; avatarSize: number } => {
+        if (count <= 2) return { columns: 1, avatarSize: 200 }; // Single avatar for 1-to-1
+        // if (count <= 4) return { columns: 2, avatarSize: 100 };
+        if (count <= 6) return { columns: 3, avatarSize: 85 };
+        if (count <= 9) return { columns: 3, avatarSize: 75 };
+        if (count <= 12) return { columns: 4, avatarSize: 65 };
+        return { columns: 4, avatarSize: 60 };
+    };
+
+    const { columns, avatarSize } = calculateLayout(participantCount);
+
+    // For group calls (3+ participants)
+    if (isGroupCall) {
+        return (
+            <div
+                className="whatsapp-audio-call"
+                style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    width: "100vw",
+                    height: "100vh",
+                    background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
+                    color: "white",
+                    overflow: "hidden",
+                    zIndex: 10000,
+                }}
+            >
+                {/* E2EE Status - Fixed absolute positioning */}
+                <div
+                    className={`audio-e2ee-status ${isE2EEEnabled ? "" : "disabled"}`}
+                    style={{
+                        position: "absolute",
+                        top: "20px",
+                        right: "20px",
+                        zIndex: 20,
+                    }}
+                >
+                    <span>{isE2EEEnabled ? "🔒" : "🔓"}</span>
+                    <span>{isE2EEEnabled ? "End-to-end encrypted" : "Not Encrypted"}</span>
+                </div>
+
+                {/* Main Container with proper flex layout */}
+                <div
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        height: "100vh",
+                        padding: "0",
+                        margin: "0",
+                    }}
+                >
+                    {/* Header Section - Fixed height */}
+                    <div
+                        style={{
+                            flexShrink: 0,
+                            textAlign: "center",
+                            padding: "40px 20px 20px 20px",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: "28px",
+                                fontWeight: "400",
+                                marginBottom: "8px",
+                            }}
+                        >
+                            Group Call
+                        </div>
+                        <div
+                            style={{
+                                fontSize: "16px",
+                                opacity: 0.8,
+                            }}
+                        >
+                            {participantCount} participants
+                        </div>
+                    </div>
+
+                    {/* Avatar Grid - Full space, independent scrolling */}
+                    <div
+                        style={{
+                            flex: 1,
+                            overflow: "auto",
+                            padding: "40px 30px",
+                            display: "grid",
+                            gridTemplateColumns: `repeat(${columns}, 1fr)`,
+                            gap: "40px",
+                            justifyItems: "center",
+                            alignContent: "start",
+                            minHeight: 0,
+                            width: "100%",
+                        }}
+                    >
+                        {participants.map((participant) => {
+                            const displayName = normalizeDisplayName(
+                                participant.name || participant.identity || "Unknown User",
+                            );
+                            const isLocalUser = participant.isLocal;
+                            const isSpeaking = participant.isSpeaking;
+                            const avatarText = getAvatarFallback(displayName);
+
+                            console.log("🎭 Rendering group participant:", {
+                                sid: participant.sid,
+                                displayName,
+                                isLocalUser,
+                                isSpeaking,
+                                avatarText,
+                                avatarSize,
+                            });
+
+                            return (
+                                <div
+                                    key={participant.sid}
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        gap: "16px",
+                                        width: "100%",
+                                        maxWidth: "200px",
+                                        padding: "20px",
+                                        minHeight: `${avatarSize + 80}px`,
+                                    }}
+                                >
+                                    {/* Avatar with same design as 1-to-1 call */}
+                                    <div
+                                        style={{
+                                            width: `${avatarSize}px`,
+                                            height: `${avatarSize}px`,
+                                            borderRadius: "50%",
+                                            background: "linear-gradient(135deg, #4a4a4a 0%, #6a6a6a 100%)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: `${Math.max(24, avatarSize * 0.4)}px`,
+                                            color: "white",
+                                            fontWeight: "600",
+                                            border: isSpeaking
+                                                ? "4px solid rgba(74, 175, 79, 0.8)"
+                                                : "4px solid rgba(255, 255, 255, 0.1)",
+                                            boxShadow: isSpeaking
+                                                ? "0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(74, 175, 79, 0.3), 0 0 0 16px rgba(74, 175, 79, 0.2)"
+                                                : "0 20px 60px rgba(0, 0, 0, 0.3)",
+                                            position: "relative",
+                                            overflow: "hidden",
+                                            transition: "all 0.3s ease",
+                                            flexShrink: 0,
+                                            zIndex: 10,
+                                            // Force visibility
+                                            opacity: 1,
+                                            visibility: "visible",
+                                            animation: isSpeaking ? "pulse-talking 2s ease-in-out infinite" : "none",
+                                        }}
+                                    >
+                                        {/* Shine effect */}
+                                        <div
+                                            style={{
+                                                position: "absolute",
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                background:
+                                                    "linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%)",
+                                                borderRadius: "50%",
+                                                pointerEvents: "none",
+                                            }}
+                                        />
+                                        {avatarText}
+                                    </div>
+
+                                    {/* Username */}
+                                    <div
+                                        style={{
+                                            fontSize: "16px",
+                                            color: "white",
+                                            textAlign: "center",
+                                            maxWidth: "160px",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            fontWeight: "500",
+                                            lineHeight: "1.2",
+                                        }}
+                                    >
+                                        {isLocalUser ? "You" : displayName}
+                                        {participant.isMicrophoneEnabled === false && " 🔇"}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Status and Timer - Above controls */}
+                    <div
+                        style={{
+                            flexShrink: 0,
+                            textAlign: "center",
+                            padding: "20px",
+                            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                        }}
+                    >
+                        <div style={{ marginBottom: "8px", fontSize: "16px", opacity: 0.9 }}>
+                            {isMuted && <span>🔇 </span>}
+                            <span>{getStatusText()}</span>
+                        </div>
+                        {callTimer > 0 && (
+                            <div
+                                style={{
+                                    fontSize: "18px",
+                                    fontFamily:
+                                        "'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace",
+                                    opacity: 0.9,
+                                }}
+                            >
+                                {formatTime(callTimer)}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Controls Container - Fixed at bottom */}
+                    <div
+                        style={{
+                            flexShrink: 0,
+                            padding: "20px 20px 30px 20px",
+                            backdropFilter: "blur(10px)",
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "32px",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                maxWidth: "400px",
+                                margin: "0 auto",
+                            }}
+                        >
+                            <button
+                                className={`audio-control-button group-call mute ${isMuted ? "muted" : ""}`}
+                                onClick={handleMuteToggle}
+                                title={isMuted ? "Unmute" : "Mute"}
+                            >
+                                {isMuted ? "🔇" : "🎙️"}
+                            </button>
+
+                            <button
+                                className="audio-control-button group-call end-call"
+                                onClick={handleEndCall}
+                                title="End Call"
+                            >
+                                📞
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Hidden audio tracks */}
+                {audioTracks.map((trackRef) => {
+                    if (
+                        !trackRef.participant.isLocal &&
+                        trackRef.source === "microphone" &&
+                        trackRef.publication?.track &&
+                        trackRef.publication?.isSubscribed
+                    ) {
+                        return (
+                            <audio
+                                key={`audio-${trackRef.participant.sid}`}
+                                ref={(element) => {
+                                    if (element && trackRef.publication?.track) {
+                                        const track = trackRef.publication.track;
+                                        const mediaStream = new MediaStream([track.mediaStreamTrack]);
+                                        element.srcObject = mediaStream;
+                                        element.autoplay = true;
+                                        element.volume = 1.0;
+                                        element.play().catch((error) => {
+                                            console.warn("Failed to play remote audio:", error);
+                                        });
+                                    }
+                                }}
+                                style={{ display: "none" }}
+                            />
+                        );
+                    }
+                    return null;
+                })}
+            </div>
+        );
+    }
+
+    // 1-to-1 Call Interface (2 participants or less)
+    const displayName = singleRemoteParticipant
+        ? normalizeDisplayName(singleRemoteParticipant.name || singleRemoteParticipant.identity || "Unknown User")
+        : normalizeDisplayName(localParticipant?.name || localParticipant?.identity || "Unknown User");
+
+    const isRemoteParticipantSpeaking = singleRemoteParticipant?.isSpeaking || false;
+
+    return (
+        <div
+            className="whatsapp-audio-call"
+            style={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100vh",
+                width: "100vw",
+                overflow: "hidden",
+                position: "fixed",
+                top: 0,
+                left: 0,
+                padding: "20px",
+                boxSizing: "border-box",
+            }}
+        >
+            {/* E2EE Status */}
+            <div
+                className={`audio-e2ee-status ${isE2EEEnabled ? "" : "disabled"}`}
+                style={{
+                    position: "absolute",
+                    top: "20px",
+                    right: "20px",
+                    zIndex: 10,
+                }}
+            >
+                <span>{isE2EEEnabled ? "🔒" : "🔓"}</span>
+                <span>{isE2EEEnabled ? "End-to-end encrypted" : "Not Encrypted"}</span>
+            </div>
+
+            {/* Main Content - Centered */}
+            <div
+                className="audio-call-content"
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flex: 1,
+                    maxWidth: "400px",
+                    width: "100%",
+                    margin: "0 auto",
+                }}
+            >
+                {/* Avatar with explicit inline styles to guarantee visibility */}
+                <div
+                    style={{
+                        width: "200px",
+                        height: "200px",
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg, #4a4a4a 0%, #6a6a6a 100%)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "80px",
+                        color: "white",
+                        fontWeight: "600",
+                        marginBottom: "32px",
+                        border: isRemoteParticipantSpeaking
+                            ? "4px solid rgba(74, 175, 79, 0.8)"
+                            : "4px solid rgba(255, 255, 255, 0.1)",
+                        boxShadow: isRemoteParticipantSpeaking
+                            ? "0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(74, 175, 79, 0.3), 0 0 0 16px rgba(74, 175, 79, 0.2)"
+                            : "0 20px 60px rgba(0, 0, 0, 0.3)",
+                        position: "relative",
+                        overflow: "hidden",
+                        transition: "all 0.3s ease",
+                        animation: isRemoteParticipantSpeaking ? "pulse-talking 2s ease-in-out infinite" : "none",
+                    }}
+                >
+                    {/* Shine effect */}
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background:
+                                "linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%)",
+                            borderRadius: "50%",
+                            pointerEvents: "none",
+                        }}
+                    />
+                    {getAvatarFallback(displayName)}
+                </div>
+
+                {/* Name */}
+                <div className="audio-call-name">{displayName}</div>
+
+                {/* Status */}
+                <div className="audio-call-status">
+                    {isMuted && <span>🔇</span>}
+                    <span>{getStatusText()}</span>
+                </div>
+
+                {/* Timer */}
+                {callTimer > 0 && <div className="audio-call-timer">{formatTime(callTimer)}</div>}
+
+                {/* Controls */}
+                <div className="audio-call-controls">
+                    <button
+                        className={`audio-control-button mute ${isMuted ? "muted" : ""}`}
+                        onClick={handleMuteToggle}
+                        title={isMuted ? "Unmute" : "Mute"}
+                    >
+                        {isMuted ? "🔇" : "🎙️"}
+                    </button>
+
+                    <button className="audio-control-button end-call" onClick={handleEndCall} title="End Call">
+                        📞
+                    </button>
+                </div>
+            </div>
+
+            {/* Hidden audio tracks */}
+            {audioTracks.map((trackRef) => {
+                if (
+                    !trackRef.participant.isLocal &&
+                    trackRef.source === "microphone" &&
+                    trackRef.publication?.track &&
+                    trackRef.publication?.isSubscribed
+                ) {
+                    return (
+                        <audio
+                            key={`audio-${trackRef.participant.sid}`}
+                            ref={(element) => {
+                                if (element && trackRef.publication?.track) {
+                                    const track = trackRef.publication.track;
+                                    const mediaStream = new MediaStream([track.mediaStreamTrack]);
+                                    element.srcObject = mediaStream;
+                                    element.autoplay = true;
+                                    element.volume = 1.0;
+                                    element.play().catch((error) => {
+                                        console.warn("Failed to play remote audio:", error);
+                                    });
+                                }
+                            }}
+                            style={{ display: "none" }}
+                        />
+                    );
+                }
+                return null;
+            })}
+        </div>
+    );
+};
+
+const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
+    const room = useRoomContext();
+    const e2eeInitialized = useRef(false);
+    const [decryptionErrors, setDecryptionErrors] = useState<string[]>([]);
+    const [permissionErrors, setPermissionErrors] = useState<{
+        camera?: string;
+        microphone?: string;
+        general?: string;
+    }>({});
+
+    // Track if call was ever established with multiple participants
+    const callEstablished = useRef(false);
+    const autoLeaveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const callStartTime = useRef<number | null>(null);
+    const isAutoEndingRef = useRef<boolean>(false);
+
+    // Get all participants for count
+    const participants = useParticipants();
+
+    // Get all tracks (video and audio) for proper audio/video handling
+    const allTracks = useTracks(["camera", "microphone"], {
+        onlySubscribed: false,
+    });
+
+    // Get audio tracks separately for proper audio handling
+    const audioTracks = useTracks(["microphone"], {
+        onlySubscribed: false,
+    });
+
+    // Improved deduplication logic to ensure correct participant counting
+    const uniqueTracks = allTracks.reduce(
+        (acc, trackRef) => {
+            const participantSid = trackRef.participant.sid;
+
+            // If we don't have this participant yet, add them
+            if (!acc.find((t) => t.participant.sid === participantSid)) {
+                // Prefer camera track over microphone for display
+                if (trackRef.source === "camera") {
+                    acc.push(trackRef);
+                } else if (trackRef.source === "microphone") {
+                    // Only add microphone if no camera track exists for this participant
+                    const hasCameraTrack = allTracks.some(
+                        (t) => t.participant.sid === participantSid && t.source === "camera",
+                    );
+                    if (!hasCameraTrack) {
+                        acc.push(trackRef);
+                    }
+                }
+            } else {
+                // If we already have this participant, replace with camera track if current is microphone
+                const existingIndex = acc.findIndex((t) => t.participant.sid === participantSid);
+                const existing = acc[existingIndex];
+                if (existing.source === "microphone" && trackRef.source === "camera") {
+                    acc[existingIndex] = trackRef;
+                }
+            }
+
+            return acc;
+        },
+        [] as typeof allTracks,
+    );
+
+    // Debug logging for participant count issues
+    const participantCount = uniqueTracks.length;
+
+    console.log("Grid debugging:", {
+        totalParticipants: participants.length,
+        allTracksCount: allTracks.length,
+        audioTracksCount: audioTracks.length,
+        uniqueTracksCount: participantCount,
+        uniqueTrackDetails: uniqueTracks.map((t) => ({
+            sid: t.participant.sid,
+            source: t.source,
+            isLocal: t.participant.isLocal,
+            name: t.participant.name || t.participant.identity,
+        })),
+        audioTrackDetails: audioTracks.map((t) => ({
+            sid: t.participant.sid,
+            source: t.source,
+            isLocal: t.participant.isLocal,
+            isSubscribed: !!t.publication?.isSubscribed,
+            isMuted: t.publication?.isMuted,
+            name: t.participant.name || t.participant.identity,
+        })),
+        decryptionErrorCount: decryptionErrors.length,
+    });
+
+    // Force re-render when participant count changes to ensure grid updates
+    useEffect(() => {
+        console.log(`🎯 Participant count changed to: ${participantCount}`);
+        console.log(`🎯 Grid should show data-participant-count="${participantCount}"`);
+
+        // Add a small delay to ensure the DOM has updated
+        setTimeout(() => {
+            const gridElement = document.querySelector(".lk-video-grid");
+            if (gridElement) {
+                console.log(
+                    `🎯 Grid element found with data-participant-count="${gridElement.getAttribute("data-participant-count")}"`,
+                );
+                console.log(`🎯 Grid computed styles:`, {
+                    display: getComputedStyle(gridElement).display,
+                    gridTemplateColumns: getComputedStyle(gridElement).gridTemplateColumns,
+                    gridTemplateRows: getComputedStyle(gridElement).gridTemplateRows,
+                });
+            } else {
+                console.warn("🎯 Grid element not found!");
+            }
+        }, 100);
+    }, [participantCount, uniqueTracks.length]);
+
+    // Auto-leave logic: Only for video calls (audio calls have their own logic in AudioCallInterface)
+    useEffect(() => {
+        // Skip auto-leave for audio calls since AudioCallInterface handles it
+        if (!isVideo) return;
+
+        // Clear any existing timeout
+        if (autoLeaveTimeout.current) {
+            clearTimeout(autoLeaveTimeout.current);
+            autoLeaveTimeout.current = null;
+        }
+
+        if (!room) return;
+
+        // Track call start time when we have exactly 1 participant (the caller)
+        if (participantCount === 1 && !callStartTime.current) {
+            callStartTime.current = Date.now();
+            console.log("🎯 Video call started - 30s no-answer timeout activated");
+        }
+
+        // Mark call as established if we have 2 or more participants
+        if (participantCount >= 2) {
+            if (!callEstablished.current) {
+                callEstablished.current = true;
+                callStartTime.current = null; // Clear no-answer timeout
+                console.log("🎯 Video call established - multiple participants detected");
+            }
+        }
+
+        // Scenario 1: No-answer timeout (30 seconds with only 1 participant)
+        if (participantCount === 1 && !callEstablished.current && callStartTime.current) {
+            const timeElapsed = Date.now() - callStartTime.current;
+            const remainingTime = 30000 - timeElapsed; // 30 seconds total
+
+            if (remainingTime > 0) {
+                console.log(`🎯 Video call no-answer timeout: ${Math.ceil(remainingTime / 1000)}s remaining`);
+                autoLeaveTimeout.current = setTimeout(() => {
+                    if (room && room.state === "connected" && participantCount === 1 && !callEstablished.current) {
+                        console.log("🎯 Auto-leaving video call - no one answered within 30 seconds");
+
+                        // Emit call ended event for video call no-answer timeout
+                        const roomData = (window as any).__currentLiveKitRoomData;
+                        console.log("roomData", roomData);
+                        if (roomData?.roomId && roomData?.toUserIds) {
+                            console.log("📞 Video call no-answer timeout - emitting CALL_ENDED event");
+                            emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                        }
+
+                        isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
+                        isAutoEndingCall = true; // Set global flag
+                        room.disconnect().catch((err: any) => {
+                            console.warn("Error during no-answer auto-leave:", err);
+                        });
+                    }
+                }, remainingTime);
+            } else {
+                // Time already exceeded, leave immediately
+                console.log("🎯 Auto-leaving video call - 30s no-answer timeout exceeded");
+
+                // Emit call ended event for video call immediate timeout
+                const roomData = (window as any).__currentLiveKitRoomData;
+                console.log("roomData", roomData);
+                if (roomData?.roomId && roomData?.toUserIds) {
+                    console.log("📞 Video call immediate timeout - emitting CALL_ENDED event");
+                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                }
+
+                isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
+                isAutoEndingCall = true; // Set global flag
+                room.disconnect().catch((err: any) => {
+                    console.warn("Error during immediate no-answer auto-leave:", err);
+                });
+            }
+        }
+
+        // Scenario 2: Everyone left after call was established (3 second grace period)
+        else if (callEstablished.current && participantCount === 1) {
+            console.log("🎯 Only one participant left after video call was established - scheduling auto-leave");
+            autoLeaveTimeout.current = setTimeout(() => {
+                if (room && room.state === "connected" && participantCount === 1) {
+                    console.log("🎯 Auto-leaving video call - only one participant remaining");
+                    room.disconnect().catch((err: any) => {
+                        console.warn("Error during everyone-left auto-leave:", err);
+                    });
+                }
+            }, 3000); // 3 second grace period
+        }
+    }, [participantCount, room, isVideo]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (autoLeaveTimeout.current) {
+                clearTimeout(autoLeaveTimeout.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (room && !e2eeInitialized.current) {
+            e2eeInitialized.current = true;
+
+            // Enable E2EE after room is ready
+            room.setE2EEEnabled(true)
+                .then(() => {
+                    console.log("E2EE enabled successfully");
+
+                    // Delay verification to ensure room is fully connected
+                    setTimeout(() => {
+                        console.log("E2EE Verification (after connection):", {
+                            isE2EEEnabled: room.isE2EEEnabled,
+                            localParticipant: room.localParticipant?.identity || "Not set yet",
+                            e2eeManager: room.isE2EEEnabled ? "✅ Active" : "❌ Inactive",
+                            connectionState: room.state,
+                        });
+                    }, 2000); // Wait 2 seconds for full connection
+                })
+                .catch((err: Error) => {
+                    console.error("Failed to enable E2EE:", err);
+                });
+
+            // Listen for encryption/decryption errors
+            room.on("trackSubscribed", (track: any, publication: any, participant: any) => {
+                console.log(`Track ${track.sid} encryption status:`, {
+                    isEncrypted: publication.isEncrypted,
+                    participant: participant.identity,
+                    e2eeEnabled: room.isE2EEEnabled,
+                    trackKind: track.kind,
+                    encryptionType: publication.isEncrypted ? "🔒 End-to-End Encrypted" : "⚠️ Unencrypted",
+                });
+
+                // Monitor for decryption failures
+                track.on("muted", () => {
+                    if (publication.isEncrypted) {
+                        const errorMsg = `🚨 Possible decryption failure: ${participant.identity}'s ${track.kind} track muted (wrong key?)`;
+                        console.warn(errorMsg);
+                        setDecryptionErrors((prev) => [...prev, errorMsg]);
+                    }
+                });
+
+                track.on("unmuted", () => {
+                    if (publication.isEncrypted) {
+                        const successMsg = `✅ Decryption working: ${participant.identity}'s ${track.kind} track active`;
+                        console.log(successMsg);
+                        // Remove error for this track if it exists
+                        setDecryptionErrors((prev) =>
+                            prev.filter((error) => !error.includes(`${participant.identity}'s ${track.kind}`)),
+                        );
+                    }
+                });
+            });
+
+            // Listen for local tracks being published
+            room.on("localTrackPublished", (publication: any) => {
+                console.log("Local track published with E2EE:", {
+                    trackSid: publication.trackSid,
+                    kind: publication.kind,
+                    isEncrypted: publication.isEncrypted,
+                    e2eeEnabled: room.isE2EEEnabled,
+                });
+            });
+
+            // Listen for room state changes
+            room.on("connected", () => {
+                console.log("Room fully connected - Final E2EE status:", {
+                    isE2EEEnabled: room.isE2EEEnabled,
+                    localParticipant: room.localParticipant.identity,
+                    roomState: room.state,
+                });
+
+                // Request media permissions based on call type
+                const mediaConstraints = {
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    },
+                    video: isVideo, // Only request video for video calls
+                };
+
+                console.log(
+                    `🎙️ Requesting media permissions for ${isVideo ? "VIDEO" : "AUDIO"} call:`,
+                    mediaConstraints,
+                );
+
+                navigator.mediaDevices
+                    .getUserMedia(mediaConstraints)
+                    .then(() => {
+                        console.log(`✅ Media permissions granted for ${isVideo ? "VIDEO" : "AUDIO"} call`);
+                        // Clear any previous permission errors since permissions are now granted
+                        setPermissionErrors({});
+
+                        if (isVideo) {
+                            // For video calls, enable both camera and microphone
+                            return room.localParticipant.enableCameraAndMicrophone();
+                        } else {
+                            // For voice calls, only enable microphone
+                            console.log("🎙️ Voice call - enabling microphone only");
+                            return room.localParticipant.setMicrophoneEnabled(true);
+                        }
+                    })
+                    .then(() => {
+                        if (isVideo) {
+                            console.log("✅ Camera and microphone enabled for video call");
+                            // Explicitly ensure microphone is enabled for video calls
+                            return room.localParticipant.setMicrophoneEnabled(true);
+                        } else {
+                            console.log("✅ Microphone enabled for voice call");
+                            // Explicitly disable camera for voice calls
+                            return room.localParticipant.setCameraEnabled(false);
+                        }
+                    })
+                    .then(() => {
+                        console.log(`✅ ${isVideo ? "Video" : "Voice"} call setup completed successfully`);
+                    })
+                    .catch((err: any) => {
+                        console.warn(`Failed to setup ${isVideo ? "video" : "voice"} call:`, err);
+
+                        // Check if this is a permission error
+                        if (err.name === "NotAllowedError" || err.message?.includes("Permission denied")) {
+                            console.warn("❌ Permission denied for media access");
+                            setPermissionErrors({
+                                general: `${isVideo ? "Camera and microphone" : "Microphone"} access denied. Please allow permissions to join the call.`,
+                            });
+                        } else {
+                            console.warn("❌ Other media setup error:", err);
+                            setPermissionErrors({
+                                general: `Failed to setup ${isVideo ? "video" : "voice"} call: ${err.message || err.name || "Unknown error"}`,
+                            });
+                        }
+
+                        // Fallback: try enabling them separately
+                        if (isVideo) {
+                            room.localParticipant
+                                .setCameraEnabled(true)
+                                .then(() => {
+                                    console.log("✅ Camera enabled (fallback)");
+                                    // Clear camera error if successful
+                                    setPermissionErrors((prev) => {
+                                        const { camera, ...rest } = prev;
+                                        return rest;
+                                    });
+                                })
+                                .catch((e: any) => {
+                                    console.warn("❌ Camera enable failed (fallback):", e);
+                                    if (e.name === "NotAllowedError" || e.message?.includes("Permission denied")) {
+                                        setPermissionErrors((prev) => ({
+                                            ...prev,
+                                            camera: "Camera access denied. Please allow camera permissions in your browser settings.",
+                                        }));
+                                    }
+                                });
+                        }
+
+                        room.localParticipant
+                            .setMicrophoneEnabled(true)
+                            .then(() => {
+                                console.log("✅ Microphone enabled (fallback)");
+                                // Clear microphone error if successful
+                                setPermissionErrors((prev) => {
+                                    const { microphone, ...rest } = prev;
+                                    return rest;
+                                });
+                            })
+                            .catch((e: any) => {
+                                console.warn("❌ Microphone enable failed (fallback):", e);
+                                if (e.name === "NotAllowedError" || e.message?.includes("Permission denied")) {
+                                    setPermissionErrors((prev) => ({
+                                        ...prev,
+                                        microphone:
+                                            "Microphone access denied. Please allow microphone permissions in your browser settings.",
+                                    }));
+                                }
+                            });
+                    });
+            });
+        }
+    }, [room, isVideo]);
+
+    const isE2EEEnabled = room?.isE2EEEnabled;
+
+    // For audio calls, use the WhatsApp-style interface
+    if (!isVideo) {
+        return (
+            <div className="whatsapp-audio-call-container">
+                <AudioCallInterface isVideo={isVideo} />
+            </div>
+        );
+    }
+
+    // For video calls, use the existing grid interface
+    return (
+        <div
+            className="professional-video-room"
+            style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
+        >
+            {/* Professional Status Bar */}
+            <div className="professional-status-bar">
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div className={`status-indicator ${isE2EEEnabled ? "e2ee-enabled" : "e2ee-disabled"}`}>
+                        <span>{isE2EEEnabled ? "🔒" : "🔓"}</span>
+                        <span>E2EE: {isE2EEEnabled ? "Enabled" : "Disabled"}</span>
+                    </div>
+
+                    <div className="status-indicator">
+                        <span>👥</span>
+                        <span>
+                            {participantCount} Participant{participantCount !== 1 ? "s" : ""}
+                        </span>
+                    </div>
+
+                    {/* Debug info in development */}
+                    {process.env.NODE_ENV === "development" && (
+                        <div className="status-indicator" style={{ fontSize: "12px", opacity: 0.7 }}>
+                            <span>🔧</span>
+                            <span>
+                                Grid: {participantCount} | Tracks: {allTracks.length}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Show connection quality or other indicators */}
+                <div className="status-indicator">
+                    <span>🟢</span>
+                    <span>Connected</span>
+                </div>
+            </div>
+
+            {/* Professional Video Grid */}
+            <div className="lk-video-grid" data-participant-count={participantCount}>
+                {uniqueTracks.map((trackRef) => (
+                    <ProfessionalParticipantTile
+                        key={`${trackRef.participant.sid}-${trackRef.source}`}
+                        trackRef={trackRef}
+                    />
+                ))}
+
+                {/* Show placeholder when no participants */}
+                {participantCount === 0 && (
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: "18px",
+                            gridColumn: "1 / -1",
+                            gridRow: "1 / -1",
+                        }}
+                    >
+                        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📞</div>
+                        <div>Waiting for participants to join...</div>
+                        <div style={{ fontSize: "14px", marginTop: "8px", opacity: 0.7 }}>
+                            The call will start once someone joins
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Professional Control Bar with proper z-index */}
+            <div
+                style={{
+                    flexShrink: 0,
+                    position: "relative",
+                    zIndex: 1000,
+                }}
+                className="lk-control-bar-container"
+            >
+                <ControlBar className="lk-control-bar" />
+            </div>
+
+            {/* Hidden audio tracks for remote participants - ensures audio playback */}
+            {audioTracks.map((trackRef) => {
+                // Only render audio tracks for remote participants that are subscribed
+                if (
+                    !trackRef.participant.isLocal &&
+                    trackRef.source === "microphone" &&
+                    trackRef.publication?.track &&
+                    trackRef.publication?.isSubscribed
+                ) {
+                    console.log(
+                        `🔊 Rendering audio element for remote participant: ${trackRef.participant.identity || trackRef.participant.name}`,
+                    );
+
+                    return (
+                        <audio
+                            key={`audio-${trackRef.participant.sid}`}
+                            ref={(element) => {
+                                if (element && trackRef.publication?.track) {
+                                    const track = trackRef.publication.track;
+                                    const mediaStream = new MediaStream([track.mediaStreamTrack]);
+                                    element.srcObject = mediaStream;
+                                    element.autoplay = true;
+                                    element.volume = 1.0; // Ensure full volume
+
+                                    console.log(`🔊 Setting up audio for ${trackRef.participant.identity}:`, {
+                                        trackKind: track.kind,
+                                        trackId: track.sid,
+                                        mediaStreamId: mediaStream.id,
+                                        hasAudioTracks: mediaStream.getAudioTracks().length > 0,
+                                    });
+
+                                    // Ensure audio plays
+                                    element.play().catch((error) => {
+                                        console.warn("Failed to play remote audio:", error);
+                                    });
+                                }
+                            }}
+                            style={{ display: "none" }}
+                        />
+                    );
+                }
+                return null;
+            })}
+
+            {/* Decryption Errors Display */}
+            {/* {decryptionErrors.length > 0 && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "80px",
+                        right: "20px",
+                        background: "rgba(244, 67, 54, 0.9)",
+                        color: "white",
+                        padding: "12px 16px",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        maxWidth: "300px",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(244, 67, 54, 1)",
+                        zIndex: 1000,
+                    }}
+                >
+                    <div style={{ fontWeight: "bold", marginBottom: "8px" }}>🚨 Decryption Issues Detected</div>
+                    {decryptionErrors.slice(0, 3).map((error, index) => (
+                        <div key={index} style={{ fontSize: "12px", marginBottom: "4px", opacity: 0.9 }}>
+                            {error}
+                        </div>
+                    ))}
+                    {decryptionErrors.length > 3 && (
+                        <div style={{ fontSize: "12px", opacity: 0.7 }}>
+                            +{decryptionErrors.length - 3} more issues...
+                        </div>
+                    )}
+                </div>
+            )} */}
+
+            {/* Permission Errors Display */}
+            {Object.keys(permissionErrors).length > 0 && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "80px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        background: "rgba(244, 67, 54, 0.95)",
+                        color: "white",
+                        padding: "16px 20px",
+                        borderRadius: "12px",
+                        fontSize: "14px",
+                        maxWidth: "500px",
+                        backdropFilter: "blur(10px)",
+                        border: "1px solid rgba(244, 67, 54, 1)",
+                        zIndex: 1000,
+                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+                        textAlign: "center",
+                    }}
+                >
+                    <div
+                        style={{
+                            fontWeight: "bold",
+                            marginBottom: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                        }}
+                    >
+                        <span style={{ fontSize: "18px" }}>🚫</span>
+                        <span>Permission Required</span>
+                    </div>
+
+                    {permissionErrors.general && (
+                        <div style={{ marginBottom: "8px", lineHeight: "1.4" }}>{permissionErrors.general}</div>
+                    )}
+
+                    {permissionErrors.camera && (
+                        <div style={{ marginBottom: "8px", lineHeight: "1.4" }}>📹 {permissionErrors.camera}</div>
+                    )}
+
+                    {permissionErrors.microphone && (
+                        <div style={{ marginBottom: "8px", lineHeight: "1.4" }}>🎙️ {permissionErrors.microphone}</div>
+                    )}
+
+                    <div
+                        style={{
+                            marginTop: "12px",
+                            padding: "8px",
+                            background: "rgba(255, 255, 255, 0.1)",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            lineHeight: "1.3",
+                        }}
+                    >
+                        <div style={{ fontWeight: "bold", marginBottom: "4px" }}>How to fix:</div>
+                        <div>1. Click the 🔒 or 📹/🎙️ icon in your browser's address bar</div>
+                        <div>2. Allow camera and microphone access</div>
+                        <div>3. Refresh the page and try again</div>
+                    </div>
+
+                    <button
+                        onClick={() => setPermissionErrors({})}
+                        style={{
+                            marginTop: "12px",
+                            background: "rgba(255, 255, 255, 0.2)",
+                            border: "1px solid rgba(255, 255, 255, 0.3)",
+                            color: "white",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                        }}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Utility function to show LiveKit call notifications
+const showLiveKitCallNotification = (
+    type: "incoming" | "outgoing",
+    data: {
+        caller: string;
+        isVideo: boolean;
+        participantCount?: number;
+        onAccept?: () => void;
+        onDecline?: () => void;
+        onDismiss?: () => void;
+    },
+): string => {
+    const notificationId = `livekit-call-${Date.now()}`;
+
+    // Remove any existing notifications more thoroughly
+    document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
+        el.remove();
+    });
+    console.log("🧹 Removed all existing LiveKit call notifications before creating new one");
+
+    const notification = document.createElement("div");
+    notification.className = "mx_LiveKitCallNotification";
+    notification.id = notificationId;
+
+    const isIncoming = type === "incoming";
+    const callType = data.isVideo ? "Video" : "Voice";
+    const icon = data.isVideo ? "📹" : "📞";
+
+    // Start incoming call sound for incoming calls
+    if (isIncoming && (window as any).startIncomingCallSound) {
+        (window as any).startIncomingCallSound();
+    }
+
+    const handleAccept = (): void => {
+        console.log("📞 Call accepted, removing notification");
+
+        // Stop incoming call sound
+        if ((window as any).stopIncomingCallSound) {
+            (window as any).stopIncomingCallSound();
+        }
+
+        // Mark call as just accepted for fallback detection
+        if ((window as any).markCallAsJustAccepted) {
+            (window as any).markCallAsJustAccepted();
+        }
+
+        notification.remove();
+        // Also remove any other notifications that might exist
+        document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
+            if (el !== notification) el.remove();
+        });
+
+        data.onAccept?.();
+    };
+
+    const handleDecline = (): void => {
+        console.log("📞 Call declined, removing notification");
+
+        // Stop incoming call sound
+        if ((window as any).stopIncomingCallSound) {
+            (window as any).stopIncomingCallSound();
+        }
+
+        notification.remove();
+        // Also remove any other notifications that might exist
+        document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
+            if (el !== notification) el.remove();
+        });
+
+        data.onDecline?.();
+    };
+
+    const handleDismiss = (): void => {
+        console.log("📞 Call dismissed, removing notification");
+
+        // Stop incoming call sound
+        if ((window as any).stopIncomingCallSound) {
+            (window as any).stopIncomingCallSound();
+        }
+
+        notification.remove();
+        // Also remove any other notifications that might exist
+        document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
+            if (el !== notification) el.remove();
+        });
+
+        data.onDismiss?.();
+    };
+
+    notification.innerHTML = `
+        <div class="notification-header">
+            <div class="notification-icon">${icon}</div>
+            <div class="notification-title">
+                ${isIncoming ? "Incoming" : "Outgoing"} ${callType} Call
+            </div>
+        </div>
+        <div class="notification-message">
+            ${
+                isIncoming
+                    ? `${data.caller} is calling you`
+                    : `Calling ${data.participantCount ? data.participantCount + " participant" + (data.participantCount > 1 ? "s" : "") : data.caller}`
+            }
+        </div>
+        <div class="notification-buttons">
+            ${
+                isIncoming
+                    ? `
+                    <button class="notification-button decline" data-action="decline">
+                        Decline
+                    </button>
+                    <button class="notification-button accept" data-action="accept">
+                        Accept
+                    </button>
+                  `
+                    : `
+                    <button class="notification-button dismiss" data-action="dismiss">
+                        Dismiss
+                    </button>
+                  `
+            }
+        </div>
+    `;
+
+    // Add event listeners to buttons
+    notification.addEventListener("click", (e) => {
+        const target = e.target as HTMLElement;
+        const action = target.getAttribute("data-action");
+
+        if (action === "accept") {
+            handleAccept();
+        } else if (action === "decline") {
+            handleDecline();
+        } else if (action === "dismiss") {
+            handleDismiss();
+        }
+    });
+
+    document.body.appendChild(notification);
+
+    // Auto-dismiss after 30 seconds for incoming calls, 5 seconds for outgoing
+    const autoDismissTime = isIncoming ? 30000 : 5000;
+    const timeoutId = setTimeout(() => {
+        if (document.getElementById(notificationId)) {
+            console.log("📞 Auto-dismissing call notification after timeout");
+            handleDismiss();
+        }
+    }, autoDismissTime);
+
+    // Store timeout ID so it can be cleared if notification is manually dismissed
+    (notification as any).timeoutId = timeoutId;
+
+    console.log(`📞 Created ${type} call notification with ID: ${notificationId}`);
+    return notificationId;
+};
+
+// Export the notification function for use in other components
+(window as any).showLiveKitCallNotification = showLiveKitCallNotification;
+
+// Export a function to clear all LiveKit call notifications
+const clearAllLiveKitCallNotifications = (): void => {
+    console.log("🧹 Clearing ALL LiveKit call notifications");
+    document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
+        // Clear any timeouts associated with the notification
+        const timeout = (el as any).timeoutId;
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+        el.remove();
+    });
+    console.log("✅ All LiveKit call notifications cleared");
+};
+
+// Make the clear function available globally
+(window as any).clearAllLiveKitCallNotifications = clearAllLiveKitCallNotifications;
+
+// Clean up complex audio logic - keeping it simple now
+
+// Global state to track recent call acceptances
+let recentCallAcceptanceTime: number | null = null;
+const markCallAsJustAccepted = (): void => {
+    recentCallAcceptanceTime = Date.now();
+    console.log("📞 Marked call as just accepted at:", recentCallAcceptanceTime);
+};
+
+const wasCallRecentlyAccepted = (): boolean => {
+    if (!recentCallAcceptanceTime) return false;
+    const timeSinceAcceptance = Date.now() - recentCallAcceptanceTime;
+    const isRecent = timeSinceAcceptance < 5000; // 5 seconds window
+    if (isRecent) {
+        console.log(`📞 Call was recently accepted ${timeSinceAcceptance}ms ago`);
+    }
+    return isRecent;
+};
+
+const clearRecentCallAcceptance = (): void => {
+    recentCallAcceptanceTime = null;
+    console.log("📞 Cleared recent call acceptance flag");
+};
+
+// Make these functions available globally
+(window as any).markCallAsJustAccepted = markCallAsJustAccepted;
+(window as any).wasCallRecentlyAccepted = wasCallRecentlyAccepted;
+(window as any).clearRecentCallAcceptance = clearRecentCallAcceptance;
+
+// Global active call state management
+let isCallCurrentlyActive = false;
+let isAutoEndingCall = false;
+
+const setCallActiveState = (active: boolean): void => {
+    isCallCurrentlyActive = active;
+    console.log(`📞 Call active state changed to: ${active}`);
+
+    // Also update body class for additional checking
+    if (active) {
+        document.body.classList.add("mx_LiveKitCall_active");
+    } else {
+        document.body.classList.remove("mx_LiveKitCall_active");
+    }
+};
+
+const getCallActiveState = (): boolean => {
+    return isCallCurrentlyActive;
+};
+
+// Make these functions available globally for socket handler
+(window as any).setCallActiveState = setCallActiveState;
+(window as any).getCallActiveState = getCallActiveState;
+
+export const VideoRoom = ({
+    roomName,
+    participantName,
+    roomId,
+    toUserIds,
+    toUsernames,
+    isVideo = true, // Default to video call for backward compatibility
+    fromUsername,
+    groupName,
+    testMode,
+    isAcceptingIncomingCall = false, // Default to false for backward compatibility
+    onLeave,
+}: VideoRoomProps): JSX.Element => {
+    console.log(`🎥 VideoRoom initialized - isVideo: ${isVideo}, callType: ${isVideo ? "VIDEO" : "AUDIO"}`);
+
+    // State for managing ongoing call detection
+    const [ongoingCallInfo, setOngoingCallInfo] = useState<{
+        participants: Array<{ userId: string; username: string; isOnline: boolean }>;
+        participantCount: number;
+    } | null>(null);
+    const [showJoinConfirmation, setShowJoinConfirmation] = useState(false);
+    const [connectionApproved, setConnectionApproved] = useState(false);
+
+    // Store room data globally for access in nested components
+    useEffect(() => {
+        (window as any).__currentLiveKitRoomData = {
+            roomId,
+            toUserIds,
+            toUsernames,
+            fromUsername,
+            groupName,
+            isVideo,
+        };
+
+        return () => {
+            // Clean up room data when component unmounts
+            delete (window as any).__currentLiveKitRoomData;
+        };
+    }, [roomId, toUserIds, toUsernames, fromUsername, groupName, isVideo]);
+
+    // Listen for call_ended events from backend
+    useEffect(() => {
+        const handleCallEnded = (data: any): void => {
+            console.log("📞 VideoRoom: Received call_ended event from backend:", data);
+
+            // Stop incoming call sounds
+            if ((window as any).stopIncomingCallSound) {
+                (window as any).stopIncomingCallSound();
+            }
+
+            // Clear all call notifications
+            if ((window as any).clearAllLiveKitCallNotifications) {
+                (window as any).clearAllLiveKitCallNotifications();
+            }
+
+            // Close the call modal if this is the same room
+            if (data.roomId === roomId) {
+                console.log("📞 VideoRoom: Call ended for current room, closing modal");
+                onLeave?.();
+            }
+        };
+
+        // Listen for the custom event dispatched by GlobalSocketManager
+        window.addEventListener("liveKitCallEnded", handleCallEnded as EventListener);
+
+        console.log("✅ VideoRoom: Set up call_ended custom event listener (via GlobalSocketManager)");
+
+        return () => {
+            // Clean up event listeners
+            window.removeEventListener("liveKitCallEnded", handleCallEnded as EventListener);
+        };
+    }, [roomId, onLeave]);
+
+    const { token, serverUrl, error, isConnecting, connect, roomOptions, checkRoom } = useRoom({
+        roomName,
+        participantName,
+        roomId,
+        toUserIds,
+        toUsernames,
+        isVideo,
+        fromUsername,
+        groupName,
+        testMode,
+    });
+    const connectionInitiated = useRef(false);
+    const connectCalled = useRef(false);
+
+    // Initial room check to detect ongoing calls
+    useEffect(() => {
+        if (!connectionInitiated.current) {
+            connectionInitiated.current = true;
+
+            // Check if user is accepting an incoming call (either via prop or recent acceptance detection)
+            const isJoiningAcceptedCall =
+                isAcceptingIncomingCall ||
+                ((window as any).wasCallRecentlyAccepted && (window as any).wasCallRecentlyAccepted());
+
+            if (isJoiningAcceptedCall) {
+                console.log("📞 User is accepting/joining an incoming call - skipping confirmation dialog");
+
+                // Stop incoming call sound
+                if ((window as any).stopIncomingCallSound) {
+                    (window as any).stopIncomingCallSound();
+                }
+
+                // Clear the recent acceptance flag if it was used
+                if ((window as any).clearRecentCallAcceptance) {
+                    (window as any).clearRecentCallAcceptance();
+                }
+
+                // Clear all call notifications
+                if ((window as any).clearAllLiveKitCallNotifications) {
+                    (window as any).clearAllLiveKitCallNotifications();
+                }
+
+                setConnectionApproved(true);
+                if (!connectCalled.current) {
+                    connectCalled.current = true;
+                    console.log("🔗 First useEffect: Calling connect() - accepting incoming call");
+                    connect();
+                }
+                return;
+            }
+
+            // Only check for ongoing calls if user is initiating a new call (not accepting)
+            checkRoom()
+                .then((roomInfo: any) => {
+                    if (roomInfo && roomInfo.participants && roomInfo.participants.length > 0) {
+                        const onlineParticipants = roomInfo.participants.filter((p: any) => p.isOnline);
+                        if (onlineParticipants.length > 0) {
+                            console.log(
+                                `🎯 Detected ongoing call with ${onlineParticipants.length} participants:`,
+                                onlineParticipants,
+                            );
+                            setOngoingCallInfo({
+                                participants: onlineParticipants,
+                                participantCount: onlineParticipants.length,
+                            });
+                            setShowJoinConfirmation(true);
+                            return; // Don't auto-connect
+                        }
+                    }
+
+                    // No ongoing call detected, proceed normally
+                    console.log("✅ No ongoing call detected, connecting normally");
+                    setConnectionApproved(true);
+                    if (!connectCalled.current) {
+                        connectCalled.current = true;
+                        console.log("🔗 First useEffect: Calling connect() - no ongoing call");
+                        connect();
+                    }
+                })
+                .catch((err: any) => {
+                    console.warn("⚠️ Failed to check room status, proceeding with connection:", err);
+                    setConnectionApproved(true);
+                    if (!connectCalled.current) {
+                        connectCalled.current = true;
+                        console.log("🔗 First useEffect: Calling connect() - room check failed");
+                        connect();
+                    }
+                });
+        }
+    }, [checkRoom, connect, isAcceptingIncomingCall]);
+
+    // Connect after user approves joining ongoing call
+    useEffect(() => {
+        if (connectionApproved && !token && !isConnecting && !connectionInitiated.current && !connectCalled.current) {
+            connectCalled.current = true;
+            console.log("🔗 Second useEffect: Calling connect() after approval");
+            connect();
+        }
+    }, [connectionApproved, connect, token, isConnecting]);
+
+    // Set call as active when component mounts and clears when unmounts
+    useEffect(() => {
+        // Set call as active when VideoRoom is mounted
+        if ((window as any).setCallActiveState) {
+            (window as any).setCallActiveState(true);
+            console.log("📞 VideoRoom: Set call active state to TRUE");
+        } else {
+            console.warn("⚠️ VideoRoom: setCallActiveState function not available");
+        }
+
+        // Clear call state when component unmounts
+        return () => {
+            if ((window as any).setCallActiveState) {
+                (window as any).setCallActiveState(false);
+                console.log("📞 VideoRoom: Set call active state to FALSE on unmount");
+            }
+
+            // Also clear recent call acceptance flag on unmount
+            if ((window as any).clearRecentCallAcceptance) {
+                (window as any).clearRecentCallAcceptance();
+            }
+        };
+    }, []);
+
+    // Show join confirmation dialog if ongoing call detected
+    if (showJoinConfirmation && ongoingCallInfo) {
+        const handleJoinCall = (): void => {
+            console.log("🎯 User chose to join ongoing call");
+            setShowJoinConfirmation(false);
+            setConnectionApproved(true);
+        };
+
+        const handleDeclineJoin = (): void => {
+            console.log("🎯 User declined to join ongoing call");
+            setShowJoinConfirmation(false);
+            onLeave?.(); // Close the modal
+        };
+
+        const getParticipantNames = (): string => {
+            if (ongoingCallInfo.participantCount === 1) {
+                return ongoingCallInfo.participants[0]?.username || "1 participant";
+            } else if (ongoingCallInfo.participantCount === 2) {
+                return ongoingCallInfo.participants.map((p) => p.username).join(" and ");
+            } else {
+                return `${ongoingCallInfo.participantCount} participants`;
+            }
+        };
+
+        return (
+            <div className="professional-loading">
+                <div style={{ fontSize: "48px", marginBottom: "24px", color: "#4285f4" }}>📞</div>
+                <h3 style={{ margin: "0 0 16px 0", color: "white", fontSize: "24px" }}>Ongoing Call Detected</h3>
+                <p
+                    style={{
+                        margin: "0 0 8px 0",
+                        opacity: 0.9,
+                        textAlign: "center",
+                        maxWidth: "400px",
+                        fontSize: "16px",
+                    }}
+                >
+                    {getParticipantNames()} {ongoingCallInfo.participantCount === 1 ? "is" : "are"} currently in a{" "}
+                    {isVideo ? "video" : "voice"} call.
+                </p>
+                <p
+                    style={{
+                        margin: "0 0 32px 0",
+                        opacity: 0.7,
+                        textAlign: "center",
+                        maxWidth: "400px",
+                        fontSize: "14px",
+                    }}
+                >
+                    Would you like to join the ongoing call?
+                </p>
+                <div style={{ display: "flex", gap: "16px", justifyContent: "center" }}>
+                    <button
+                        onClick={handleDeclineJoin}
+                        style={{
+                            background: "rgba(255, 255, 255, 0.1)",
+                            border: "1px solid rgba(255, 255, 255, 0.3)",
+                            borderRadius: "8px",
+                            color: "white",
+                            padding: "12px 24px",
+                            fontSize: "16px",
+                            cursor: "pointer",
+                            transition: "all 0.3s ease",
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleJoinCall}
+                        style={{
+                            background: "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
+                            border: "none",
+                            borderRadius: "8px",
+                            color: "white",
+                            padding: "12px 24px",
+                            fontSize: "16px",
+                            cursor: "pointer",
+                            transition: "all 0.3s ease",
+                            fontWeight: "600",
+                        }}
+                    >
+                        Join Call
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="professional-loading">
+                <div style={{ fontSize: "48px", marginBottom: "16px", color: "#f44336" }}>⚠️</div>
+                <h3 style={{ margin: "0 0 16px 0", color: "#f44336" }}>Connection Error</h3>
+                <p style={{ margin: "0 0 24px 0", opacity: 0.8, textAlign: "center", maxWidth: "400px" }}>{error}</p>
+                <button
+                    onClick={(): void => {
+                        connectionInitiated.current = false;
+                        connectCalled.current = false; // Reset the flag for retry
+                        console.log("🔗 Try Again button: Calling connect()");
+                        connect();
+                    }}
+                    style={{
+                        background: "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
+                        border: "none",
+                        borderRadius: "8px",
+                        color: "white",
+                        padding: "12px 24px",
+                        fontSize: "16px",
+                        cursor: "pointer",
+                        transition: "all 0.3s ease",
+                    }}
+                >
+                    Try Again
+                </button>
+            </div>
+        );
+    }
+
+    if (isConnecting) {
+        return (
+            <div className="professional-loading">
+                <div className="loading-spinner" />
+                <div style={{ fontSize: "18px", fontWeight: 500 }}>Connecting to call...</div>
+                <div style={{ fontSize: "14px", opacity: 0.7, marginTop: "8px" }}>
+                    Please wait while we establish the connection
+                </div>
+            </div>
+        );
+    }
+
+    if (!token || !serverUrl || !roomOptions) {
+        return (
+            <div className="professional-loading">
+                <div className="loading-spinner" />
+                <div style={{ fontSize: "18px", fontWeight: 500 }}>Preparing call...</div>
+                <div style={{ fontSize: "14px", opacity: 0.7, marginTop: "8px" }}>Setting up room and security</div>
+            </div>
+        );
+    }
+
+    return (
+        <LiveKitRoom
+            token={token}
+            serverUrl={serverUrl}
+            options={roomOptions}
+            connect={true}
+            style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
+            }}
+            onConnected={(): void => {
+                console.log("Connected to room successfully");
+                console.log("Server URL:", serverUrl);
+
+                // Stop any lingering incoming call sounds once connected
+                if ((window as any).stopIncomingCallSound) {
+                    (window as any).stopIncomingCallSound();
+                }
+            }}
+            onDisconnected={(reason): void => {
+                console.log("🚪 Room disconnected, reason:", reason);
+
+                // Check if this is a manual disconnect by the only participant
+                if (!isAutoEndingCall) {
+                    console.log("📞 Manual disconnect, handling normally");
+
+                    // Check if user was the only participant and emit CALL_ENDED if needed
+                    const roomData = (window as any).__currentLiveKitRoomData;
+                    console.log("📞 Room data for disconnect check:", {
+                        roomData,
+                        isAcceptingIncomingCall,
+                        hasRoomId: !!roomData?.roomId,
+                        hasToUserIds: !!roomData?.toUserIds,
+                        toUserIdsLength: roomData?.toUserIds?.length,
+                    });
+
+                    if (roomData?.roomId && roomData?.toUserIds && !isAcceptingIncomingCall) {
+                        // For outgoing calls where user is leaving as the only participant
+                        console.log("📞 Manual disconnect as initiator - emitting CALL_ENDED event");
+                        console.log("📞 CALL_ENDED event data:", {
+                            roomId: roomData.roomId,
+                            toUserIds: roomData.toUserIds,
+                            fromUsername: roomData.fromUsername,
+                        });
+
+                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                    } else {
+                        console.log("📞 No CALL_ENDED emission - either missing data or incoming call", {
+                            hasRoomData: !!roomData,
+                            hasRoomId: !!roomData?.roomId,
+                            hasToUserIds: !!roomData?.toUserIds,
+                            isAcceptingIncomingCall,
+                        });
+                    }
+                } else {
+                    console.log("📞 Auto-end detected, clearing notifications and showing no-answer message");
+                    // Dispatch timeout event instead of decline
+                    window.dispatchEvent(new CustomEvent("liveKitCallTimeout"));
+                    isAutoEndingCall = false; // Reset flag
+                }
+
+                console.log("📞 Calling onLeave callback to close modal");
+                connectionInitiated.current = false; // Reset on disconnect
+                onLeave?.();
+            }}
+            onError={(err): void => {
+                console.error("❌ Room connection error:", err);
+                console.log("📞 Calling onLeave callback due to error");
+                connectionInitiated.current = false; // Reset on error
+                onLeave?.();
+            }}
+        >
+            <div
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "relative",
+                    overflow: "hidden",
+                }}
+            >
+                <RoomContent isVideo={isVideo} />
+            </div>
+        </LiveKitRoom>
+    );
+};
