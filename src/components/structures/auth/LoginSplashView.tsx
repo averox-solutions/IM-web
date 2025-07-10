@@ -44,6 +44,7 @@ type MigrationState = {
  * The view that is displayed after we have logged in, before the first /sync is completed.
  */
 export function LoginSplashView(props: Props): React.JSX.Element {
+
     return (
         <div className="mx_MatrixChat_splash">
          <span>Beep Pakistan</span>
