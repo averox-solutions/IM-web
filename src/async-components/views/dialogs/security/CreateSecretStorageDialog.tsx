@@ -217,6 +217,9 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
                 copied: true,
             });
         }
+        if (this.state.recoveryKey) {
+            localStorage.setItem("mx_recovery_key", this.state.recoveryKey);
+        }
     };
 
     private onDownloadClick = (): void => {
@@ -229,6 +232,9 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
         this.setState({
             downloaded: true,
         });
+        if (this.state.recoveryKey) {
+            localStorage.setItem("mx_recovery_key", this.state.recoveryKey);
+        }
     };
 
     private doBootstrapUIAuth = async (

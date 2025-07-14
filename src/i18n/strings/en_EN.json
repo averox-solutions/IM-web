@@ -1982,7 +1982,7 @@
             "you_created": "You created this Group."
         },
         "invite_email_mismatch_suggestion": "Share this email in Settings to receive invites directly in %(brand)s.",
-        "invite_reject_ignore": "Reject & Ignore user",
+        "invite_reject_ignore": "Block",
         "invite_sent_to_email": "This invite was sent to %(email)s",
         "invite_sent_to_email_room": "This invite to %(roomName)s was sent to %(email)s",
         "invite_subtitle": "Invited by <userName/>",

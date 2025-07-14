@@ -549,7 +549,6 @@ export default class RoomPreviewBar extends React.Component<IProps, IState> {
                 }
 
                 primaryActionHandler = this.props.onJoinClick;
-                secondaryActionLabel = _t("action|reject");
                 secondaryActionHandler = this.props.onRejectClick;
 
                 if (this.props.onRejectAndIgnoreClick) {

@@ -540,40 +540,58 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
     };
 
     private updateLists = (): void => {
-        const newLists = RoomListStore.instance.orderedLists;
+        const roomListStore = RoomListStore.instance;
+        const fullLists = roomListStore.orderedLists;
+    
         const previousListIds = Object.keys(this.state.sublists);
-        const newListIds = Object.keys(newLists);
-        console.log("🔍 RoomListStore - orderedLists:", newLists); 
-        console.log("💬 Direct Messages:", newLists["m.dm"]);
-        console.log("👥 Group Rooms:", newLists["m.untagged"]);
-
+        const newListIds = Object.keys(fullLists);
+    
+        // 🔁 Deep clone full list to avoid mutating store reference
+        const newLists = objectShallowClone(fullLists, (_key, value) => arrayFastClone(value));
+    
+        // 🔍 Filter out room at index 1 from fake invite list
+        if (Array.isArray(newLists['im.vector.fake.invite']) && newLists['im.vector.fake.invite'].length > 1) {
+            newLists['im.vector.fake.invite'] = newLists['im.vector.fake.invite'].filter((_room, index) => index !== 1);
+        }
+    
+        // 📋 Optional: Log filtered room members
+        newLists['im.vector.fake.invite']?.forEach((room, index) => {
+            const members = room.getMembers?.() || [];
+            console.log(`Room #${index + 1} - ID: ${room.roomId} - Members:`);
+            members.forEach((member: any) => {
+                console.log(`  ${member.name || member.userId} (${member.userId})`);
+            });
+        });
+    
+        // 🧠 Check if sublist IDs or room counts changed
         let doUpdate = arrayHasDiff(previousListIds, newListIds);
+    
         if (!doUpdate) {
-            // so we didn't have the visible sublists change, but did the contents of those
-            // sublists change significantly enough to break the sticky headers? Probably, so
-            // let's check the length of each.
             for (const tagId of newListIds) {
-                const oldRooms = this.state.sublists[tagId];
-                const newRooms = newLists[tagId];
+                const oldRooms = this.state.sublists[tagId] || [];
+                const newRooms = newLists[tagId] || [];
+    
                 if (oldRooms.length !== newRooms.length) {
                     doUpdate = true;
                     break;
                 }
             }
         }
-
+    
+        // ✅ Update state only if necessary
         if (doUpdate) {
-            // We have to break our reference to the room list store if we want to be able to
-            // diff the object for changes, so do that.
-            // @ts-ignore - ITagMap is ts-ignored so this will have to be too
-            const newSublists = objectWithOnly(newLists, newListIds);
-            const sublists = objectShallowClone(newSublists, (k, v) => arrayFastClone(v));
-
-            this.setState({ sublists }, () => {
+            this.setState({ sublists: newLists }, () => {
                 this.props.onResize();
             });
         }
     };
+    
+    
+    
+    
+    
+    
+    
 
     private renderSuggestedRooms(): ReactComponentElement<typeof ExtraTile>[] {
         return this.state.suggestedRooms.map((room) => {
@@ -673,9 +691,9 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
     private renderSublists(): React.ReactElement[] {
         const showSkeleton =
             !this.state.suggestedRooms?.length &&
-            Object.values(RoomListStore.instance.orderedLists).every((list) => !list?.length);
+            Object.values(this.state.sublists).every((list) => !list?.length);
     
-        const orderedLists = RoomListStore.instance.orderedLists;
+        const orderedLists = this.state.sublists;
     
         return TAG_ORDER.map((orderedTagId) => {
             let extraTiles: ReactComponentElement<typeof ExtraTile>[] | undefined;
@@ -685,17 +703,16 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
             }
     
             const aesthetics = TAG_AESTHETICS[orderedTagId];
-            if (!aesthetics) {
-                throw new Error(`Tag ${orderedTagId} does not have aesthetics defined.`);
-            }
+            if (!aesthetics) throw new Error(`Tag ${orderedTagId} does not have aesthetics defined.`);
     
-            // 🔒 Filter out rooms with name "empty_room" or containing "empty group"
+            // 🔎 Filter out empty rooms/groups by name
             const allRooms = orderedLists[orderedTagId] || [];
             const filteredRooms = allRooms.filter((room) => {
                 const name = room.name?.toLowerCase() || "";
                 return name !== "empty_room" && !name.includes("empty group");
             });
     
+            // 🧼 Skip rendering if no rooms and no extra tiles
             if (filteredRooms.length === 0 && !extraTiles?.length) {
                 return null;
             }
@@ -721,15 +738,16 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
                 forceExpanded = true;
             }
     
+            // ✅ Pass filteredRooms to the UI
             return (
                 <RoomSublist
                     key={`sublist-${orderedTagId}`}
                     tagId={orderedTagId}
+                    rooms={filteredRooms}
                     forRooms={true}
-                    rooms={filteredRooms} // ✅ Pass filtered rooms
-                    startAsHidden={aesthetics.defaultHidden}
-                    label={aesthetics.sectionLabelRaw ? aesthetics.sectionLabelRaw : _t(aesthetics.sectionLabel)}
-                    AuxButtonComponent={aesthetics.AuxButtonComponent}
+                    startAsHidden={aesthetics?.defaultHidden ?? false}
+                    label={aesthetics?.sectionLabelRaw || _t(aesthetics?.sectionLabel ?? "common|rooms")}
+                    AuxButtonComponent={aesthetics?.AuxButtonComponent}
                     isMinimized={this.props.isMinimized}
                     showSkeleton={showSkeleton}
                     extraTiles={extraTiles}
@@ -739,7 +757,7 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
                     forceExpanded={forceExpanded}
                 />
             );
-        }).filter(Boolean); // remove nulls
+        }).filter(Boolean); // ⛔ remove nulls (empty sections)
     }
     
     

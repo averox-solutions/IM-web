@@ -52,6 +52,103 @@ import LiveKitRoomManager from "../livekit-calling/LiveKitRoomManager";
 import LegacyCallHandler, { AudioID } from "../../../../LegacyCallHandler";
 import { showToast } from "../Calling/notificationUtils";
 
+// Helper to get the key from localStorage and import it for Web Crypto
+async function getCryptoKey() {
+    const base64Key = localStorage.getItem("mx_recovery_key");
+    if (!base64Key) throw new Error("No recovery key found in localStorage");
+    // If the key is not base64, encode it
+    let rawKey;
+    try {
+        rawKey = Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
+    } catch (e) {
+        // fallback: treat as utf-8 string
+        rawKey = new TextEncoder().encode(base64Key);
+    }
+    return await window.crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"]
+    );
+}
+
+async function encryptData(data: any) {
+    const key = await getCryptoKey();
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(JSON.stringify(data));
+    const ciphertext = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        encoded
+    );
+    // Return base64 for both iv and ciphertext
+    return {
+        iv: btoa(String.fromCharCode(...iv)),
+        ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+    };
+}
+
+// Utility function to log call events to the backend (now encrypted)
+async function logCall({
+    userId,
+    name,
+    imageUrl,
+    date,
+    isVideoCall,
+    roomId,
+    isIncoming,
+    isMissedCall,
+    userCalledId,
+}: {
+    userId: string;
+    name: string[];
+    imageUrl: (string | null)[];
+    date: string;
+    isVideoCall: boolean;
+    roomId: string;
+    isIncoming: boolean;
+    isMissedCall: boolean;
+    userCalledId: string[];
+}) {
+    try {
+        const callData = {
+            userId,
+            name,
+            imageUrl,
+            date,
+            isVideoCall,
+            roomId,
+            isIncoming,
+            isMissedCall,
+            userCalledId,
+        };
+        const encrypted = await encryptData(callData);
+        const myHeaders = new Headers();
+        myHeaders.append("x-api-key", "28af8dacc88d34f010fc966f7d7db49e93062ef6d1bede0f9ed4974130d3ff5b");
+        myHeaders.append("Content-Type", "application/json");
+
+        const raw = JSON.stringify(encrypted);
+
+        const requestOptions = {
+            method: "POST",
+            headers: myHeaders,
+            body: raw,
+        };
+
+        const response = await fetch("https://beep.s.averox.com/api/call-logs", requestOptions);
+        const result = await response.text();
+        console.log("[CallLog] API result:", result);
+
+        // Save to localStorage
+        const logs = JSON.parse(localStorage.getItem("mx_call_logs") || "[]");
+        logs.push(encrypted);
+        localStorage.setItem("mx_call_logs", JSON.stringify(logs));
+    } catch (error) {
+        console.error("[CallLog] Error logging call:", error);
+    }
+}
+
 export default function RoomHeader({
     room,
     oobData,
@@ -109,6 +206,19 @@ export default function RoomHeader({
 
             setActiveCallData(activeCall);
 
+            // Log incoming call acceptance
+            const now = new Date().toISOString();
+            logCall({
+                userId: currentUserId || "",
+                name: [currentUserId || ""],
+                imageUrl: [null],
+                date: now,
+                isVideoCall: callData.isVideo,
+                roomId: callData.roomId,
+                isIncoming: true,
+                isMissedCall: false,
+                userCalledId: [callData.fromUserId, currentUserId],
+            });
             // TODO: Send acceptance response to backend
             console.log("📤 Should send call acceptance to backend");
         },
@@ -148,6 +258,20 @@ export default function RoomHeader({
             } else {
                 console.warn("❌ Cannot send call rejection - socket or callData not available");
             }
+
+            // Log declined incoming call (not missed)
+            const now = new Date().toISOString();
+            logCall({
+                userId: currentUserId || "",
+                name: [currentUserId || ""],
+                imageUrl: [null],
+                date: now,
+                isVideoCall: callData.isVideo,
+                roomId: callData.roomId,
+                isIncoming: true,
+                isMissedCall: false, // declined, not missed
+                userCalledId: [callData.fromUserId, currentUserId],
+            });
         },
         [currentUserId],
     );
@@ -322,6 +446,20 @@ export default function RoomHeader({
         setIsLiveKitCallActive(true);
         setLiveKitCallData(participantData);
         setLiveKitCallType("video");
+
+        // Log outgoing video call
+        const now = new Date().toISOString();
+        await logCall({
+            userId: client.getUserId() || "",
+            name: [client.getUserId() || ""],
+            imageUrl: [null],
+            date: now,
+            isVideoCall: true,
+            roomId: room.roomId,
+            isIncoming: false,
+            isMissedCall: false,
+            userCalledId: participantData.toUserIds,
+        });
     }
 
     async function GroupCallVoice(): Promise<void> {
@@ -363,6 +501,20 @@ export default function RoomHeader({
         setIsLiveKitCallActive(true);
         setLiveKitCallData(participantData);
         setLiveKitCallType("voice");
+
+        // Log outgoing voice call
+        const now = new Date().toISOString();
+        await logCall({
+            userId: client.getUserId() || "",
+            name: [client.getUserId() || ""],
+            imageUrl: [null],
+            date: now,
+            isVideoCall: false,
+            roomId: room.roomId,
+            isIncoming: false,
+            isMissedCall: false,
+            userCalledId: participantData.toUserIds,
+        });
     }
 
     // Helper function to gather participant data for the call
@@ -409,7 +561,7 @@ export default function RoomHeader({
                 roomId: participantData.roomId,
                 participantCount: toUserIds.length,
                 isGroupCall,
-                toUserIds: toUserIds.map((id) => id.replace(/^@/, "").split(":")[0]),
+                toUserIds: toUserIds,
                 fromUsername: participantData.fromUsername,
                 groupName: participantData.groupName,
             });
