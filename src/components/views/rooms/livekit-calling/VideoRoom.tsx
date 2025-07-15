@@ -294,6 +294,60 @@ const livekitCallStyles = `
         background: transparent !important;
     }
 
+    /* Mobile video optimization - ensure consistent display across devices */
+    .lk-participant-tile video,
+    .lk-participant-video-container video,
+    .lk-video-grid video {
+        /* Force consistent aspect ratio handling */
+        object-fit: cover !important;
+        object-position: center !important;
+        
+        /* Prevent mobile video from being too large or distorted */
+        max-width: 100% !important;
+        max-height: 100% !important;
+        
+        /* Ensure proper orientation handling */
+        transform-origin: center !important;
+        
+        /* Prevent video scaling issues on mobile */
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    /* Mobile-specific video fixes */
+    @media (max-width: 768px) {
+        .lk-participant-tile video,
+        .lk-participant-video-container video {
+            /* More aggressive object-fit on mobile to prevent screen overflow */
+            object-fit: cover !important;
+            
+            /* Prevent mobile browsers from auto-zooming videos */
+            min-width: 100% !important;
+            min-height: 100% !important;
+            
+            /* Lock aspect ratio */
+            aspect-ratio: auto !important;
+        }
+    }
+
+    /* Prevent mobile landscape issues */
+    @media (max-width: 768px) and (orientation: landscape) {
+        .lk-participant-tile video {
+            /* Ensure landscape videos don't break the grid */
+            object-fit: cover !important;
+            max-height: 100% !important;
+        }
+    }
+
+    /* Portrait mobile optimization */
+    @media (max-width: 768px) and (orientation: portrait) {
+        .lk-participant-tile video {
+            /* Ensure portrait videos fit properly */
+            object-fit: cover !important;
+            max-width: 100% !important;
+        }
+    }
+
     /* Default: NO mirroring for all videos */
     .lk-video-grid video,
     .lk-participant-tile video,
@@ -633,6 +687,37 @@ const livekitCallStyles = `
         border-color: rgba(220, 53, 69, 1) !important;
         transform: translateY(-2px) !important;
         box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4) !important;
+    }
+
+    /* Disabled state for disconnect/leave button when permissions aren't ready */
+    .lk-control-bar .lk-disconnect-button.permissions-pending,
+    .lk-control-bar .lk-button[data-lk-source="disconnect"].permissions-pending,
+    .lk-control-bar button[aria-label*="disconnect"].permissions-pending,
+    .lk-control-bar button[aria-label*="leave"].permissions-pending,
+    .lk-control-bar button[title*="disconnect"].permissions-pending,
+    .lk-control-bar button[title*="leave"].permissions-pending,
+    .lk-control-bar .lk-button:last-child.permissions-pending {
+        background: rgba(100, 100, 100, 0.5) !important;
+        border-color: rgba(100, 100, 100, 0.7) !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        opacity: 0.6 !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    .lk-control-bar .lk-disconnect-button.permissions-pending:hover,
+    .lk-control-bar .lk-button[data-lk-source="disconnect"].permissions-pending:hover,
+    .lk-control-bar button[aria-label*="disconnect"].permissions-pending:hover,
+    .lk-control-bar button[aria-label*="leave"].permissions-pending:hover,
+    .lk-control-bar button[title*="disconnect"].permissions-pending:hover,
+    .lk-control-bar button[title*="leave"].permissions-pending:hover,
+    .lk-control-bar .lk-button:last-child.permissions-pending:hover {
+        background: rgba(100, 100, 100, 0.5) !important;
+        border-color: rgba(100, 100, 100, 0.7) !important;
+        transform: none !important;
+        box-shadow: none !important;
     }
 
     .lk-button {
@@ -1150,6 +1235,30 @@ const livekitCallStyles = `
         transform: scale(1.05) !important;
     }
 
+    /* Disabled state for audio control buttons when permissions aren't ready */
+    .audio-control-button.permissions-pending {
+        background: rgba(100, 100, 100, 0.5) !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+        opacity: 0.6 !important;
+        transform: none !important;
+    }
+
+    .audio-control-button.end-call.permissions-pending {
+        background: rgba(100, 100, 100, 0.5) !important;
+    }
+
+    .audio-control-button.permissions-pending:hover {
+        background: rgba(100, 100, 100, 0.5) !important;
+        transform: none !important;
+    }
+
+    .audio-control-button.end-call.permissions-pending:hover {
+        background: rgba(100, 100, 100, 0.5) !important;
+        transform: none !important;
+    }
+
     /* Connection status indicator for audio calls */
     .audio-connection-status {
         position: absolute !important;
@@ -1376,7 +1485,10 @@ const normalizeDisplayName = (name: string): string => {
 };
 
 // WhatsApp-style Audio Call Component
-const AudioCallInterface: React.FC<{ isVideo: boolean }> = ({ isVideo }) => {
+const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean }> = ({
+    isVideo,
+    permissionsReady,
+}) => {
     const room = useRoomContext();
     const participants = useParticipants();
     const [callTimer, setCallTimer] = useState(0);
@@ -1551,6 +1663,12 @@ const AudioCallInterface: React.FC<{ isVideo: boolean }> = ({ isVideo }) => {
 
     // Handle end call
     const handleEndCall = (): void => {
+        // Don't allow ending call if permissions aren't ready yet
+        if (!permissionsReady) {
+            console.log("🔒 Cannot end call - permissions still pending");
+            return;
+        }
+
         console.log("📞 Ending audio call");
 
         // Emit call ended event if user is the only participant (no one answered)
@@ -1831,9 +1949,10 @@ const AudioCallInterface: React.FC<{ isVideo: boolean }> = ({ isVideo }) => {
                             </button>
 
                             <button
-                                className="audio-control-button group-call end-call"
+                                className={`audio-control-button group-call end-call ${!permissionsReady ? "permissions-pending" : ""}`}
                                 onClick={handleEndCall}
-                                title="End Call"
+                                title={!permissionsReady ? "Please wait..." : "End Call"}
+                                disabled={!permissionsReady}
                             >
                                 📞
                             </button>
@@ -1990,7 +2109,12 @@ const AudioCallInterface: React.FC<{ isVideo: boolean }> = ({ isVideo }) => {
                         {isMuted ? "🔇" : "🎙️"}
                     </button>
 
-                    <button className="audio-control-button end-call" onClick={handleEndCall} title="End Call">
+                    <button
+                        className={`audio-control-button end-call ${!permissionsReady ? "permissions-pending" : ""}`}
+                        onClick={handleEndCall}
+                        title={!permissionsReady ? "Please wait..." : "End Call"}
+                        disabled={!permissionsReady}
+                    >
                         📞
                     </button>
                 </div>
@@ -2038,6 +2162,8 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         microphone?: string;
         general?: string;
     }>({});
+    // Track permission readiness to enable/disable leave button
+    const [permissionsReady, setPermissionsReady] = useState(false);
 
     // Track if call was ever established with multiple participants
     const callEstablished = useRef(false);
@@ -2049,7 +2175,8 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
     const participants = useParticipants();
 
     // Get all tracks (video and audio) for proper audio/video handling
-    const allTracks = useTracks(["camera", "microphone"], {
+    // For video calls, explicitly exclude screen_share to prevent mobile screen issues
+    const allTracks = useTracks(isVideo ? ["camera", "microphone"] : ["microphone"], {
         onlySubscribed: false,
     });
 
@@ -2058,31 +2185,64 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         onlySubscribed: false,
     });
 
-    // Improved deduplication logic to ensure correct participant counting
+    // Get all screen share tracks to explicitly filter them out for uniform experience
+    const screenShareTracks = useTracks(["screen_share"], {
+        onlySubscribed: false,
+    });
+
+    // Enhanced deduplication logic with strict camera-only filtering for video calls
     const uniqueTracks = allTracks.reduce(
         (acc, trackRef) => {
             const participantSid = trackRef.participant.sid;
+            const trackSource = trackRef.source;
 
-            // If we don't have this participant yet, add them
-            if (!acc.find((t) => t.participant.sid === participantSid)) {
-                // Prefer camera track over microphone for display
-                if (trackRef.source === "camera") {
-                    acc.push(trackRef);
-                } else if (trackRef.source === "microphone") {
-                    // Only add microphone if no camera track exists for this participant
-                    const hasCameraTrack = allTracks.some(
-                        (t) => t.participant.sid === participantSid && t.source === "camera",
-                    );
-                    if (!hasCameraTrack) {
+            // Log track details for debugging mobile issues
+            console.log("🎥 Processing track:", {
+                participantSid,
+                source: trackSource,
+                kind: trackRef.publication?.kind,
+                isLocal: trackRef.participant.isLocal,
+                participantName: trackRef.participant.name || trackRef.participant.identity,
+            });
+
+            // Skip screen share tracks completely to maintain uniform experience
+            if (trackSource === "screen_share" || trackSource === "screen_share_audio") {
+                console.log("⚠️ Skipping screen share track for uniform experience");
+                return acc;
+            }
+
+            // For video calls, prioritize camera tracks strictly
+            if (isVideo) {
+                // If we don't have this participant yet
+                if (!acc.find((t) => t.participant.sid === participantSid)) {
+                    // Only add camera tracks for video calls - this prevents mobile screen issues
+                    if (trackSource === "camera") {
+                        console.log("✅ Adding camera track for video call");
                         acc.push(trackRef);
+                    } else if (trackSource === "microphone") {
+                        // Only add microphone if no camera track exists for this participant
+                        const hasCameraTrack = allTracks.some(
+                            (t) => t.participant.sid === participantSid && t.source === "camera",
+                        );
+                        if (!hasCameraTrack) {
+                            console.log("✅ Adding microphone track (no camera available)");
+                            acc.push(trackRef);
+                        }
+                    }
+                } else {
+                    // If we already have this participant, always prefer camera over microphone
+                    const existingIndex = acc.findIndex((t) => t.participant.sid === participantSid);
+                    const existing = acc[existingIndex];
+                    if (existing.source === "microphone" && trackSource === "camera") {
+                        console.log("🔄 Replacing microphone with camera track");
+                        acc[existingIndex] = trackRef;
                     }
                 }
             } else {
-                // If we already have this participant, replace with camera track if current is microphone
-                const existingIndex = acc.findIndex((t) => t.participant.sid === participantSid);
-                const existing = acc[existingIndex];
-                if (existing.source === "microphone" && trackRef.source === "camera") {
-                    acc[existingIndex] = trackRef;
+                // For audio calls, only process microphone tracks
+                if (trackSource === "microphone" && !acc.find((t) => t.participant.sid === participantSid)) {
+                    console.log("🎙️ Adding microphone track for audio call");
+                    acc.push(trackRef);
                 }
             }
 
@@ -2090,6 +2250,17 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         },
         [] as typeof allTracks,
     );
+
+    // Warn if screen share tracks are detected
+    if (screenShareTracks.length > 0) {
+        console.warn(
+            "📺 Screen share tracks detected - these are filtered out for uniform experience:",
+            screenShareTracks.map((t) => ({
+                participant: t.participant.name || t.participant.identity,
+                source: t.source,
+            })),
+        );
+    }
 
     // Debug logging for participant count issues
     const participantCount = uniqueTracks.length;
@@ -2264,10 +2435,23 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 console.log(`Track ${track.sid} encryption status:`, {
                     isEncrypted: publication.isEncrypted,
                     participant: participant.identity,
+                    source: publication.source,
                     e2eeEnabled: room.isE2EEEnabled,
                     trackKind: track.kind,
                     encryptionType: publication.isEncrypted ? "🔒 End-to-End Encrypted" : "⚠️ Unencrypted",
                 });
+
+                // Filter out screen share tracks to maintain uniform viewing experience
+                if (publication.source === "screen_share" || publication.source === "screen_share_audio") {
+                    console.log("📺 Screen share track detected - filtering out for uniform experience");
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                        navigator.userAgent,
+                    );
+                    if (isMobile) {
+                        console.warn("📱 Mobile device detected with screen share - this may cause display issues");
+                    }
+                    // Note: Track will still be subscribed but filtered out in the grid rendering
+                }
 
                 // Monitor for decryption failures
                 track.on("muted", () => {
@@ -2295,9 +2479,26 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 console.log("Local track published with E2EE:", {
                     trackSid: publication.trackSid,
                     kind: publication.kind,
+                    source: publication.source,
                     isEncrypted: publication.isEncrypted,
                     e2eeEnabled: room.isE2EEEnabled,
                 });
+
+                // Detect and prevent accidental screen sharing on mobile
+                if (publication.source === "screen_share" || publication.source === "screen_share_audio") {
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                        navigator.userAgent,
+                    );
+                    console.warn("📱 Screen share detected on", isMobile ? "mobile device" : "desktop");
+
+                    if (isMobile) {
+                        console.warn(
+                            "🚫 Mobile screen sharing may cause viewing issues - consider switching to camera",
+                        );
+                        // Optionally unpublish screen share on mobile to maintain uniform experience
+                        // room.localParticipant.unpublishTrack(publication.track);
+                    }
+                }
             });
 
             // Listen for room state changes
@@ -2315,7 +2516,16 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                         noiseSuppression: true,
                         autoGainControl: true,
                     },
-                    video: isVideo, // Only request video for video calls
+                    video: isVideo
+                        ? {
+                              // Mobile-optimized video constraints
+                              width: { ideal: 640, max: 1280 },
+                              height: { ideal: 480, max: 720 },
+                              frameRate: { ideal: 15, max: 30 },
+                              facingMode: "user", // Explicitly request front camera on mobile
+                              aspectRatio: { ideal: 4 / 3 }, // Consistent aspect ratio
+                          }
+                        : false, // Only request video for video calls
                 };
 
                 console.log(
@@ -2352,6 +2562,9 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                     })
                     .then(() => {
                         console.log(`✅ ${isVideo ? "Video" : "Voice"} call setup completed successfully`);
+                        // Mark permissions as ready - leave button can now be enabled
+                        setPermissionsReady(true);
+                        console.log("🔒 Permissions ready - leave button enabled");
                     })
                     .catch((err: any) => {
                         console.warn(`Failed to setup ${isVideo ? "video" : "voice"} call:`, err);
@@ -2411,11 +2624,56 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                                             "Microphone access denied. Please allow microphone permissions in your browser settings.",
                                     }));
                                 }
+                            })
+                            .finally(() => {
+                                // Mark permissions as ready even if there were errors - user should be able to leave
+                                setPermissionsReady(true);
+                                console.log("🔒 Permissions resolved (with potential errors) - leave button enabled");
                             });
                     });
             });
         }
     }, [room, isVideo]);
+
+    // Add/remove disabled class on disconnect button based on permission state
+    useEffect(() => {
+        const updateDisconnectButtonState = (): void => {
+            // Find all potential disconnect/leave buttons
+            const disconnectButtons = document.querySelectorAll(`
+                .lk-control-bar .lk-disconnect-button,
+                .lk-control-bar .lk-button[data-lk-source="disconnect"],
+                .lk-control-bar button[aria-label*="disconnect"],
+                .lk-control-bar button[aria-label*="leave"],
+                .lk-control-bar button[title*="disconnect"],
+                .lk-control-bar button[title*="leave"],
+                .lk-control-bar .lk-button:last-child
+            `);
+
+            disconnectButtons.forEach((button) => {
+                if (!permissionsReady) {
+                    button.classList.add("permissions-pending");
+                    console.log("🔒 Disabled disconnect button - permissions pending");
+                } else {
+                    button.classList.remove("permissions-pending");
+                    console.log("✅ Enabled disconnect button - permissions ready");
+                }
+            });
+        };
+
+        // Update immediately
+        updateDisconnectButtonState();
+
+        // Also update with a small delay to catch dynamically created buttons
+        const timeoutId = setTimeout(updateDisconnectButtonState, 100);
+        const timeoutId2 = setTimeout(updateDisconnectButtonState, 500);
+        const timeoutId3 = setTimeout(updateDisconnectButtonState, 1000);
+
+        return () => {
+            clearTimeout(timeoutId);
+            clearTimeout(timeoutId2);
+            clearTimeout(timeoutId3);
+        };
+    }, [permissionsReady]);
 
     const isE2EEEnabled = room?.isE2EEEnabled;
 
@@ -2423,7 +2681,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
     if (!isVideo) {
         return (
             <div className="whatsapp-audio-call-container">
-                <AudioCallInterface isVideo={isVideo} />
+                <AudioCallInterface isVideo={isVideo} permissionsReady={permissionsReady} />
             </div>
         );
     }
@@ -2685,11 +2943,28 @@ const showLiveKitCallNotification = (
 ): string => {
     const notificationId = `livekit-call-${Date.now()}`;
 
-    // Remove any existing notifications more thoroughly
-    document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
-        el.remove();
-    });
-    console.log("🧹 Removed all existing LiveKit call notifications before creating new one");
+    // Check if there's already an incoming call notification displayed
+    const existingIncomingNotifications = document.querySelectorAll(".mx_LiveKitCallNotification");
+
+    if (type === "incoming") {
+        const canAccept = canAcceptNewIncomingCall();
+        if (!canAccept) {
+            console.log("🚫 Ignoring new incoming call - system busy or already has incoming call");
+            console.log("📞 Rejected call details:", { caller: data.caller, isVideo: data.isVideo });
+            return ""; // Return empty string to indicate notification was not created
+        }
+
+        // Mark that we now have an active incoming call
+        setIncomingCallState(true, data.caller);
+    }
+
+    // For outgoing calls or when no incoming call is active, remove existing notifications
+    if (type === "outgoing" || existingIncomingNotifications.length === 0) {
+        document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
+            el.remove();
+        });
+        console.log("🧹 Removed existing LiveKit call notifications before creating new one");
+    }
 
     const notification = document.createElement("div");
     notification.className = "mx_LiveKitCallNotification";
@@ -2717,6 +2992,9 @@ const showLiveKitCallNotification = (
             (window as any).markCallAsJustAccepted();
         }
 
+        // Clear incoming call state since call is being accepted
+        setIncomingCallState(false);
+
         notification.remove();
         // Also remove any other notifications that might exist
         document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
@@ -2734,6 +3012,9 @@ const showLiveKitCallNotification = (
             (window as any).stopIncomingCallSound();
         }
 
+        // Clear incoming call state since call is being declined
+        setIncomingCallState(false);
+
         notification.remove();
         // Also remove any other notifications that might exist
         document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => {
@@ -2750,6 +3031,9 @@ const showLiveKitCallNotification = (
         if ((window as any).stopIncomingCallSound) {
             (window as any).stopIncomingCallSound();
         }
+
+        // Clear incoming call state since call is being dismissed
+        setIncomingCallState(false);
 
         notification.remove();
         // Also remove any other notifications that might exist
@@ -2815,6 +3099,10 @@ const showLiveKitCallNotification = (
     const timeoutId = setTimeout(() => {
         if (document.getElementById(notificationId)) {
             console.log("📞 Auto-dismissing call notification after timeout");
+            // Clear incoming call state for timeout as well
+            if (isIncoming) {
+                setIncomingCallState(false);
+            }
             handleDismiss();
         }
     }, autoDismissTime);
@@ -2840,6 +3128,10 @@ const clearAllLiveKitCallNotifications = (): void => {
         }
         el.remove();
     });
+
+    // Clear incoming call state when clearing all notifications
+    setIncomingCallState(false);
+
     console.log("✅ All LiveKit call notifications cleared");
 };
 
@@ -2878,6 +3170,7 @@ const clearRecentCallAcceptance = (): void => {
 // Global active call state management
 let isCallCurrentlyActive = false;
 let isAutoEndingCall = false;
+let hasActiveIncomingCall = false;
 
 const setCallActiveState = (active: boolean): void => {
     isCallCurrentlyActive = active;
@@ -2895,9 +3188,43 @@ const getCallActiveState = (): boolean => {
     return isCallCurrentlyActive;
 };
 
+// Incoming call notification state management
+const setIncomingCallState = (active: boolean, caller?: string): void => {
+    hasActiveIncomingCall = active;
+    console.log(`📞 Incoming call state changed to: ${active}${caller ? ` (from: ${caller})` : ""}`);
+};
+
+const getIncomingCallState = (): boolean => {
+    return hasActiveIncomingCall;
+};
+
+// Helper function to check if system can accept new incoming calls
+const canAcceptNewIncomingCall = (): boolean => {
+    const hasExistingIncomingNotification = document.querySelectorAll(".mx_LiveKitCallNotification").length > 0;
+    const isInActiveCall = isCallCurrentlyActive;
+    const hasIncomingCallFlag = hasActiveIncomingCall;
+
+    const canAccept = !hasExistingIncomingNotification && !isInActiveCall && !hasIncomingCallFlag;
+
+    console.log("🤔 Can accept new incoming call?", {
+        canAccept,
+        hasExistingIncomingNotification,
+        isInActiveCall,
+        hasIncomingCallFlag,
+    });
+
+    return canAccept;
+};
+
 // Make these functions available globally for socket handler
 (window as any).setCallActiveState = setCallActiveState;
 (window as any).getCallActiveState = getCallActiveState;
+(window as any).setIncomingCallState = setIncomingCallState;
+(window as any).getIncomingCallState = getIncomingCallState;
+(window as any).canAcceptNewIncomingCall = canAcceptNewIncomingCall;
+
+// Initialize incoming call state to false on page load (safety reset)
+setIncomingCallState(false);
 
 export const VideoRoom = ({
     roomName,
