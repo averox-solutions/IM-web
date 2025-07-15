@@ -77,6 +77,12 @@ interface IState {
     serverIsAlive: boolean;
     serverErrorIsFatal: boolean;
     serverDeadError?: ReactNode;
+    show2FA: boolean;
+    qr?: string;
+    secret?: string;
+    otpauthUrl?: string;
+    twoFAMessage?: string;
+    twoFAToken?: string;
 }
 
 type OnPasswordLogin = {
@@ -90,6 +96,8 @@ type OnPasswordLogin = {
 export default class LoginComponent extends React.PureComponent<IProps, IState> {
     private unmounted = false;
     private loginLogic!: Login;
+    private loginCreds?: IMatrixClientCreds;
+    private formattedUsername?: string;
 
     private readonly stepRendererMap: Record<string, () => ReactNode>;
 
@@ -109,6 +117,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             serverIsAlive: true,
             serverErrorIsFatal: false,
             serverDeadError: "",
+            show2FA: false,
+            qr: undefined,
+            secret: undefined,
+            otpauthUrl: undefined,
+            twoFAMessage: undefined,
+            twoFAToken: "",
         };
 
         // map from login step type to a function which will render a control
@@ -155,6 +169,18 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         phoneNumber: string | undefined,
         password: string,
     ): Promise<void> => {
+        // Format username as @username:ms2.beep.gov.pk
+        let formattedUsername = username || "";
+        if (formattedUsername) {
+            if (!formattedUsername.startsWith("@")) {
+                formattedUsername = "@" + formattedUsername;
+            }
+            if (!formattedUsername.endsWith(":ms2.beep.gov.pk")) {
+                formattedUsername = formattedUsername.split(":")[0] + ":ms2.beep.gov.pk";
+            }
+            console.log("Login attempt for:", formattedUsername);
+        }
+        this.formattedUsername = formattedUsername; // <-- Add this line
         if (!this.state.serverIsAlive) {
             this.setState({ busy: true });
             // Do a quick liveliness check on the URLs
@@ -189,9 +215,31 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         });
 
         this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
-            (data) => {
-                this.setState({ serverIsAlive: true }); // it must be, we logged in.
-                this.props.onLoggedIn(data);
+            async (data) => {
+                this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
+                this.loginCreds = data;
+                const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+                try {
+                    const response = await fetch("http://localhost:3000/2fa/generate", {
+                        method: "POST",
+                        headers: {
+                            "api-key": TWO_FA_API_KEY,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ username: formattedUsername }),
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result?.error || "Failed to initiate 2FA");
+                    this.setState({
+                        show2FA: true,
+                        qr: result.qr,
+                        secret: result.secret,
+                        otpauthUrl: result.otpauth_url,
+                        twoFAMessage: result.message,
+                    });
+                } catch (e) {
+                    this.setState({ errorText: "Failed to load 2FA setup. Please try again." });
+                }
             },
             (error) => {
                 if (this.unmounted) return;
@@ -412,13 +460,146 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         return true;
     };
 
+    private on2FASubmit = async (): Promise<void> => {
+        const usernameToVerify = this.formattedUsername ?? this.state.username; // Use fallback for username
+        const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+        try {
+            const response = await fetch("http://localhost:3000/2fa/verify", {
+                method: "POST",
+                headers: {
+                    "api-key": TWO_FA_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    username: usernameToVerify,
+                    token: this.state.twoFAToken,
+                }),
+            });
+            const text = await response.text();
+            console.log("2FA verify response:", text);
+
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                throw new Error("Invalid response from 2FA server");
+            }
+            if (!response.ok || result?.error) {
+                throw new Error(result?.error || "Invalid 2FA token");
+            }
+            this.props.onLoggedIn(this.loginCreds!);
+        } catch (e) {
+            this.setState({ errorText: "Invalid 2FA code. Please try again." });
+        }
+    };
+
     public renderLoginComponentForFlows(): ReactNode {
+        if (this.state.show2FA) {
+            const isAlreadySetup = this.state.twoFAMessage?.includes("already set up");
+        
+            return (
+                <div
+                    style={{
+                        marginTop: 32,
+                        maxWidth: 400,
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                        padding: "0 20px 20px 20px",
+                        border: "none",
+                        borderRadius: "8px",
+                        display:"flex",
+                        alignItems:"center",
+                        justifyContent:"center",
+                        flexWrap: "nowrap",
+                        flexDirection:"column"
+                        
+                    }}
+                >
+                    <h3 style={{ textAlign: "center", marginBottom: "-8px", fontSize: "20px",color:"black",marginTop:"-11px"}}>
+                        Two-Factor Authentication
+                    </h3>
+        
+                    {!isAlreadySetup && this.state.qr && (
+                        <div style={{ textAlign: "center", fontSize:"16px" }}>
+                            <img
+                                src={this.state.qr}
+                                alt="QR Code for 2FA"
+                                style={{ maxWidth: "180px", margin: "0 auto", display: "block" }}
+                            />
+                            <p style={{ fontSize: "14px", marginTop: 12, color: "black" }}>
+                                Scan this QR code with your authenticator app.
+                            </p>
+                            <p style={{ fontSize: "13px", color: "black", wordBreak: "break-word" }}>
+                                Or use this secret:{" "}
+                                <code
+                                    style={{
+                                        backgroundColor: "#f4f4f4",
+                                        padding: "4px 6px",
+                                        borderRadius: "4px",
+                                        fontFamily: "monospace",
+                                        fontSize: "13px",
+                                    }}
+                                >
+                                    {this.state.secret}
+                                </code>
+                            </p>
+                        </div>
+                    )}
+        
+                    {isAlreadySetup && (
+                        <p style={{ textAlign: "center", color: "black", marginBottom: 16, fontSize: "16px" }}>
+                            2FA is already set up. Please enter your 6 digit code below.
+                        </p>
+                    )}
+        
+                    <input
+                        type="text"
+                        placeholder="Enter 6-digit OTP"
+                        value={this.state.twoFAToken || ""}
+                        onChange={(e) => this.setState({ twoFAToken: e.target.value })}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        style={{
+                            display: "block",
+                            width: "100%",
+                            padding: "12px",
+                            fontSize: "16px",
+                            border: "1px solid black",
+                            borderRadius: "17px",
+                            marginBottom: "20px",
+                            boxSizing: "border-box",
+                            color:"black",
+                        }}
+                    />
+        
+                    <AccessibleButton
+                        kind="primary"
+                        onClick={this.on2FASubmit}
+                        style={{
+                            width: "80%",
+                            padding: "12px",
+                            fontSize: "16px",
+                            borderRadius: "6px",
+                            backgroundColor: "#488d41",
+                            color: "black",
+                            border: "none",
+                            cursor: "pointer",
+                            textAlign: "center",
+                        }}
+                    >
+                        Verify OTP
+                    </AccessibleButton>
+                </div>
+            );
+        }
+        
+
         if (!this.state.flows) return null;
 
-        // this is the ideal order we want to show the flows in
         const order = ["oidcNativeFlow", "m.login.password", "m.login.sso"];
-
         const flows = filterBoolean(order.map((type) => this.state.flows?.find((flow) => flow.type === type)));
+
         return (
             <React.Fragment>
                 {flows.map((flow) => {

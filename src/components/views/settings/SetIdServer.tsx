@@ -71,6 +71,14 @@ interface IState {
     busy: boolean;
     disconnectBusy: boolean;
     checking: boolean;
+    reset2faLoading: boolean;
+    reset2faResult: {
+        secret: string;
+        otpauth_url: string;
+        qr: string;
+        message: string;
+    } | null;
+    reset2faError: string | null;
 }
 
 export default class SetIdServer extends React.Component<IProps, IState> {
@@ -93,6 +101,9 @@ export default class SetIdServer extends React.Component<IProps, IState> {
             busy: false,
             disconnectBusy: false,
             checking: false,
+            reset2faLoading: false,
+            reset2faResult: null,
+            reset2faError: null,
         };
     }
 
@@ -167,8 +178,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
 
                 // Test the identity server by trying to register with it. This
                 // may result in a terms of service prompt.
-                const authClient = new IdentityAuthClient(fullUrl);
-                await authClient.getAccessToken();
+                const authClient = new IdentityAuthClient();
 
                 let save = true;
 
@@ -347,74 +357,72 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         });
     };
 
+    /**
+     * Resets the 2FA secret for the current user by calling the /2fa/reset endpoint.
+     * Fetches the username from localStorage (mx_user_id).
+     * @returns The new secret, otpauth_url, qr, and message from the server.
+     */
+    private async reset2FA(): Promise<{
+        secret: string;
+        otpauth_url: string;
+        qr: string;
+        message: string;
+    }> {
+        const username = localStorage.getItem("mx_user_id");
+        if (!username) {
+            throw new Error("mx_user_id not found in localStorage");
+        }
+        const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+        const response = await fetch("http://localhost:3000/2fa/reset", {
+            method: "POST",
+            headers: {
+                "api-key": TWO_FA_API_KEY,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username }),
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to reset 2FA: ${response.statusText}`);
+        }
+        return response.json();
+    }
+
     public render(): React.ReactNode {
-        const idServerUrl = this.state.currentClientIdServer;
-        let sectionTitle;
-        let bodyText;
-        if (idServerUrl) {
-            sectionTitle = _t("identity_server|url", { server: abbreviateUrl(idServerUrl) });
-            bodyText = _t(
-                "identity_server|description_connected",
-                {},
-                { server: (sub) => <strong>{abbreviateUrl(idServerUrl)}</strong> },
-            );
-            if (this.props.missingTerms) {
-                bodyText = _t(
-                    "identity_server|change_server_prompt",
-                    {},
-                    { server: (sub) => <strong>{abbreviateUrl(idServerUrl)}</strong> },
-                );
-            }
-        } else {
-            sectionTitle = _t("common|identity_server");
-            bodyText = _t("identity_server|description_disconnected");
-        }
-
-        let discoSection;
-        if (idServerUrl) {
-            let discoButtonContent: React.ReactNode = _t("action|disconnect");
-            let discoBodyText = _t("identity_server|disconnect_warning");
-            if (this.props.missingTerms) {
-                discoBodyText = _t("identity_server|description_optional");
-                discoButtonContent = _t("identity_server|do_not_use");
-            }
-            if (this.state.disconnectBusy) {
-                discoButtonContent = <InlineSpinner />;
-            }
-            discoSection = (
-                <>
-                    <SettingsSubsectionText>{discoBodyText}</SettingsSubsectionText>
-                    <AccessibleButton onClick={this.onDisconnectClicked} kind="danger_sm">
-                        {discoButtonContent}
-                    </AccessibleButton>
-                </>
-            );
-        }
-
+        const { reset2faLoading, reset2faResult, reset2faError } = this.state as any;
+        const bodyText = "Use the button below to reset your 2FA secret. This will generate a new secret and QR code.";
         return (
-            <SettingsFieldset legend={sectionTitle} description={bodyText}>
-                <form className="mx_SetIdServer" onSubmit={this.checkIdServer}>
-                    <Field
-                        label={_t("identity_server|url_field_label")}
-                        type="text"
-                        autoComplete="off"
-                        placeholder={this.state.defaultIdServer}
-                        value={this.state.idServer}
-                        onChange={this.onIdentityServerChanged}
-                        tooltipContent={this.getTooltip()}
-                        tooltipClassName="mx_SetIdServer_tooltip"
-                        disabled={this.state.busy}
-                        forceValidity={this.state.error ? false : undefined}
-                    />
+            <SettingsFieldset legend={"2FA Configurations"} description={bodyText}>
+                <div style={{ marginBottom: 16 }}>
                     <AccessibleButton
-                        kind="primary_sm"
-                        onClick={this.checkIdServer}
-                        disabled={!this.idServerChangeEnabled()}
+                        kind="danger_sm"
+                        onClick={async () => {
+                            this.setState({ reset2faLoading: true, reset2faResult: null, reset2faError: null });
+                            try {
+                                const result = await this.reset2FA();
+                                this.setState({ reset2faResult: result, reset2faLoading: false });
+                            } catch (err: any) {
+                                this.setState({ reset2faError: err.message || String(err), reset2faLoading: false });
+                            }
+                        }}
+                        disabled={reset2faLoading}
                     >
-                        {_t("action|change")}
+                        {reset2faLoading ? "Resetting..." : "Reset 2FA"}
                     </AccessibleButton>
-                    {discoSection}
-                </form>
+                </div>
+                {reset2faError && (
+                    <div style={{ color: 'red', marginBottom: 12 }}>{reset2faError}</div>
+                )}
+                {reset2faResult && (
+                    <div style={{ border: '1px solid #ccc', padding: 12, borderRadius: 4 }}>
+                        <div><strong>Message:</strong> {reset2faResult.message}</div>
+                        <div><strong>Secret:</strong> {reset2faResult.secret}</div>
+                        <div><strong>otpauth URL:</strong> <code>{reset2faResult.otpauth_url}</code></div>
+                        <div style={{ marginTop: 8 }}>
+                            <strong>QR Code:</strong><br />
+                            <img src={reset2faResult.qr} alt="2FA QR Code" style={{ maxWidth: 200, maxHeight: 200 }} />
+                        </div>
+                    </div>
+                )}
             </SettingsFieldset>
         );
     }

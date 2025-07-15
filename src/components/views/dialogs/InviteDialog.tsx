@@ -516,27 +516,28 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
     }
 
     private convertFilter(): Member[] {
-        // Check to see if there's anything to convert first
-        if (!this.state.filterText || !this.state.filterText.includes("@")) return this.state.targets || [];
+        const existingTargets = this.state.targets || [];
 
-        if (!this.canInviteMore()) {
-            // There should only be one third-party invite → do not allow more targets
-            return this.state.targets;
+        // If one user has already been added, prevent any more
+        if (existingTargets.length >= 1) {
+            return existingTargets;
         }
+
+        // Proceed to parse and add a new member if filterText is valid
+        if (!this.state.filterText || !this.state.filterText.includes("@")) return existingTargets;
 
         let newMember: Member | undefined;
         if (this.state.filterText.startsWith("@")) {
-            // Assume mxid
             newMember = new DirectoryMember({ user_id: this.state.filterText });
         } else if (SettingsStore.getValue(UIFeature.IdentityServer)) {
-            // Assume email
             if (this.canInviteThirdParty()) {
                 newMember = new ThreepidMember(this.state.filterText);
             }
         }
-        if (!newMember) return this.state.targets;
 
-        const newTargets = [...(this.state.targets || []), newMember];
+        if (!newMember) return existingTargets;
+
+        const newTargets = [...existingTargets, newMember];
         this.setState({ targets: newTargets, filterText: "" });
         return newTargets;
     }
@@ -866,9 +867,8 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
     }
 
     private onPaste = async (e: React.ClipboardEvent): Promise<void> => {
-        if (this.state.filterText) {
-            // if the user has already typed something, just let them
-            // paste normally.
+        if (this.state.filterText || this.state.targets.length >= 1) {
+            // If a user is already added or input is non-empty, skip paste logic
             return;
         }
 
@@ -1105,7 +1105,9 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                 onPaste={this.onPaste}
                 autoFocus={true}
                 disabled={
-                    this.state.busy || (this.props.kind == InviteKind.CallTransfer && this.state.targets.length > 0)
+                    this.state.busy ||
+                    (this.props.kind == InviteKind.CallTransfer && this.state.targets.length > 0) ||
+                    this.state.targets.length >= 1 // Prevent input after 1 user
                 }
                 autoComplete="off"
                 placeholder={hasPlaceholder ? _t("action|search") : undefined}

@@ -228,32 +228,17 @@ export default class UserMenu extends React.Component<IProps, IState> {
     };
 
     private onSignOutClick = async (ev: ButtonEvent): Promise<void> => {
-        try {
-            // Clear localStorage and sessionStorage
-            localStorage.clear();
-            sessionStorage.clear();
-    
-            // Clear browser-accessible cookies
-            document.cookie.split(";").forEach((cookie) => {
-                document.cookie = cookie
-                    .replace(/^ +/, "")
-                    .replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
-            });
-    
-            // Optional: clear other app-specific data like IndexedDB if used
-    
-            // Wait for 2 seconds before redirecting
-            setTimeout(() => {
-                window.location.href =
-                    "https://auth.beep.gov.pk/realms/Beep_Pakistan/protocol/openid-connect/logout?redirect_uri=https://im.beep.gov.pk";
-            }, 100);
-        } catch (error) {
-            console.error("Error during headless logout:", error);
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        if (await shouldShowLogoutDialog(MatrixClientPeg.safeGet())) {
+            Modal.createDialog(LogoutDialog);
+        } else {
+            defaultDispatcher.dispatch({ action: "logout" });
         }
+
+        this.setState({ contextMenuPosition: null }); // also close the menu
     };
-    
-    
-    
 
     private onSignInClick = (): void => {
         defaultDispatcher.dispatch({ action: "start_login" });
