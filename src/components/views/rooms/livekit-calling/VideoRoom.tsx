@@ -96,6 +96,17 @@ const livekitCallStyles = `
         overflow-y: auto !important;
         overflow-x: hidden !important;
         align-items: flex-start !important;
+        aspect-ratio: 16 / 9 !important;
+    }
+
+    /* Ensure video grid maintains aspect ratio */
+    .professional-video-room {
+        aspect-ratio: 16 / 9 !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: 100vh !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     /* Center placeholder when no participants */
@@ -243,6 +254,18 @@ const livekitCallStyles = `
         contain: layout style paint !important;
         display: flex !important;
         flex-direction: column !important;
+        aspect-ratio: 16 / 9 !important;
+    }
+
+    /* Video container styling */
+    .lk-participant-video-container {
+        aspect-ratio: 16 / 9 !important;
+    }
+
+    /* Video element styling */
+    .lk-participant-tile video,
+    .lk-participant-video-container video {
+        object-fit: cover !important;
     }
 
     /* Ensure LiveKit's internal participant tile doesn't have conflicting positioning */
@@ -267,7 +290,7 @@ const livekitCallStyles = `
         left: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        object-fit: contain !important;
+        object-fit: cover !important;
         border-radius: 8px !important;
     }
 
@@ -276,7 +299,7 @@ const livekitCallStyles = `
     .lk-participant-video-container canvas {
         width: 100% !important;
         height: 100% !important;
-        object-fit: contain !important;
+        object-fit: cover !important;
         background: transparent !important;
         border-radius: 8px !important;
     }
@@ -1495,7 +1518,7 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
     const [isMuted, setIsMuted] = useState(false);
     const callStartTime = useRef<number | null>(null);
     const callEstablished = useRef(false);
-    const autoLeaveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const autoLeaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isAutoEndingRef = useRef<boolean>(false);
 
     // Get all tracks for audio handling
@@ -2167,12 +2190,28 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
 
     // Track if call was ever established with multiple participants
     const callEstablished = useRef(false);
-    const autoLeaveTimeout = useRef<NodeJS.Timeout | null>(null);
+    const autoLeaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const callStartTime = useRef<number | null>(null);
     const isAutoEndingRef = useRef<boolean>(false);
 
     // Get all participants for count
     const participants = useParticipants();
+    const currentCount = participants.length;
+
+    // Notify parent component about participant count changes
+    useEffect(() => {
+        // Dispatch custom event with participant count
+        window.dispatchEvent(
+            new CustomEvent('liveKitParticipantCountUpdate', {
+                detail: { count: currentCount }
+            })
+        );
+    }, [currentCount]);
+
+    // Make participant count available to parent VideoRoom component
+    useEffect(() => {
+        (window as any).__currentParticipantCount = currentCount;
+    }, [currentCount]);
 
     // Get all tracks (video and audio) for proper audio/video handling
     // For video calls, explicitly exclude screen_share to prevent mobile screen issues
@@ -2263,13 +2302,13 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
     }
 
     // Debug logging for participant count issues
-    const participantCount = uniqueTracks.length;
+    const uniqueTrackCount = uniqueTracks.length;
 
     console.log("Grid debugging:", {
         totalParticipants: participants.length,
         allTracksCount: allTracks.length,
         audioTracksCount: audioTracks.length,
-        uniqueTracksCount: participantCount,
+        uniqueTracksCount: uniqueTrackCount,
         uniqueTrackDetails: uniqueTracks.map((t) => ({
             sid: t.participant.sid,
             source: t.source,
@@ -2289,8 +2328,8 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
 
     // Force re-render when participant count changes to ensure grid updates
     useEffect(() => {
-        console.log(`🎯 Participant count changed to: ${participantCount}`);
-        console.log(`🎯 Grid should show data-participant-count="${participantCount}"`);
+        console.log(`🎯 Participant count changed to: ${currentCount}`);
+        console.log(`🎯 Grid should show data-participant-count="${currentCount}"`);
 
         // Add a small delay to ensure the DOM has updated
         setTimeout(() => {
@@ -2308,7 +2347,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 console.warn("🎯 Grid element not found!");
             }
         }, 100);
-    }, [participantCount, uniqueTracks.length]);
+    }, [currentCount, uniqueTracks.length]);
 
     // Auto-leave logic: Only for video calls (audio calls have their own logic in AudioCallInterface)
     useEffect(() => {
@@ -2324,13 +2363,13 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         if (!room) return;
 
         // Track call start time when we have exactly 1 participant (the caller)
-        if (participantCount === 1 && !callStartTime.current) {
+        if (currentCount === 1 && !callStartTime.current) {
             callStartTime.current = Date.now();
             console.log("🎯 Video call started - 30s no-answer timeout activated");
         }
 
         // Mark call as established if we have 2 or more participants
-        if (participantCount >= 2) {
+        if (currentCount >= 2) {
             if (!callEstablished.current) {
                 callEstablished.current = true;
                 callStartTime.current = null; // Clear no-answer timeout
@@ -2339,14 +2378,14 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         }
 
         // Scenario 1: No-answer timeout (30 seconds with only 1 participant)
-        if (participantCount === 1 && !callEstablished.current && callStartTime.current) {
+        if (currentCount === 1 && !callEstablished.current && callStartTime.current) {
             const timeElapsed = Date.now() - callStartTime.current;
             const remainingTime = 30000 - timeElapsed; // 30 seconds total
 
             if (remainingTime > 0) {
                 console.log(`🎯 Video call no-answer timeout: ${Math.ceil(remainingTime / 1000)}s remaining`);
                 autoLeaveTimeout.current = setTimeout(() => {
-                    if (room && room.state === "connected" && participantCount === 1 && !callEstablished.current) {
+                    if (room && room.state === "connected" && currentCount === 1 && !callEstablished.current) {
                         console.log("🎯 Auto-leaving video call - no one answered within 30 seconds");
 
                         // Emit call ended event for video call no-answer timeout
@@ -2385,10 +2424,10 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         }
 
         // Scenario 2: Everyone left after call was established (3 second grace period)
-        else if (callEstablished.current && participantCount === 1) {
+        else if (callEstablished.current && currentCount === 1) {
             console.log("🎯 Only one participant left after video call was established - scheduling auto-leave");
             autoLeaveTimeout.current = setTimeout(() => {
-                if (room && room.state === "connected" && participantCount === 1) {
+                if (room && room.state === "connected" && currentCount === 1) {
                     console.log("🎯 Auto-leaving video call - only one participant remaining");
                     room.disconnect().catch((err: any) => {
                         console.warn("Error during everyone-left auto-leave:", err);
@@ -2396,7 +2435,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 }
             }, 3000); // 3 second grace period
         }
-    }, [participantCount, room, isVideo]);
+    }, [currentCount, room, isVideo]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -2703,7 +2742,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                     <div className="status-indicator">
                         <span>👥</span>
                         <span>
-                            {participantCount} Participant{participantCount !== 1 ? "s" : ""}
+                            {currentCount} Participant{currentCount !== 1 ? "s" : ""}
                         </span>
                     </div>
 
@@ -2712,7 +2751,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                         <div className="status-indicator" style={{ fontSize: "12px", opacity: 0.7 }}>
                             <span>🔧</span>
                             <span>
-                                Grid: {participantCount} | Tracks: {allTracks.length}
+                                Grid: {currentCount} | Tracks: {allTracks.length}
                             </span>
                         </div>
                     )}
@@ -2726,7 +2765,10 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
             </div>
 
             {/* Professional Video Grid */}
-            <div className="lk-video-grid" data-participant-count={participantCount}>
+            <div 
+                className="lk-video-grid" 
+                data-participant-count={currentCount}
+            >
                 {uniqueTracks.map((trackRef) => (
                     <ProfessionalParticipantTile
                         key={`${trackRef.participant.sid}-${trackRef.source}`}
@@ -2735,7 +2777,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 ))}
 
                 {/* Show placeholder when no participants */}
-                {participantCount === 0 && (
+                {currentCount === 0 && (
                     <div
                         style={{
                             display: "flex",
@@ -3260,9 +3302,17 @@ export const VideoRoom = ({
             isVideo,
         };
 
+        // Set up custom event listener for participant count updates
+        const handleParticipantCountUpdate = (event: CustomEvent) => {
+            (window as any).__currentParticipantCount = event.detail.count;
+        };
+
+        window.addEventListener('liveKitParticipantCountUpdate', handleParticipantCountUpdate as EventListener);
+
         return () => {
-            // Clean up room data when component unmounts
+            // Clean up room data and event listener when component unmounts
             delete (window as any).__currentLiveKitRoomData;
+            window.removeEventListener('liveKitParticipantCountUpdate', handleParticipantCountUpdate as EventListener);
         };
     }, [roomId, toUserIds, toUsernames, fromUsername, groupName, isVideo]);
 
@@ -3594,30 +3644,34 @@ export const VideoRoom = ({
 
                     // Check if user was the only participant and emit CALL_ENDED if needed
                     const roomData = (window as any).__currentLiveKitRoomData;
+                    const currentParticipantCount = (window as any).__currentParticipantCount || 0;
                     console.log("📞 Room data for disconnect check:", {
                         roomData,
                         isAcceptingIncomingCall,
                         hasRoomId: !!roomData?.roomId,
                         hasToUserIds: !!roomData?.toUserIds,
                         toUserIdsLength: roomData?.toUserIds?.length,
+                        participantCount: currentParticipantCount,
                     });
 
-                    if (roomData?.roomId && roomData?.toUserIds && !isAcceptingIncomingCall) {
-                        // For outgoing calls where user is leaving as the only participant
-                        console.log("📞 Manual disconnect as initiator - emitting CALL_ENDED event");
+                    // Only emit CALL_ENDED if initiator is leaving and is the last participant
+                    if (roomData?.roomId && roomData?.toUserIds && !isAcceptingIncomingCall && currentParticipantCount <= 1) {
+                        console.log("📞 Manual disconnect as last participant - emitting CALL_ENDED event");
                         console.log("📞 CALL_ENDED event data:", {
                             roomId: roomData.roomId,
                             toUserIds: roomData.toUserIds,
                             fromUsername: roomData.fromUsername,
+                            participantCount: currentParticipantCount,
                         });
 
                         emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
                     } else {
-                        console.log("📞 No CALL_ENDED emission - either missing data or incoming call", {
+                        console.log("📞 No CALL_ENDED emission - either not last participant or incoming call", {
                             hasRoomData: !!roomData,
                             hasRoomId: !!roomData?.roomId,
                             hasToUserIds: !!roomData?.toUserIds,
                             isAcceptingIncomingCall,
+                            participantCount: currentParticipantCount,
                         });
                     }
                 } else {
