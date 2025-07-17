@@ -14,7 +14,7 @@ export default class IdentityAuthClient {
         if (!username) {
             throw new Error("mx_user_id not found in localStorage");
         }
-        const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+        const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
         const response = await fetch("/2fa/reset", {
             method: "POST",
             headers: {

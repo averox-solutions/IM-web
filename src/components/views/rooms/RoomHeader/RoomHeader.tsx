@@ -53,102 +53,291 @@ import LegacyCallHandler, { AudioID } from "../../../../LegacyCallHandler";
 import { showToast } from "../Calling/notificationUtils";
 
 // Helper to get the key from localStorage and import it for Web Crypto
-async function getCryptoKey() {
-    const base64Key = localStorage.getItem("mx_recovery_key");
-    if (!base64Key) throw new Error("No recovery key found in localStorage");
-    // If the key is not base64, encode it
-    let rawKey;
-    try {
-        rawKey = Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
-    } catch (e) {
-        // fallback: treat as utf-8 string
-        rawKey = new TextEncoder().encode(base64Key);
+// async function getCryptoKey() {
+//     const storedKey = localStorage.getItem("mx_recovery_key");
+//     if (!storedKey) throw new Error("No recovery key found in localStorage");
+
+//     // Always hash to 256-bit key (32 bytes)
+//     const rawBytes = new TextEncoder().encode(storedKey);
+//     const hashed = await crypto.subtle.digest("SHA-256", rawBytes); // 256-bit key
+
+//     return await window.crypto.subtle.importKey(
+//         "raw",
+//         hashed,
+//         { name: "AES-GCM" },
+//         false,
+//         ["encrypt", "decrypt"]
+//     );
+// }
+
+// async function encryptData(data: any) {
+//     const key = await getCryptoKey();
+//     const iv = window.crypto.getRandomValues(new Uint8Array(12));
+//     const encoded = new TextEncoder().encode(JSON.stringify(data));
+//     const ciphertext = await window.crypto.subtle.encrypt(
+//         { name: "AES-GCM", iv },
+//         key,
+//         encoded
+//     );
+//     // Return base64 for both iv and ciphertext
+//     return {
+//         iv: btoa(String.fromCharCode(...iv)),
+//         ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+//     };
+// }
+
+// // Utility function to log call events to the backend (now encrypted)
+// async function logCall({
+//     userId,
+//     name,
+//     imageUrl,
+//     date,
+//     isVideoCall,
+//     roomId,
+//     isIncoming,
+//     isMissedCall,
+//     userCalledId,
+// }: {
+//     userId: string;
+//     name: string[];
+//     imageUrl: (string | null)[];
+//     date: string;
+//     isVideoCall: boolean;
+//     roomId: string;
+//     isIncoming: boolean;
+//     isMissedCall: boolean;
+//     userCalledId: string[];
+// }) {
+//     try {
+//         const callData = {
+//             userId,
+//             name,
+//             imageUrl,
+//             date,
+//             isVideoCall,
+//             roomId,
+//             isIncoming,
+//             isMissedCall,
+//             userCalledId,
+//         };
+//         const encrypted = await encryptData(callData);
+//         const myHeaders = new Headers();
+//         myHeaders.append("x-api-key", "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16");
+//         myHeaders.append("Content-Type", "application/json");
+
+//         const raw = JSON.stringify(encrypted);
+
+//         const requestOptions = {
+//             method: "POST",
+//             headers: myHeaders,
+//             body: raw,
+//         };
+
+//         const response = await fetch("https://beep.s.averox.com/api/call-logs", requestOptions);
+//         const result = await response.text();
+//         console.log("[CallLog] API result:", result);
+
+//         // Save to localStorage
+//         const logs = JSON.parse(localStorage.getItem("mx_call_logs") || "[]");
+//         logs.push(encrypted);
+//         localStorage.setItem("mx_call_logs", JSON.stringify(logs));
+//     } catch (error) {
+//         console.error("[CallLog] Error logging call:", error);
+//     }
+// }
+
+// export async function decryptData({ iv, ciphertext }: { iv: string, ciphertext: string }) {
+//     const key = await getCryptoKey();
+//     const ivBytes = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+//     const ctBytes = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+//     const decrypted = await window.crypto.subtle.decrypt(
+//         { name: "AES-GCM", iv: ivBytes },
+//         key,
+//         ctBytes
+//     );
+//     return JSON.parse(new TextDecoder().decode(decrypted));
+// }
+
+// // --- AES-CBC decryption compatible with Dart/Flutter ---
+// // Converts SHA-256 hash string to Uint8Array (first 16 bytes for AES-CBC)
+// export async function deriveCBCKeyAndIV(userKey: string): Promise<{ key: CryptoKey, iv: Uint8Array }> {
+//     const encoder = new TextEncoder();
+//     const keyMaterial = encoder.encode(userKey);
+//     const hashBuffer = await crypto.subtle.digest("SHA-256", keyMaterial);
+
+//     const hashArray = new Uint8Array(hashBuffer);
+//     const sliced = hashArray.slice(0, 16); // First 16 bytes used for both key and IV
+
+//     const key = await crypto.subtle.importKey(
+//         "raw",
+//         sliced,
+//         { name: "AES-CBC" },
+//         false,
+//         ["decrypt"]
+//     );
+
+//     return { key, iv: sliced };
+// }
+
+// // Decrypts a base64 AES-CBC encrypted string
+// export async function decryptCallLogFieldCBC(encryptedBase64: string, userKey: string): Promise<string> {
+//     const { key, iv } = await deriveCBCKeyAndIV(userKey);
+
+//     const encryptedBytes = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+
+//     try {
+//         const decryptedBuffer = await crypto.subtle.decrypt(
+//             {
+//                 name: "AES-CBC",
+//                 iv,
+//             },
+//             key,
+//             encryptedBytes
+//         );
+//         return new TextDecoder().decode(decryptedBuffer);
+//     } catch (e) {
+//         console.error("Decryption failed:", e);
+//         return ""; // or throw
+//     }
+// }
+
+// // Decrypts an array of base64 AES-CBC encrypted strings
+// export async function decryptCallLogArrayCBC(encryptedArray: string[], userKey: string): Promise<string[]> {
+//     const decryptedResults = await Promise.all(encryptedArray.map(data => decryptCallLogFieldCBC(data, userKey)));
+//     return decryptedResults;
+// }
+
+// // Decrypts a call log entry object (fields may be arrays or strings)
+// export async function decryptCallLogEntry(entry: any, userKey: string) {
+//     const decryptedEntry: any = {};
+
+//     for (const key in entry) {
+//         if (key === "userId" || key === "_id") {
+//             decryptedEntry[key] = entry[key];
+//         } else if (Array.isArray(entry[key])) {
+//             decryptedEntry[key] = await decryptCallLogArrayCBC(entry[key], userKey);
+//         } else if (typeof entry[key] === "string") {
+//             decryptedEntry[key] = await decryptCallLogFieldCBC(entry[key], userKey);
+//         } else {
+//             decryptedEntry[key] = entry[key];
+//         }
+//     }
+
+//     return decryptedEntry;
+// }
+
+// // AES-CBC encryption compatible with Dart/Flutter
+// export async function encryptCallLogFieldCBC(plainText: string, userKey: string): Promise<string> {
+//     const encoder = new TextEncoder();
+//     const data = encoder.encode(plainText);
+
+//     // Hash the userKey with SHA-256 and use the first 16 bytes
+//     const keyMaterial = encoder.encode(userKey);
+//     const hashBuffer = await crypto.subtle.digest("SHA-256", keyMaterial);
+//     const hashArray = new Uint8Array(hashBuffer);
+//     const sliced = hashArray.slice(0, 16); // 16 bytes for AES-128
+
+//     // Import the key for AES-CBC encryption
+//     const key = await crypto.subtle.importKey(
+//         "raw",
+//         sliced,
+//         { name: "AES-CBC" },
+//         false,
+//         ["encrypt"]
+//     );
+
+//     // Use same 16-byte slice as IV (like in Dart)
+//     const iv = sliced;
+
+//     // Encrypt the data
+//     const encryptedBuffer = await crypto.subtle.encrypt(
+//         { name: "AES-CBC", iv },
+//         key,
+//         data
+//     );
+
+//     // Convert to base64 (same as Dart .base64)
+//     const encryptedBytes = new Uint8Array(encryptedBuffer);
+//     return btoa(String.fromCharCode(...encryptedBytes));
+// }
+
+// export async function encryptCallLogArrayCBC(dataArray: string[], userKey: string): Promise<string[]> {
+//     return Promise.all(dataArray.map((text) => encryptCallLogFieldCBC(text, userKey)));
+// }
+
+// export async function encryptCallLogEntry(entry: any, userKey: string) {
+//     const encryptedEntry: any = {};
+
+//     for (const key in entry) {
+//         if (key === "userId" || key === "_id") {
+//             encryptedEntry[key] = entry[key];
+//         } else if (Array.isArray(entry[key])) {
+//             encryptedEntry[key] = await encryptCallLogArrayCBC(entry[key], userKey);
+//         } else if (typeof entry[key] === "string") {
+//             encryptedEntry[key] = await encryptCallLogFieldCBC(entry[key], userKey);
+//         } else {
+//             encryptedEntry[key] = entry[key];
+//         }
+//     }
+
+//     return encryptedEntry;
+// }
+export async function encryptCallLogEntry(entry: any, userKey: string): Promise<any> {
+    const encrypted: any = {};
+    const skipEncryption = ["userId", "_id", "isVideoCall", "isIncoming", "isMissedCall"];
+
+    for (const key in entry) {
+        const value = entry[key];
+
+        // Skip encryption for specified keys
+        if (skipEncryption.includes(key)) {
+            encrypted[key] = value;
+            continue;
+        }
+
+        if (Array.isArray(value)) {
+            // Convert each item to string if not null, encrypt each
+            encrypted[key] = await encryptArrayCBC(value.map(v => v !== null ? String(v) : null), userKey);
+        } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+            encrypted[key] = await encryptFieldCBC(String(value), userKey);
+        } else {
+            encrypted[key] = value; // fallback for unexpected types
+        }
     }
-    return await window.crypto.subtle.importKey(
+
+    return encrypted;
+}
+async function deriveCBCKeyAndIV(userKey: string): Promise<{ key: CryptoKey; iv: Uint8Array }> {
+    const keyBytes = new TextEncoder().encode(userKey);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", keyBytes);
+    const sliced = new Uint8Array(hashBuffer).slice(0, 16); // 128-bit for AES-CBC
+
+    const key = await crypto.subtle.importKey(
         "raw",
-        rawKey,
-        { name: "AES-GCM" },
+        sliced,
+        { name: "AES-CBC" },
         false,
         ["encrypt", "decrypt"]
     );
+
+    return { key, iv: sliced };
 }
 
-async function encryptData(data: any) {
-    const key = await getCryptoKey();
-    const iv = window.crypto.getRandomValues(new Uint8Array(12));
-    const encoded = new TextEncoder().encode(JSON.stringify(data));
-    const ciphertext = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        key,
-        encoded
+export async function encryptFieldCBC(value: string, userKey: string): Promise<string> {
+    const { key, iv } = await deriveCBCKeyAndIV(userKey);
+    const data = new TextEncoder().encode(value);
+    const encrypted = await crypto.subtle.encrypt({ name: "AES-CBC", iv }, key, data);
+    return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+}
+
+export async function encryptArrayCBC(values: (string | null)[], userKey: string): Promise<(string | null)[]> {
+    return Promise.all(
+        values.map(async (value) => {
+            if (value === null) return null;
+            return await encryptFieldCBC(value, userKey);
+        })
     );
-    // Return base64 for both iv and ciphertext
-    return {
-        iv: btoa(String.fromCharCode(...iv)),
-        ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
-    };
 }
-
-// Utility function to log call events to the backend (now encrypted)
-async function logCall({
-    userId,
-    name,
-    imageUrl,
-    date,
-    isVideoCall,
-    roomId,
-    isIncoming,
-    isMissedCall,
-    userCalledId,
-}: {
-    userId: string;
-    name: string[];
-    imageUrl: (string | null)[];
-    date: string;
-    isVideoCall: boolean;
-    roomId: string;
-    isIncoming: boolean;
-    isMissedCall: boolean;
-    userCalledId: string[];
-}) {
-    try {
-        const callData = {
-            userId,
-            name,
-            imageUrl,
-            date,
-            isVideoCall,
-            roomId,
-            isIncoming,
-            isMissedCall,
-            userCalledId,
-        };
-        const encrypted = await encryptData(callData);
-        const myHeaders = new Headers();
-        myHeaders.append("x-api-key", "28af8dacc88d34f010fc966f7d7db49e93062ef6d1bede0f9ed4974130d3ff5b");
-        myHeaders.append("Content-Type", "application/json");
-
-        const raw = JSON.stringify(encrypted);
-
-        const requestOptions = {
-            method: "POST",
-            headers: myHeaders,
-            body: raw,
-        };
-
-        const response = await fetch("https://beep.s.averox.com/api/call-logs", requestOptions);
-        const result = await response.text();
-        console.log("[CallLog] API result:", result);
-
-        // Save to localStorage
-        const logs = JSON.parse(localStorage.getItem("mx_call_logs") || "[]");
-        logs.push(encrypted);
-        localStorage.setItem("mx_call_logs", JSON.stringify(logs));
-    } catch (error) {
-        console.error("[CallLog] Error logging call:", error);
-    }
-}
-
 export default function RoomHeader({
     room,
     oobData,

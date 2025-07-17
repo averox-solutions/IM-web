@@ -218,9 +218,9 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             async (data) => {
                 this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
                 this.loginCreds = data;
-                const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+                const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
                 try {
-                    const response = await fetch("http://localhost:3000/2fa/generate", {
+                    const response = await fetch("https://em4.averox.com/2fa/generate", {
                         method: "POST",
                         headers: {
                             "api-key": TWO_FA_API_KEY,
@@ -462,9 +462,9 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
     private on2FASubmit = async (): Promise<void> => {
         const usernameToVerify = this.formattedUsername ?? this.state.username; // Use fallback for username
-        const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+        const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
         try {
-            const response = await fetch("http://localhost:3000/2fa/verify", {
+            const response = await fetch("https://em4.averox.com/2fa/verify", {
                 method: "POST",
                 headers: {
                     "api-key": TWO_FA_API_KEY,

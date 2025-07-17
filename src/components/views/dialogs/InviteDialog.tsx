@@ -153,10 +153,10 @@ class DMUserTile extends React.PureComponent<IDMUserTileProps> {
 const toMember = (member: RoomMember | Member): Member => {
     return member instanceof RoomMember
         ? new DirectoryMember({
-              user_id: member.userId,
-              display_name: member.name,
-              avatar_url: member.getMxcAvatarUrl(),
-          })
+            user_id: member.userId,
+            display_name: member.name,
+            avatar_url: member.getMxcAvatarUrl(),
+        })
         : member;
 };
 
@@ -232,8 +232,8 @@ class DMRoomTile extends React.PureComponent<IDMRoomTileProps> {
                 url={
                     this.props.member.getMxcAvatarUrl()
                         ? mediaFromMxc(this.props.member.getMxcAvatarUrl()!).getSquareThumbnailHttp(
-                              parseInt(avatarSize, 10),
-                          )
+                            parseInt(avatarSize, 10),
+                        )
                         : null
                 }
                 name={this.props.member.name}
@@ -516,28 +516,27 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
     }
 
     private convertFilter(): Member[] {
-        const existingTargets = this.state.targets || [];
+        // Check to see if there's anything to convert first
+        if (!this.state.filterText || !this.state.filterText.includes("@")) return this.state.targets || [];
 
-        // If one user has already been added, prevent any more
-        if (existingTargets.length >= 1) {
-            return existingTargets;
+        if (!this.canInviteMore()) {
+            // There should only be one third-party invite → do not allow more targets
+            return this.state.targets;
         }
-
-        // Proceed to parse and add a new member if filterText is valid
-        if (!this.state.filterText || !this.state.filterText.includes("@")) return existingTargets;
 
         let newMember: Member | undefined;
         if (this.state.filterText.startsWith("@")) {
+            // Assume mxid
             newMember = new DirectoryMember({ user_id: this.state.filterText });
         } else if (SettingsStore.getValue(UIFeature.IdentityServer)) {
+            // Assume email
             if (this.canInviteThirdParty()) {
                 newMember = new ThreepidMember(this.state.filterText);
             }
         }
+        if (!newMember) return this.state.targets;
 
-        if (!newMember) return existingTargets;
-
-        const newTargets = [...existingTargets, newMember];
+        const newTargets = [...(this.state.targets || []), newMember];
         this.setState({ targets: newTargets, filterText: "" });
         return newTargets;
     }
@@ -824,28 +823,41 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         this.setState({ numSuggestionsShown: this.state.numSuggestionsShown + INCREMENT_ROOMS_SHOWN });
     };
 
-    private toggleMember = (member: Member): void => {
-        if (!this.state.busy) {
-            let filterText = this.state.filterText;
-            let targets = this.state.targets.map((t) => t); // cheap clone for mutation
-            const idx = targets.findIndex((m) => m.userId === member.userId);
-            if (idx >= 0) {
-                targets.splice(idx, 1);
-            } else {
-                if (this.props.kind === InviteKind.CallTransfer && targets.length > 0) {
-                    targets = [];
-                }
-                targets.push(member);
-                filterText = ""; // clear the filter when the user accepts a suggestion
-            }
-            this.setState({ targets, filterText });
+    // private toggleMember = (member: Member): void => {
+    //     if (!this.state.busy) {
+    //         let filterText = this.state.filterText;
+    //         let targets = this.state.targets.map((t) => t); // cheap clone for mutation
+    //         const idx = targets.findIndex((m) => m.userId === member.userId);
+    //         if (idx >= 0) {
+    //             targets.splice(idx, 1);
+    //         } else {
+    //             if (this.props.kind === InviteKind.CallTransfer && targets.length > 0) {
+    //                 targets = [];
+    //             }
+    //             targets.push(member);
+    //             filterText = ""; // clear the filter when the user accepts a suggestion
+    //         }
+    //         this.setState({ targets, filterText });
 
-            if (this.editorRef && this.editorRef.current) {
-                this.editorRef.current.focus();
-            }
+    //         if (this.editorRef && this.editorRef.current) {
+    //             this.editorRef.current.focus();
+    //         }
+    //     }
+    // };
+
+    private toggleMember = (member: Member): void => {
+        if (this.state.busy) return;
+
+        const targets: Member[] = [member]; // Only the selected member
+        const filterText = ""; // Clear the search bar
+
+        this.setState({ targets, filterText });
+
+        // Refocus the input field
+        if (this.editorRef && this.editorRef.current) {
+            this.editorRef.current.focus();
         }
     };
-
     private removeMember = (member: Member): void => {
         const targets = this.state.targets.map((t) => t); // cheap clone for mutation
         const idx = targets.indexOf(member);
@@ -867,8 +879,9 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
     }
 
     private onPaste = async (e: React.ClipboardEvent): Promise<void> => {
-        if (this.state.filterText || this.state.targets.length >= 1) {
-            // If a user is already added or input is non-empty, skip paste logic
+        if (this.state.filterText) {
+            // if the user has already typed something, just let them
+            // paste normally.
             return;
         }
 
@@ -1105,9 +1118,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                 onPaste={this.onPaste}
                 autoFocus={true}
                 disabled={
-                    this.state.busy ||
-                    (this.props.kind == InviteKind.CallTransfer && this.state.targets.length > 0) ||
-                    this.state.targets.length >= 1 // Prevent input after 1 user
+                    this.state.busy || (this.props.kind == InviteKind.CallTransfer && this.state.targets.length > 0)
                 }
                 autoComplete="off"
                 placeholder={hasPlaceholder ? _t("action|search") : undefined}
@@ -1339,11 +1350,11 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             const isSpace = room?.isSpaceRoom();
             title = isSpace
                 ? _t("invite|to_space", {
-                      spaceName: room?.name || _t("common|unnamed_space"),
-                  })
+                    spaceName: room?.name || _t("common|unnamed_space"),
+                })
                 : _t("invite|to_room", {
-                      roomName: room?.name || _t("common|unnamed_room"),
-                  });
+                    roomName: room?.name || _t("common|unnamed_room"),
+                });
 
             let helpTextUntranslated;
             if (isSpace) {
