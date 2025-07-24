@@ -2202,9 +2202,9 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
     useEffect(() => {
         // Dispatch custom event with participant count
         window.dispatchEvent(
-            new CustomEvent('liveKitParticipantCountUpdate', {
-                detail: { count: currentCount }
-            })
+            new CustomEvent("liveKitParticipantCountUpdate", {
+                detail: { count: currentCount },
+            }),
         );
     }, [currentCount]);
 
@@ -2765,10 +2765,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
             </div>
 
             {/* Professional Video Grid */}
-            <div 
-                className="lk-video-grid" 
-                data-participant-count={currentCount}
-            >
+            <div className="lk-video-grid" data-participant-count={currentCount}>
                 {uniqueTracks.map((trackRef) => (
                     <ProfessionalParticipantTile
                         key={`${trackRef.participant.sid}-${trackRef.source}`}
@@ -3307,12 +3304,12 @@ export const VideoRoom = ({
             (window as any).__currentParticipantCount = event.detail.count;
         };
 
-        window.addEventListener('liveKitParticipantCountUpdate', handleParticipantCountUpdate as EventListener);
+        window.addEventListener("liveKitParticipantCountUpdate", handleParticipantCountUpdate as EventListener);
 
         return () => {
             // Clean up room data and event listener when component unmounts
             delete (window as any).__currentLiveKitRoomData;
-            window.removeEventListener('liveKitParticipantCountUpdate', handleParticipantCountUpdate as EventListener);
+            window.removeEventListener("liveKitParticipantCountUpdate", handleParticipantCountUpdate as EventListener);
         };
     }, [roomId, toUserIds, toUsernames, fromUsername, groupName, isVideo]);
 
@@ -3442,9 +3439,9 @@ export const VideoRoom = ({
 
     // Connect after user approves joining ongoing call
     useEffect(() => {
-        if (connectionApproved && !token && !isConnecting && !connectionInitiated.current && !connectCalled.current) {
+        if (connectionApproved && !token && !isConnecting && !connectCalled.current) {
             connectCalled.current = true;
-            console.log("🔗 Second useEffect: Calling connect() after approval");
+            console.log("🔗 Second useEffect: Calling connect() after approval (joining ongoing call)");
             connect();
         }
     }, [connectionApproved, connect, token, isConnecting]);
@@ -3479,6 +3476,13 @@ export const VideoRoom = ({
             console.log("🎯 User chose to join ongoing call");
             setShowJoinConfirmation(false);
             setConnectionApproved(true);
+            
+            // Immediately trigger connection for joining ongoing calls
+            if (!connectCalled.current) {
+                connectCalled.current = true;
+                console.log("🔗 handleJoinCall: Immediately calling connect() for ongoing call join");
+                connect();
+            }
         };
 
         const handleDeclineJoin = (): void => {
@@ -3655,7 +3659,12 @@ export const VideoRoom = ({
                     });
 
                     // Only emit CALL_ENDED if initiator is leaving and is the last participant
-                    if (roomData?.roomId && roomData?.toUserIds && !isAcceptingIncomingCall && currentParticipantCount <= 1) {
+                    if (
+                        roomData?.roomId &&
+                        roomData?.toUserIds &&
+                        !isAcceptingIncomingCall &&
+                        currentParticipantCount <= 1
+                    ) {
                         console.log("📞 Manual disconnect as last participant - emitting CALL_ENDED event");
                         console.log("📞 CALL_ENDED event data:", {
                             roomId: roomData.roomId,
