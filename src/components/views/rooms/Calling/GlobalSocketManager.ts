@@ -47,6 +47,7 @@ class GlobalSocketManager {
     private socket: Socket | null = null;
     private isInitialized: boolean = false;
     private dispatcherRef: string | null = null;
+    private currentDesktopNotification: Notification | null = null;
 
     /**
      * Get the singleton instance
@@ -74,7 +75,13 @@ class GlobalSocketManager {
         this.dispatcherRef = defaultDispatcher.register(this.onAction);
         this.isInitialized = true;
 
+        // Expose debug method globally for testing
+        (window as any).testDesktopNotification = () => this.testDesktopNotification();
+
         console.log("✅ GlobalSocketManager initialized and listening for client events");
+        console.log(
+            "🧪 Debug: You can test desktop notifications by running 'testDesktopNotification()' in browser console",
+        );
     }
 
     /**
@@ -208,6 +215,9 @@ class GlobalSocketManager {
         // Listen for call ended events globally
         window.addEventListener("liveKitCallEnded", this.handleGlobalCallEnded);
 
+        // Listen for page visibility changes to handle desktop notifications
+        document.addEventListener("visibilitychange", this.handleVisibilityChange);
+
         console.log("✅ Global incoming call handlers established");
     }
 
@@ -231,6 +241,20 @@ class GlobalSocketManager {
 
         console.log("📞 Processing incoming call from:", caller);
 
+        // Check if browser tab is visible/focused
+        const isTabVisible = !document.hidden && document.hasFocus();
+        console.log("🔍 Tab visibility status:", {
+            isTabVisible,
+            hidden: document.hidden,
+            hasFocus: document.hasFocus(),
+        });
+
+        // Show desktop notification if tab is not visible (user on another tab or browser minimized)
+        if (!isTabVisible) {
+            console.log("🔔 Tab not visible, showing desktop notification");
+            this.showIncomingCallDesktopNotification(callData);
+        }
+
         // Debug what's available on window
         console.log("🔍 Window functions available:", {
             showLiveKitCallNotification: typeof window.showLiveKitCallNotification,
@@ -238,7 +262,7 @@ class GlobalSocketManager {
             stopIncomingCallSound: typeof (window as any).stopIncomingCallSound,
         });
 
-        // Show notification using the global LiveKit notification system
+        // Show in-tab notification using the global LiveKit notification system
         if (!window.showLiveKitCallNotification) {
             console.error("❌ showLiveKitCallNotification not available on window");
             console.error(
@@ -298,6 +322,9 @@ class GlobalSocketManager {
         const matrixClient = MatrixClientPeg.get();
         const currentUserId = matrixClient?.getUserId();
 
+        // Close any desktop notifications
+        this.closeIncomingCallDesktopNotifications();
+
         // Remove any existing LiveKit call notifications to prevent overlay issues
         if ((window as any).clearAllLiveKitCallNotifications) {
             (window as any).clearAllLiveKitCallNotifications();
@@ -342,6 +369,9 @@ class GlobalSocketManager {
         const matrixClient = MatrixClientPeg.get();
         const currentUserId = matrixClient?.getUserId();
 
+        // Close any desktop notifications
+        this.closeIncomingCallDesktopNotifications();
+
         // Remove any existing LiveKit call notifications
         if ((window as any).clearAllLiveKitCallNotifications) {
             (window as any).clearAllLiveKitCallNotifications();
@@ -373,6 +403,9 @@ class GlobalSocketManager {
      */
     private handleTimeoutDismiss = (callData: any): void => {
         console.log("⏰ GlobalSocketManager: Call notification timeout - cleaning up without sending decline event");
+
+        // Close any desktop notifications
+        this.closeIncomingCallDesktopNotifications();
 
         // Remove any existing LiveKit call notifications
         if ((window as any).clearAllLiveKitCallNotifications) {
@@ -449,6 +482,9 @@ class GlobalSocketManager {
             (window as any).clearAllLiveKitCallNotifications();
         }
 
+        // Close any desktop notifications for incoming calls
+        this.closeIncomingCallDesktopNotifications();
+
         // Clear global call state
         if ((window as any).__globalActiveCallData) {
             delete (window as any).__globalActiveCallData;
@@ -456,6 +492,45 @@ class GlobalSocketManager {
 
         console.log("🧹 GlobalSocketManager completed call ended cleanup");
     };
+
+    /**
+     * Handle page visibility changes
+     */
+    private handleVisibilityChange = (): void => {
+        if (!document.hidden) {
+            console.log("🔍 Page became visible - user switched back to tab");
+            // Add a small delay before closing desktop notifications to give user time to see them
+            // This prevents the notification from closing immediately when testing by switching tabs
+            setTimeout(() => {
+                if (!document.hidden) {
+                    // Double-check user is still on the tab
+                    console.log("🔍 User still on tab after delay, closing desktop notifications");
+                    this.closeIncomingCallDesktopNotifications();
+                } else {
+                    console.log("🔍 User switched away again, keeping desktop notifications");
+                }
+            }, 2000); // 2 second delay
+        } else {
+            console.log("🔍 Page became hidden - user switched away from tab");
+        }
+    };
+
+    /**
+     * Close any incoming call desktop notifications
+     */
+    private closeIncomingCallDesktopNotifications(): void {
+        try {
+            if (this.currentDesktopNotification) {
+                console.log("🔔 Closing current incoming call desktop notification");
+                this.currentDesktopNotification.close();
+                this.currentDesktopNotification = null;
+            } else {
+                console.log("🔔 No desktop notification to close");
+            }
+        } catch (error) {
+            console.warn("Failed to close desktop notifications:", error);
+        }
+    }
 
     /**
      * Set up socket event listeners for backend communication
@@ -708,6 +783,170 @@ class GlobalSocketManager {
     }
 
     /**
+     * Show a desktop notification for incoming calls when tab is not visible
+     */
+    private showIncomingCallDesktopNotification(callData: any): void {
+        try {
+            console.log("🔔 Starting desktop notification process");
+
+            // Check if browser supports notifications
+            if (!("Notification" in window)) {
+                console.warn("❌ Browser does not support desktop notifications");
+                return;
+            }
+
+            console.log("✅ Browser supports notifications");
+
+            // Debug browser and document state
+            console.log("🔍 Browser state debug:", {
+                userAgent: navigator.userAgent,
+                documentHidden: document.hidden,
+                documentVisibilityState: document.visibilityState,
+                hasFocus: document.hasFocus(),
+                notificationPermission: Notification.permission,
+                location: window.location.href,
+            });
+
+            const caller = callData.isGroup ? callData.groupName : callData.fromUsername;
+            const callType = callData.isVideo ? "Video" : "Voice";
+
+            // Function to create the notification
+            const createNotification = (): void => {
+                try {
+                    console.log("🔔 Creating desktop notification with details:", {
+                        title: `Incoming ${callType} Call`,
+                        body: `${caller} is calling... (Click to answer)`,
+                        permission: Notification.permission,
+                    });
+
+                    // Close any existing desktop notification first
+                    if (this.currentDesktopNotification) {
+                        console.log("🗑️ Closing existing desktop notification before creating new one");
+                        this.currentDesktopNotification.close();
+                        this.currentDesktopNotification = null;
+                    }
+
+                    const notificationOptions: NotificationOptions = {
+                        body: `${caller} is calling... (Click to answer)`,
+                        // Removed icon and badge to use browser defaults and avoid 404 errors
+                        tag: "incoming-call", // Prevent duplicate notifications
+                        requireInteraction: true, // Keep notification visible until user interacts
+                        silent: false, // Allow system sound
+                    };
+
+                    console.log("🔔 Creating notification with options:", notificationOptions);
+
+                    const notification = new Notification(`Incoming ${callType} Call`, notificationOptions);
+
+                    console.log("🔔 Notification object created:", {
+                        title: notification.title,
+                        body: notification.body,
+                        tag: notification.tag,
+                        icon: notification.icon,
+                    });
+
+                    // Store reference to current notification
+                    this.currentDesktopNotification = notification;
+
+                    // Handle notification show event
+                    notification.onshow = () => {
+                        console.log("✅ Desktop notification is now showing to user");
+                    };
+
+                    // Handle notification error
+                    notification.onerror = (error) => {
+                        console.error("❌ Desktop notification error:", error);
+                        this.currentDesktopNotification = null;
+                    };
+
+                    // Additional check: See if notification was created but possibly blocked
+                    setTimeout(() => {
+                        if (this.currentDesktopNotification === notification) {
+                            console.log("🔍 Notification still exists after 1 second, checking status");
+                            console.log("🔍 Notification properties:", {
+                                title: notification.title,
+                                body: notification.body,
+                                tag: notification.tag,
+                            });
+                            console.log("💡 If you don't see the notification, check:");
+                            console.log("   1. System notification settings (Windows/Mac)");
+                            console.log("   2. Browser notification settings");
+                            console.log("   3. Focus assist/Do not disturb mode");
+                            console.log("   4. Try running 'testDesktopNotification()' in console");
+                        } else {
+                            console.log("🔍 Notification reference lost after 1 second");
+                        }
+                    }, 1000);
+
+                    // Handle notification click (default action - focus window and accept call)
+                    notification.onclick = () => {
+                        console.log("🔔 Desktop notification clicked - focusing window and accepting call");
+                        window.focus(); // Bring browser window to front
+                        notification.close();
+                        this.currentDesktopNotification = null;
+
+                        // Stop ring sound
+                        LegacyCallHandler.instance.pause(AudioID.Ring);
+
+                        // Accept the call
+                        this.handleAcceptIncomingCall(callData);
+                    };
+
+                    // Handle notification close (when user dismisses without clicking)
+                    notification.onclose = () => {
+                        console.log("🔔 Desktop notification closed");
+                        this.currentDesktopNotification = null;
+                    };
+
+                    // Auto-close notification after 30 seconds (same as in-tab notification)
+                    setTimeout(() => {
+                        if (this.currentDesktopNotification === notification) {
+                            console.log("⏰ Desktop notification auto-closing after 30 seconds");
+                            notification.close();
+                            this.currentDesktopNotification = null;
+                            // When auto-dismissing, handle it the same as timeout dismiss (no backend event)
+                            this.handleTimeoutDismiss(callData);
+                        }
+                    }, 30000);
+
+                    console.log("✅ Desktop notification created and configured successfully");
+                } catch (error) {
+                    console.error("💥 Error creating desktop notification:", error);
+                    this.currentDesktopNotification = null;
+                }
+            };
+
+            // Check permission and create notification
+            console.log("🔍 Checking notification permission:", Notification.permission);
+
+            if (Notification.permission === "granted") {
+                console.log("✅ Permission already granted, creating notification immediately");
+                createNotification();
+            } else if (Notification.permission !== "denied") {
+                // Request permission first
+                console.log("🔔 Requesting desktop notification permission (current:", Notification.permission, ")");
+                Notification.requestPermission()
+                    .then((permission) => {
+                        console.log("🔔 Permission request result:", permission);
+                        if (permission === "granted") {
+                            console.log("✅ Desktop notification permission granted, creating notification");
+                            createNotification();
+                        } else {
+                            console.warn("❌ Desktop notification permission denied by user:", permission);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("💥 Error requesting notification permission:", error);
+                    });
+            } else {
+                console.warn("❌ Desktop notifications are blocked by user (permission:", Notification.permission, ")");
+            }
+        } catch (error) {
+            console.warn("💥 Failed to show incoming call desktop notification:", error);
+        }
+    }
+
+    /**
      * Show a browser notification for call ended
      */
     private showCallEndedNotification(endedBy: string): void {
@@ -748,6 +987,22 @@ class GlobalSocketManager {
     }
 
     /**
+     * Debug method to test desktop notifications manually
+     * Can be called from browser console: window.testDesktopNotification()
+     */
+    public testDesktopNotification(): void {
+        console.log("🧪 Testing desktop notification manually");
+
+        const testCallData = {
+            fromUsername: "Test User",
+            isGroup: false,
+            isVideo: true,
+        };
+
+        this.showIncomingCallDesktopNotification(testCallData);
+    }
+
+    /**
      * Static method to get the global socket instance from anywhere
      */
     public static getGlobalSocket(): Socket | null {
@@ -770,8 +1025,13 @@ class GlobalSocketManager {
 
         // Remove global event listeners
         window.removeEventListener("incomingLiveKitCall", this.handleGlobalIncomingCall);
+        window.removeEventListener("incomingCall", this.handleGlobalIncomingCall);
         window.removeEventListener("liveKitCallDeclined", this.handleGlobalCallDeclined);
         window.removeEventListener("liveKitCallEnded", this.handleGlobalCallEnded);
+        document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+
+        // Close any open desktop notifications
+        this.closeIncomingCallDesktopNotifications();
 
         // Properly disconnect socket
         if (this.socket?.connected) {
