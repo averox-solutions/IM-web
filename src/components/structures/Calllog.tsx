@@ -205,7 +205,7 @@ export const Calllog = () => {
                                             <span style={{ marginLeft: 8 }}>{callTypeLabel}</span>
                                         </div>
                                     </div>
-                                    <div className="call-type" style={{ display: "flex", gap: "7px" }}>
+                                    {/* <div className="call-type" style={{ display: "flex", gap: "7px" }}>
                                         <span
                                             style={{
                                                 backgroundColor: isMissedCall ? "#d9534f" : "rgb(72, 141, 65)",
@@ -224,7 +224,7 @@ export const Calllog = () => {
                                                 <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
                                             )}
                                         </span>
-                                    </div>
+                                    </div> */}
                                 </div>
                             </li>
                         );

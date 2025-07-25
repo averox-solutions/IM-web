@@ -2568,7 +2568,7 @@
             "error_invalid_email_detail": "This doesn't appear to be a valid email address",
             "error_msisdn_verification": "Unable to verify phone number.",
             "error_password_change_403": "Failed to change password. Is your password correct?",
-            "error_password_change_http": "%(errorMessage)s (HTTP status %(httpStatus)s)",
+            "error_password_change_http": "Failed to change password. Is your password correct?",
             "error_password_change_title": "Error changing password",
             "error_password_change_unknown": "Unknown password change error (%(stringifiedError)s)",
             "error_remove_3pid": "Unable to remove contact information",

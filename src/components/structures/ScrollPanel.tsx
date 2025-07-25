@@ -25,7 +25,7 @@ const UNFILL_REQUEST_DEBOUNCE_MS = 200;
 // updateHeight makes the height a `Math.ceil` multiple of this, so we don't have to update the height too often.
 // It also allows the user to scroll past the pagination spinner a bit, so they don't feel blocked so
 // much while the content loads.
-const PAGE_SIZE = 400;
+const PAGE_SIZE = 50;
 
 const debuglog = (...args: any[]): void => {
     if (SettingsStore.getValue("debug_scroll_panel")) {
@@ -942,7 +942,7 @@ export default class ScrollPanel extends React.Component<IProps> {
                 wrappedRef={this.collectScroll}
                 onScroll={this.onScroll}
                 className={`mx_ScrollPanel ${this.props.className}`}
-                style={this.props.style}
+                // style={this.props.style}
             >
                 {this.props.fixedChildren}
                 <div className="mx_RoomView_messageListWrapper">
