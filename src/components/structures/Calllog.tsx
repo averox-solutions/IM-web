@@ -94,6 +94,9 @@ export const Calllog = () => {
                 };
             });
 
+            // Sort by date ascending (oldest first)
+            decryptedLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
             setCallLogs(decryptedLogs.filter(Boolean));
         } catch (err) {
             console.error("Fetch error:", err);
@@ -206,7 +209,7 @@ export const Calllog = () => {
                                         </div>
                                     </div>
                                     <div className="call-type" style={{ display: "flex", gap: "7px" }}>
-                                        <span
+                                        {/* <span
                                             style={{
                                                 backgroundColor: isMissedCall ? "#d9534f" : "rgb(72, 141, 65)",
                                                 borderRadius: "50%",
@@ -223,7 +226,7 @@ export const Calllog = () => {
                                             ) : (
                                                 <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
                                             )}
-                                        </span>
+                                        </span> */}
                                     </div>
                                 </div>
                             </li>

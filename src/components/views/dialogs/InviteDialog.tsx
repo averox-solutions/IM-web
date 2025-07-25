@@ -1221,10 +1221,6 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         this.setState({ currentTabId: tabId });
     };
 
-    private async onLinkClick(e: React.MouseEvent<HTMLAnchorElement>): Promise<void> {
-        e.preventDefault();
-        selectText(e.currentTarget);
-    }
 
     private get screenName(): ScreenName | undefined {
         switch (this.props.kind) {
@@ -1335,14 +1331,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             );
             const link = makeUserPermalink(MatrixClientPeg.safeGet().getSafeUserId());
             footer = (
-                <div className="mx_InviteDialog_footer">
-                    <h3>{_t("invite|send_link_prompt")}</h3>
-                    <CopyableText getTextToCopy={() => makeUserPermalink(MatrixClientPeg.safeGet().getSafeUserId())}>
-                        <a className="mx_InviteDialog_footer_link" href={link} onClick={this.onLinkClick}>
-                            {link}
-                        </a>
-                    </CopyableText>
-                </div>
+              <></>
             );
         } else if (this.props.kind === InviteKind.Invite) {
             const roomId = this.props.roomId;

@@ -339,14 +339,7 @@ export class SpaceItem extends React.PureComponent<IItemProps, IItemState> {
             );
         }
 
-        const toggleCollapseButton = hasChildren ? (
-            <AccessibleButton
-                className="mx_SpaceButton_toggleCollapse"
-                onClick={this.toggleCollapse}
-                tabIndex={-1}
-                aria-label={collapsed ? _t("action|expand") : _t("action|collapse")}
-            />
-        ) : null;
+        const toggleCollapseButton = hasChildren ? null : null;
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { tabIndex, ...restDragHandleProps } = dragHandleProps || {};
@@ -393,19 +386,5 @@ interface ITreeLevelProps {
 }
 
 const SpaceTreeLevel: React.FC<ITreeLevelProps> = ({ spaces, activeSpaces, isNested, parents }) => {
-    return (
-        <ul className="mx_SpaceTreeLevel" role="group">
-            {spaces.map((s) => {
-                return (
-                    <SpaceItem
-                        key={s.roomId}
-                        activeSpaces={activeSpaces}
-                        space={s}
-                        isNested={isNested}
-                        parents={parents}
-                    />
-                );
-            })}
-        </ul>
-    );
+    return null;
 };

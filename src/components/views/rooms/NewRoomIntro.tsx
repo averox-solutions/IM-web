@@ -280,18 +280,7 @@ const NewRoomIntro: React.FC = () => {
         </span>
     );
 
-    return (
-        <li className="mx_NewRoomIntro">
-            {!hasExpectedEncryptionSettings(cli, room) && (
-                <EventTileBubble
-                    className="mx_cryptoEvent mx_cryptoEvent_icon_warning"
-                    title={_t("room|intro|unencrypted_warning")}
-                    subtitle={subtitle}
-                />
-            )}
-            {body}
-        </li>
-    );
+    return null;
 };
 
 export default NewRoomIntro;
