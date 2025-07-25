@@ -1,419 +1,207 @@
 /*
-Copyright 2024 New Vector Ltd.
-Copyright 2019-2021 The Matrix.org Foundation C.I.C.
-
 SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
-Please see LICENSE files in the repository root for full details.
 */
 
-import React, { type ReactNode } from "react";
-import { logger } from "matrix-js-sdk/src/logger";
-import { type IThreepid } from "matrix-js-sdk/src/matrix";
-
-import { _t } from "../../../languageHandler";
-import { MatrixClientPeg } from "../../../MatrixClientPeg";
-import Modal from "../../../Modal";
-import dis from "../../../dispatcher/dispatcher";
-import { getThreepidsWithBindStatus } from "../../../boundThreepids";
-import IdentityAuthClient from "../../../IdentityAuthClient";
-import { abbreviateUrl, parseUrl, unabbreviateUrl } from "../../../utils/UrlUtils";
-import { getDefaultIdentityServerUrl, doesIdentityServerHaveTerms } from "../../../utils/IdentityServerUtils";
-import { timeout } from "../../../utils/promise";
-import { type ActionPayload } from "../../../dispatcher/payloads";
-import InlineSpinner from "../elements/InlineSpinner";
-import AccessibleButton from "../elements/AccessibleButton";
-import Field from "../elements/Field";
-import QuestionDialog from "../dialogs/QuestionDialog";
+import React from "react";
 import SettingsFieldset from "./SettingsFieldset";
-import { SettingsSubsectionText } from "./shared/SettingsSubsection";
+import AccessibleButton from "../elements/AccessibleButton";
 
-// We'll wait up to this long when checking for 3PID bindings on the IS.
-const REACHABILITY_TIMEOUT = 10000; // ms
-
-/**
- * Check an IS URL is valid, including liveness check
- *
- * @param {string} u The url to check
- * @returns {string} null if url passes all checks, otherwise i18ned error string
- */
-async function checkIdentityServerUrl(u: string): Promise<string | null> {
-    const parsedUrl = parseUrl(u);
-
-    if (parsedUrl.protocol !== "https:") return _t("identity_server|url_not_https");
-
-    // XXX: duplicated logic from js-sdk but it's quite tied up in the validation logic in the
-    // js-sdk so probably as easy to duplicate it than to separate it out so we can reuse it
-    try {
-        const response = await fetch(u + "/_matrix/identity/v2");
-        if (response.ok) {
-            return null;
-        } else if (response.status < 200 || response.status >= 300) {
-            return _t("identity_server|error_invalid", { code: response.status });
-        } else {
-            return _t("identity_server|error_connection");
-        }
-    } catch {
-        return _t("identity_server|error_connection");
-    }
-}
-
-interface IProps {
-    // Whether or not the identity server is missing terms. This affects the text
-    // shown to the user.
-    missingTerms: boolean;
-}
+const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
 
 interface IState {
-    defaultIdServer?: string;
-    currentClientIdServer?: string;
-    idServer: string;
-    error?: string;
-    busy: boolean;
-    disconnectBusy: boolean;
-    checking: boolean;
+    // Reset 2FA
     reset2faLoading: boolean;
-    reset2faResult: {
-        secret: string;
-        otpauth_url: string;
-        qr: string;
-        message: string;
-    } | null;
+    reset2faResult: { secret: string; otpauth_url: string; qr: string; message: string } | null;
     reset2faError: string | null;
+
+    // Toggle 2FA
+    toggle2faLoading: boolean;
+    toggle2faStatus: boolean | null; // true = enabled, false = disabled
+    toggle2faError: string | null;
 }
 
-export default class SetIdServer extends React.Component<IProps, IState> {
-    private dispatcherRef?: string;
-
-    public constructor(props: IProps) {
+export default class SetIdServer extends React.Component<{}, IState> {
+    constructor(props: {}) {
         super(props);
-
-        let defaultIdServer = "";
-        if (!MatrixClientPeg.safeGet().getIdentityServerUrl() && getDefaultIdentityServerUrl()) {
-            // If no identity server is configured but there's one in the config, prepopulate
-            // the field to help the user.
-            defaultIdServer = abbreviateUrl(getDefaultIdentityServerUrl());
-        }
-
         this.state = {
-            defaultIdServer,
-            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
-            idServer: "",
-            busy: false,
-            disconnectBusy: false,
-            checking: false,
             reset2faLoading: false,
             reset2faResult: null,
             reset2faError: null,
+
+            toggle2faLoading: false,
+            toggle2faStatus: null,
+            toggle2faError: null,
         };
     }
 
-    public componentDidMount(): void {
-        this.dispatcherRef = dis.register(this.onAction);
+    async componentDidMount(): Promise<void> {
+        await this.fetch2FAStatus();
     }
 
-    public componentWillUnmount(): void {
-        dis.unregister(this.dispatcherRef);
-    }
-
-    private onAction = (payload: ActionPayload): void => {
-        // We react to changes in the identity server in the event the user is staring at this form
-        // when changing their identity server on another device.
-        if (payload.action !== "id_server_changed") return;
-
-        this.setState({
-            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
-        });
-    };
-
-    private onIdentityServerChanged = (ev: React.ChangeEvent<HTMLInputElement>): void => {
-        const u = ev.target.value;
-
-        this.setState({ idServer: u });
-    };
-
-    private getTooltip = (): JSX.Element | undefined => {
-        if (this.state.checking) {
-            return (
-                <div>
-                    <InlineSpinner />
-                    {_t("identity_server|checking")}
-                </div>
-            );
-        } else if (this.state.error) {
-            return <strong className="warning">{this.state.error}</strong>;
-        } else {
-            return undefined;
-        }
-    };
-
-    private idServerChangeEnabled = (): boolean => {
-        return !!this.state.idServer && !this.state.busy;
-    };
-
-    private saveIdServer = (fullUrl: string): void => {
-        // Account data change will update localstorage, client, etc through dispatcher
-        MatrixClientPeg.safeGet().setAccountData("m.identity_server", {
-            base_url: fullUrl,
-        });
-        this.setState({
-            busy: false,
-            error: undefined,
-            currentClientIdServer: fullUrl,
-            idServer: "",
-        });
-    };
-
-    private checkIdServer = async (e: React.SyntheticEvent): Promise<void> => {
-        e.preventDefault();
-        const { idServer, currentClientIdServer } = this.state;
-
-        this.setState({ busy: true, checking: true, error: undefined });
-
-        const fullUrl = unabbreviateUrl(idServer);
-
-        let errStr = await checkIdentityServerUrl(fullUrl);
-        if (!errStr) {
-            try {
-                this.setState({ checking: false }); // clear tooltip
-
-                // Test the identity server by trying to register with it. This
-                // may result in a terms of service prompt.
-                const authClient = new IdentityAuthClient();
-
-                let save = true;
-
-                // Double check that the identity server even has terms of service.
-                const hasTerms = await doesIdentityServerHaveTerms(MatrixClientPeg.safeGet(), fullUrl);
-                if (!hasTerms) {
-                    const [confirmed] = await this.showNoTermsWarning(fullUrl);
-                    save = !!confirmed;
-                }
-
-                // Show a general warning, possibly with details about any bound
-                // 3PIDs that would be left behind.
-                if (save && currentClientIdServer && fullUrl !== currentClientIdServer) {
-                    const [confirmed] = await this.showServerChangeWarning({
-                        title: _t("identity_server|change"),
-                        unboundMessage: _t(
-                            "identity_server|change_prompt",
-                            {},
-                            {
-                                current: (sub) => <strong>{abbreviateUrl(currentClientIdServer)}</strong>,
-                                new: (sub) => <strong>{abbreviateUrl(idServer)}</strong>,
-                            },
-                        ),
-                        button: _t("action|continue"),
-                    });
-                    save = !!confirmed;
-                }
-
-                if (save) {
-                    this.saveIdServer(fullUrl);
-                }
-            } catch (e) {
-                logger.error(e);
-                errStr = _t("identity_server|error_invalid_or_terms");
-            }
-        }
-        this.setState({
-            busy: false,
-            checking: false,
-            error: errStr ?? undefined,
-            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
-        });
-    };
-
-    private showNoTermsWarning(fullUrl: string): Promise<[ok?: boolean]> {
-        const { finished } = Modal.createDialog(QuestionDialog, {
-            title: _t("terms|identity_server_no_terms_title"),
-            description: (
-                <div>
-                    <strong className="warning">{_t("identity_server|no_terms")}</strong>
-                    <span>&nbsp;{_t("terms|identity_server_no_terms_description_2")}</span>
-                </div>
-            ),
-            button: _t("action|continue"),
-        });
-        return finished;
-    }
-
-    private onDisconnectClicked = async (): Promise<void> => {
-        this.setState({ disconnectBusy: true });
+    /** Fetch current 2FA status */
+    private async fetch2FAStatus(): Promise<void> {
         try {
-            const [confirmed] = await this.showServerChangeWarning({
-                title: _t("identity_server|disconnect"),
-                unboundMessage: _t(
-                    "identity_server|disconnect_server",
-                    {},
-                    { idserver: (sub) => <strong>{abbreviateUrl(this.state.currentClientIdServer)}</strong> },
-                ),
-                button: _t("action|disconnect"),
+            const username = localStorage.getItem("mx_user_id");
+            if (!username) return;
+
+            const response = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(username)}`, {
+                method: "GET",
+                headers: {
+                    "api-key": TWO_FA_API_KEY,
+                    "Content-Type": "application/json",
+                },
             });
-            if (confirmed) {
-                this.disconnectIdServer();
+
+            const result = await response.json();
+            if (response.ok) {
+                this.setState({ toggle2faStatus: result.isEnabled });
+            } else {
+                this.setState({ toggle2faError: result?.error || "Failed to fetch 2FA status" });
             }
-        } finally {
-            this.setState({ disconnectBusy: false });
+        } catch (error: any) {
+            this.setState({ toggle2faError: error.message || "Error fetching 2FA status" });
         }
-    };
-
-    private async showServerChangeWarning({
-        title,
-        unboundMessage,
-        button,
-    }: {
-        title: string;
-        unboundMessage: ReactNode;
-        button: string;
-    }): Promise<[ok?: boolean]> {
-        const { currentClientIdServer } = this.state;
-
-        let threepids: IThreepid[] = [];
-        let currentServerReachable = true;
-        try {
-            threepids = await timeout(
-                getThreepidsWithBindStatus(MatrixClientPeg.safeGet()),
-                Promise.reject(new Error("Timeout attempting to reach identity server")),
-                REACHABILITY_TIMEOUT,
-            );
-        } catch (e) {
-            currentServerReachable = false;
-            logger.warn(
-                `Unable to reach identity server at ${currentClientIdServer} to check ` +
-                    `for 3PIDs during IS change flow`,
-            );
-            logger.warn(e);
-        }
-        const boundThreepids = threepids.filter((tp) => tp.bound);
-        let message;
-        let danger = false;
-        const messageElements = {
-            idserver: (sub: string) => <strong>{abbreviateUrl(currentClientIdServer)}</strong>,
-            b: (sub: string) => <strong>{sub}</strong>,
-        };
-        if (!currentServerReachable) {
-            message = (
-                <div>
-                    <p>{_t("identity_server|disconnect_offline_warning", {}, messageElements)}</p>
-                    <p>{_t("identity_server|suggestions")}</p>
-                    <ul>
-                        <li>{_t("identity_server|suggestions_1")}</li>
-                        <li>
-                            {_t(
-                                "identity_server|suggestions_2",
-                                {},
-                                {
-                                    idserver: messageElements.idserver,
-                                },
-                            )}
-                        </li>
-                        <li>{_t("identity_server|suggestions_3")}</li>
-                    </ul>
-                </div>
-            );
-            danger = true;
-            button = _t("identity_server|disconnect_anyway");
-        } else if (boundThreepids.length) {
-            message = (
-                <div>
-                    <p>{_t("identity_server|disconnect_personal_data_warning_1", {}, messageElements)}</p>
-                    <p>{_t("identity_server|disconnect_personal_data_warning_2")}</p>
-                </div>
-            );
-            danger = true;
-            button = _t("identity_server|disconnect_anyway");
-        } else {
-            message = unboundMessage;
-        }
-
-        const { finished } = Modal.createDialog(QuestionDialog, {
-            title,
-            description: message,
-            button,
-            cancelButton: _t("action|go_back"),
-            danger,
-        });
-        return finished;
     }
 
-    private disconnectIdServer = (): void => {
-        // Account data change will update localstorage, client, etc through dispatcher
-        MatrixClientPeg.safeGet().setAccountData("m.identity_server", {
-            base_url: null, // clear
-        });
-
-        let newFieldVal = "";
-        if (getDefaultIdentityServerUrl()) {
-            // Prepopulate the client's default so the user at least has some idea of
-            // a valid value they might enter
-            newFieldVal = abbreviateUrl(getDefaultIdentityServerUrl());
-        }
-
-        this.setState({
-            busy: false,
-            error: undefined,
-            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
-            idServer: newFieldVal,
-        });
-    };
-
-    /**
-     * Resets the 2FA secret for the current user by calling the /2fa/reset endpoint.
-     * Fetches the username from localStorage (mx_user_id).
-     * @returns The new secret, otpauth_url, qr, and message from the server.
-     */
-    private async reset2FA(): Promise<{
-        secret: string;
-        otpauth_url: string;
-        qr: string;
-        message: string;
-    }> {
+    /** Toggle 2FA enable/disable */
+    private async toggle2FA(newState: boolean): Promise<void> {
         const username = localStorage.getItem("mx_user_id");
         if (!username) {
-            throw new Error("mx_user_id not found in localStorage");
+            this.setState({ toggle2faError: "Username not found in local storage" });
+            return;
         }
-        const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
-        const response = await fetch("https://em4.averox.com/2fa/reset", {
-            method: "POST",
-            headers: {
-                "api-key": TWO_FA_API_KEY,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ username }),
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to reset 2FA: ${response.statusText}`);
+    
+        // Optimistically update state
+        const previousState = this.state.toggle2faStatus;
+        this.setState({ toggle2faStatus: newState, toggle2faLoading: true, toggle2faError: null });
+    
+        try {
+            const response = await fetch("https://em4.averox.com/2fa/toggle", {
+                method: "POST",
+                headers: {
+                    "api-key": TWO_FA_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ username, enabled: newState }),
+            });
+    
+            const result = await response.json();
+            if (!response.ok) throw new Error(result?.error || "Failed to toggle 2FA");
+    
+            this.setState({ toggle2faStatus: result.enabled, toggle2faLoading: false });
+        } catch (err: any) {
+            // Revert if API fails
+            this.setState({
+                toggle2faStatus: previousState,
+                toggle2faError: err.message || "Failed to toggle 2FA",
+                toggle2faLoading: false,
+            });
         }
-        return response.json();
+    }
+    
+    
+
+    /** Reset 2FA secret */
+    private async reset2FA(): Promise<void> {
+        const username = localStorage.getItem("mx_user_id");
+        if (!username) {
+            this.setState({ reset2faError: "mx_user_id not found in localStorage" });
+            return;
+        }
+
+        this.setState({ reset2faLoading: true, reset2faResult: null, reset2faError: null });
+
+        try {
+            const response = await fetch("https://em4.averox.com/2fa/delete", {
+                method: "DELETE",
+                headers: {
+                    "api-key": TWO_FA_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ username }),
+            });
+
+            if (!response.ok) throw new Error(`Failed to reset 2FA: ${response.statusText}`);
+
+            const result = await response.json();
+            this.setState({ reset2faResult: result, reset2faLoading: false });
+        } catch (err: any) {
+            this.setState({ reset2faError: err.message || String(err), reset2faLoading: false });
+        }
     }
 
-    public render(): React.ReactNode {
-        const { reset2faLoading, reset2faResult, reset2faError } = this.state as any;
-        const bodyText = "Use the button below to reset your 2FA secret. This will generate a new secret and QR code.";
+    render(): React.ReactNode {
+        const {
+            reset2faLoading,
+            reset2faResult,
+            reset2faError,
+            toggle2faLoading,
+            toggle2faStatus,
+            toggle2faError,
+        } = this.state;
+
         return (
-            <SettingsFieldset legend={"2FA Configurations"} description={bodyText}>
+            <SettingsFieldset legend="2FA Configurations" description="Manage your Two-Factor Authentication settings.">
+                {/* 2FA Toggle Switch */}
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+                    <label style={{ marginRight: 10, fontWeight: 600 }}>Enable 2FA:</label>
+                    <label style={{ position: "relative", display: "inline-block", width: 50, height: 24 }}>
+                    <input
+                            type="checkbox"
+                            checked={!!toggle2faStatus}
+                            disabled={toggle2faLoading || toggle2faStatus === null}
+                            onChange={(e) => this.toggle2FA(e.target.checked)} // Pass the actual switch state
+                            style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+
+                        <span
+                            style={{
+                                position: "absolute",
+                                cursor: toggle2faLoading ? "not-allowed" : "pointer",
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                backgroundColor: toggle2faStatus ? "#4caf50" : "#ccc",
+                                transition: ".4s",
+                                borderRadius: 24,
+                            }}
+                        >
+                            <span
+                                style={{
+                                    position: "absolute",
+                                    height: 18,
+                                    width: 18,
+                                    left: toggle2faStatus ? "26px" : "4px",
+                                    bottom: "3px",
+                                    backgroundColor: "white",
+                                    transition: ".4s",
+                                    borderRadius: "50%",
+                                }}
+                            ></span>
+                        </span>
+                    </label>
+                </div>
+                {toggle2faLoading && <div style={{ color: "#666", marginBottom: 8 }}>Updating...</div>}
+                {toggle2faError && <div style={{ color: "red", marginBottom: 12 }}>{toggle2faError}</div>}
+                <div style={{ marginBottom: 16 }}>
+                    <strong>Status:</strong>{" "}
+                    {toggle2faStatus === null ? "Loading..." : toggle2faStatus ? "Enabled" : "Disabled"}
+                </div>
+
+                {/* Reset 2FA */}
                 <div style={{ marginBottom: 16 }}>
                     <AccessibleButton
                         kind="danger_sm"
-                        onClick={async () => {
-                            this.setState({ reset2faLoading: true, reset2faResult: null, reset2faError: null });
-                            try {
-                                const result = await this.reset2FA();
-                                this.setState({ reset2faResult: result, reset2faLoading: false });
-                            } catch (err: any) {
-                                this.setState({ reset2faError: err.message || String(err), reset2faLoading: false });
-                            }
-                        }}
+                        onClick={() => this.reset2FA()}
                         disabled={reset2faLoading}
                     >
                         {reset2faLoading ? "Resetting..." : "Reset 2FA"}
                     </AccessibleButton>
                 </div>
-                {reset2faError && (
-                    <div style={{ color: 'red', marginBottom: 12 }}>{reset2faError}</div>
-                )}
+                {reset2faError && <div style={{ color: "red", marginBottom: 12 }}>{reset2faError}</div>}
                 {reset2faResult && (
-                    <div style={{ border: '1px solid #ccc', padding: 12, borderRadius: 4 }}>
+                    <div style={{ border: "1px solid #ccc", padding: 12, borderRadius: 4 }}>
                         <div><strong>Message:</strong> {reset2faResult.message}</div>
                         <div><strong>Secret:</strong> {reset2faResult.secret}</div>
                         <div><strong>otpauth URL:</strong> <code>{reset2faResult.otpauth_url}</code></div>

@@ -244,16 +244,7 @@ const UploadButton: React.FC = () => {
 };
 
 function showStickersButton(props: IProps): ReactElement | null {
-    return props.showStickersButton ? (
-        <CollapsibleButton
-            id="stickersButton"
-            key="controls_stickers"
-            className="mx_MessageComposer_button"
-            iconClassName="mx_MessageComposer_stickers"
-            onClick={() => props.setStickerPickerOpen(!props.isStickerPickerOpen)}
-            title={props.isStickerPickerOpen ? _t("composer|close_sticker_picker") : _t("common|sticker")}
-        />
-    ) : null;
+    return null;
 }
 
 function voiceRecordingButton(props: IProps, narrow: boolean): ReactElement | null {

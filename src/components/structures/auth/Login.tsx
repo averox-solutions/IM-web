@@ -180,11 +180,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             }
             console.log("Login attempt for:", formattedUsername);
         }
-        this.formattedUsername = formattedUsername; // <-- Add this line
+        this.formattedUsername = formattedUsername;
+    
         if (!this.state.serverIsAlive) {
             this.setState({ busy: true });
-            // Do a quick liveliness check on the URLs
-            let aliveAgain = true;
             try {
                 await AutoDiscoveryUtils.validateServerConfigWithStaticUrls(
                     this.props.serverConfig.hsUrl,
@@ -198,73 +197,91 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     busyLoggingIn: false,
                     ...componentState,
                 });
-                aliveAgain = !componentState.serverErrorIsFatal;
-            }
-
-            // Prevent people from submitting their password when something isn't right.
-            if (!aliveAgain) {
-                return;
+                if (componentState.serverErrorIsFatal) return;
             }
         }
-
+    
         this.setState({
             busy: true,
             busyLoggingIn: true,
             errorText: null,
             loginIncorrect: false,
         });
-
+    
         this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
             async (data) => {
                 this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
                 this.loginCreds = data;
+    
                 const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
+    
                 try {
-                    const response = await fetch("https://em4.averox.com/2fa/generate", {
-                        method: "POST",
+                    // ✅ Step 1: Check 2FA Status
+                    const statusResponse = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(formattedUsername)}`, {
+                        method: "GET",
                         headers: {
                             "api-key": TWO_FA_API_KEY,
                             "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({ username: formattedUsername }),
                     });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result?.error || "Failed to initiate 2FA");
-                    this.setState({
-                        show2FA: true,
-                        qr: result.qr,
-                        secret: result.secret,
-                        otpauthUrl: result.otpauth_url,
-                        twoFAMessage: result.message,
-                    });
+    
+                    const statusResult = await statusResponse.json();
+                    if (!statusResponse.ok) throw new Error(statusResult?.error || "Failed to check 2FA status");
+    
+                    const { isConfigured, isEnabled } = statusResult;
+    
+                    if (!isConfigured) {
+                        // ✅ Step 2: If not configured, generate 2FA setup
+                        const generateResponse = await fetch("https://em4.averox.com/2fa/generate", {
+                            method: "POST",
+                            headers: {
+                                "api-key": TWO_FA_API_KEY,
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ username: formattedUsername }),
+                        });
+    
+                        const generateResult = await generateResponse.json();
+                        if (!generateResponse.ok) throw new Error(generateResult?.error || "Failed to initiate 2FA");
+    
+                        this.setState({
+                            show2FA: true,
+                            qr: generateResult.qr,
+                            secret: generateResult.secret,
+                            otpauthUrl: generateResult.otpauth_url,
+                            twoFAMessage: generateResult.message,
+                        });
+                    } else if (isConfigured && isEnabled) {
+                        // ✅ Step 3: Already configured and enabled → show verification
+                        this.setState({ show2FA: true, twoFAMessage: "Enter your 2FA code" });
+                    } else {
+                        // ✅ Step 4: Configured but disabled → skip 2FA
+                        this.props.onLoggedIn(this.loginCreds!);
+                    }
                 } catch (e) {
-                    this.setState({ errorText: "Failed to load 2FA setup. Please try again." });
+                    this.setState({ errorText: "Failed to process 2FA. Please try again." });
                 }
             },
             (error) => {
                 if (this.unmounted) return;
-
+    
                 let errorText: ReactNode;
-                // Some error strings only apply for logging in
                 if (error.httpStatus === 400 && username && username.indexOf("@") > 0) {
                     errorText = _t("auth|unsupported_auth_email");
                 } else {
                     errorText = messageForLoginError(error, this.props.serverConfig);
                 }
-
+    
                 this.setState({
                     busy: false,
                     busyLoggingIn: false,
                     errorText,
-                    // 401 would be the sensible status code for 'incorrect password'
-                    // but the login API gives a 403 https://matrix.org/jira/browse/SYN-744
-                    // mentions this (although the bug is for UI auth which is not this)
-                    // We treat both as an incorrect password
                     loginIncorrect: error.httpStatus === 401 || error.httpStatus === 403,
                 });
             },
         );
     };
+    
 
     private autoTriggerSsoLoginIfApplicable(): void {
         const ssoFlow = this.state.flows?.find(

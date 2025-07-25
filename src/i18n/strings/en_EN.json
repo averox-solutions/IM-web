@@ -1914,7 +1914,7 @@
             "title": "Groups options",
             "unfavourite": "Favourited"
         },
-        "creating_room_text": "We're creating a Groups with %(names)s",
+        "creating_room_text": "Please wait!",
         "dm_invite_action": "Start chatting",
         "dm_invite_subtitle": "<userName/> wants to chat",
         "dm_invite_title": "Do you want to chat with %(user)s?",
@@ -2152,8 +2152,8 @@
         },
         "alias_not_specified": "not specified",
         "bridges": {
-            "description": "This Groups is bridging messages to the following platforms. <a>Learn more.</a>",
-            "empty": "This Groups isn't bridging messages to any platforms. <a>Learn more.</a>",
+            "description": "This Groups is bridging messages to the following platforms. ",
+            "empty": "This Groups isn't bridging messages to any platforms. ",
             "title": "Bridges"
         },
         "delete_avatar_label": "Delete avatar",
