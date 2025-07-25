@@ -784,10 +784,11 @@ class GlobalSocketManager {
 
     /**
      * Show a desktop notification for incoming calls when tab is not visible
+     * Simplified version based on the working call_ended notification pattern
      */
     private showIncomingCallDesktopNotification(callData: any): void {
         try {
-            console.log("🔔 Starting desktop notification process");
+            console.log("🔔 Showing incoming call desktop notification");
 
             // Check if browser supports notifications
             if (!("Notification" in window)) {
@@ -795,92 +796,32 @@ class GlobalSocketManager {
                 return;
             }
 
-            console.log("✅ Browser supports notifications");
-
-            // Debug browser and document state
-            console.log("🔍 Browser state debug:", {
-                userAgent: navigator.userAgent,
-                documentHidden: document.hidden,
-                documentVisibilityState: document.visibilityState,
-                hasFocus: document.hasFocus(),
-                notificationPermission: Notification.permission,
-                location: window.location.href,
-            });
-
             const caller = callData.isGroup ? callData.groupName : callData.fromUsername;
             const callType = callData.isVideo ? "Video" : "Voice";
 
-            // Function to create the notification
+            // Function to create the notification (simplified like call_ended)
             const createNotification = (): void => {
                 try {
-                    console.log("🔔 Creating desktop notification with details:", {
-                        title: `Incoming ${callType} Call`,
-                        body: `${caller} is calling... (Click to answer)`,
-                        permission: Notification.permission,
-                    });
+                    console.log("🔔 Creating incoming call desktop notification");
 
                     // Close any existing desktop notification first
                     if (this.currentDesktopNotification) {
-                        console.log("🗑️ Closing existing desktop notification before creating new one");
                         this.currentDesktopNotification.close();
                         this.currentDesktopNotification = null;
                     }
 
-                    const notificationOptions: NotificationOptions = {
+                    // Create simple notification like the working call_ended pattern
+                    const notification = new Notification(`Incoming ${callType} Call`, {
                         body: `${caller} is calling... (Click to answer)`,
-                        // Removed icon and badge to use browser defaults and avoid 404 errors
-                        tag: "incoming-call", // Prevent duplicate notifications
-                        requireInteraction: true, // Keep notification visible until user interacts
-                        silent: false, // Allow system sound
-                    };
-
-                    console.log("🔔 Creating notification with options:", notificationOptions);
-
-                    const notification = new Notification(`Incoming ${callType} Call`, notificationOptions);
-
-                    console.log("🔔 Notification object created:", {
-                        title: notification.title,
-                        body: notification.body,
-                        tag: notification.tag,
-                        icon: notification.icon,
+                        icon: "/favicon.ico",
                     });
 
                     // Store reference to current notification
                     this.currentDesktopNotification = notification;
 
-                    // Handle notification show event
-                    notification.onshow = () => {
-                        console.log("✅ Desktop notification is now showing to user");
-                    };
-
-                    // Handle notification error
-                    notification.onerror = (error) => {
-                        console.error("❌ Desktop notification error:", error);
-                        this.currentDesktopNotification = null;
-                    };
-
-                    // Additional check: See if notification was created but possibly blocked
-                    setTimeout(() => {
-                        if (this.currentDesktopNotification === notification) {
-                            console.log("🔍 Notification still exists after 1 second, checking status");
-                            console.log("🔍 Notification properties:", {
-                                title: notification.title,
-                                body: notification.body,
-                                tag: notification.tag,
-                            });
-                            console.log("💡 If you don't see the notification, check:");
-                            console.log("   1. System notification settings (Windows/Mac)");
-                            console.log("   2. Browser notification settings");
-                            console.log("   3. Focus assist/Do not disturb mode");
-                            console.log("   4. Try running 'testDesktopNotification()' in console");
-                        } else {
-                            console.log("🔍 Notification reference lost after 1 second");
-                        }
-                    }, 1000);
-
-                    // Handle notification click (default action - focus window and accept call)
+                    // Handle notification click (focus window and accept call)
                     notification.onclick = () => {
-                        console.log("🔔 Desktop notification clicked - focusing window and accepting call");
+                        console.log("🔔 Desktop notification clicked - accepting call");
                         window.focus(); // Bring browser window to front
                         notification.close();
                         this.currentDesktopNotification = null;
@@ -892,54 +833,44 @@ class GlobalSocketManager {
                         this.handleAcceptIncomingCall(callData);
                     };
 
-                    // Handle notification close (when user dismisses without clicking)
+                    // Handle notification close
                     notification.onclose = () => {
                         console.log("🔔 Desktop notification closed");
                         this.currentDesktopNotification = null;
                     };
 
-                    // Auto-close notification after 30 seconds (same as in-tab notification)
+                    // Auto-close notification after 30 seconds
                     setTimeout(() => {
                         if (this.currentDesktopNotification === notification) {
                             console.log("⏰ Desktop notification auto-closing after 30 seconds");
                             notification.close();
                             this.currentDesktopNotification = null;
-                            // When auto-dismissing, handle it the same as timeout dismiss (no backend event)
+                            // Handle timeout dismiss (no backend event)
                             this.handleTimeoutDismiss(callData);
                         }
                     }, 30000);
 
-                    console.log("✅ Desktop notification created and configured successfully");
+                    console.log("✅ Incoming call desktop notification created successfully");
                 } catch (error) {
                     console.error("💥 Error creating desktop notification:", error);
                     this.currentDesktopNotification = null;
                 }
             };
 
-            // Check permission and create notification
-            console.log("🔍 Checking notification permission:", Notification.permission);
-
+            // Check permission and create notification (same pattern as call_ended)
             if (Notification.permission === "granted") {
-                console.log("✅ Permission already granted, creating notification immediately");
                 createNotification();
             } else if (Notification.permission !== "denied") {
-                // Request permission first
-                console.log("🔔 Requesting desktop notification permission (current:", Notification.permission, ")");
-                Notification.requestPermission()
-                    .then((permission) => {
-                        console.log("🔔 Permission request result:", permission);
-                        if (permission === "granted") {
-                            console.log("✅ Desktop notification permission granted, creating notification");
-                            createNotification();
-                        } else {
-                            console.warn("❌ Desktop notification permission denied by user:", permission);
-                        }
-                    })
-                    .catch((error) => {
-                        console.error("💥 Error requesting notification permission:", error);
-                    });
+                // Request permission and show notification if granted
+                Notification.requestPermission().then((permission) => {
+                    if (permission === "granted") {
+                        createNotification();
+                    } else {
+                        console.warn("❌ Desktop notification permission denied");
+                    }
+                });
             } else {
-                console.warn("❌ Desktop notifications are blocked by user (permission:", Notification.permission, ")");
+                console.warn("❌ Desktop notifications are blocked by user");
             }
         } catch (error) {
             console.warn("💥 Failed to show incoming call desktop notification:", error);
