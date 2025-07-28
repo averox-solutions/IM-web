@@ -90,9 +90,9 @@ export default class UploadConfirmDialog extends React.Component<IProps> {
         }
 
         let uploadAllButton: JSX.Element | undefined;
-        if (this.props.currentIndex + 1 < this.props.totalFiles) {
-            uploadAllButton = <button onClick={this.onUploadAllClick}>{_t("upload_file|upload_all_button")}</button>;
-        }
+        // if (this.props.currentIndex + 1 < this.props.totalFiles) {
+        //     uploadAllButton = <button onClick={this.onUploadAllClick}>{_t("upload_file|upload_all_button")}</button>;
+        // }
 
         return (
             <BaseDialog
@@ -114,14 +114,14 @@ export default class UploadConfirmDialog extends React.Component<IProps> {
                     </div>
                 </div>
 
-                <DialogButtons
+                {/* <DialogButtons
                     primaryButton={_t("action|upload")}
                     hasCancel={false}
                     onPrimaryButtonClick={this.onUploadClick}
                     focus={true}
                 >
                     {uploadAllButton}
-                </DialogButtons>
+                </DialogButtons> */}
             </BaseDialog>
         );
     }

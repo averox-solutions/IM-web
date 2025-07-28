@@ -163,6 +163,124 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
     public isBusy = (): boolean => !!this.state.busy || !!this.props.busy;
 
+    // public onPasswordLogin: OnPasswordLogin = async (
+    //     username: string | undefined,
+    //     phoneCountry: string | undefined,
+    //     phoneNumber: string | undefined,
+    //     password: string,
+    // ): Promise<void> => {
+    //     // Format username as @username:ms2.beep.gov.pk
+    //     let formattedUsername = username || "";
+    //     if (formattedUsername) {
+    //         if (!formattedUsername.startsWith("@")) {
+    //             formattedUsername = "@" + formattedUsername;
+    //         }
+    //         if (!formattedUsername.endsWith(":ms2.beep.gov.pk")) {
+    //             formattedUsername = formattedUsername.split(":")[0] + ":ms2.beep.gov.pk";
+    //         }
+    //         console.log("Login attempt for:", formattedUsername);
+    //     }
+    //     this.formattedUsername = formattedUsername;
+    
+    //     if (!this.state.serverIsAlive) {
+    //         this.setState({ busy: true });
+    //         try {
+    //             await AutoDiscoveryUtils.validateServerConfigWithStaticUrls(
+    //                 this.props.serverConfig.hsUrl,
+    //                 this.props.serverConfig.isUrl,
+    //             );
+    //             this.setState({ serverIsAlive: true, errorText: "" });
+    //         } catch (e) {
+    //             const componentState = AutoDiscoveryUtils.authComponentStateForError(e);
+    //             this.setState({
+    //                 busy: false,
+    //                 busyLoggingIn: false,
+    //                 ...componentState,
+    //             });
+    //             if (componentState.serverErrorIsFatal) return;
+    //         }
+    //     }
+    
+    //     this.setState({
+    //         busy: true,
+    //         busyLoggingIn: true,
+    //         errorText: null,
+    //         loginIncorrect: false,
+    //     });
+    
+    //     this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
+    //         async (data) => {
+    //             this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
+    //             this.loginCreds = data;
+    
+    //             const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
+    
+    //             try {
+    //                 // ✅ Step 1: Check 2FA Status
+    //                 const statusResponse = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(formattedUsername)}`, {
+    //                     method: "GET",
+    //                     headers: {
+    //                         "api-key": TWO_FA_API_KEY,
+    //                         "Content-Type": "application/json",
+    //                     },
+    //                 });
+    
+    //                 const statusResult = await statusResponse.json();
+    //                 if (!statusResponse.ok) throw new Error(statusResult?.error || "Failed to check 2FA status");
+    
+    //                 const { isConfigured, isEnabled } = statusResult;
+    
+    //                 if (!isConfigured) {
+    //                     // ✅ Step 2: If not configured, generate 2FA setup
+    //                     const generateResponse = await fetch("https://em4.averox.com/2fa/generate", {
+    //                         method: "POST",
+    //                         headers: {
+    //                             "api-key": TWO_FA_API_KEY,
+    //                             "Content-Type": "application/json",
+    //                         },
+    //                         body: JSON.stringify({ username: formattedUsername }),
+    //                     });
+    
+    //                     const generateResult = await generateResponse.json();
+    //                     if (!generateResponse.ok) throw new Error(generateResult?.error || "Failed to initiate 2FA");
+    
+    //                     this.setState({
+    //                         show2FA: true,
+    //                         qr: generateResult.qr,
+    //                         secret: generateResult.secret,
+    //                         otpauthUrl: generateResult.otpauth_url,
+    //                         twoFAMessage: generateResult.message,
+    //                     });
+    //                 } else if (isConfigured && isEnabled) {
+    //                     // ✅ Step 3: Already configured and enabled → show verification
+    //                     this.setState({ show2FA: true, twoFAMessage: "Enter your 2FA code" });
+    //                 } else {
+    //                     // ✅ Step 4: Configured but disabled → skip 2FA
+    //                     this.props.onLoggedIn(this.loginCreds!);
+    //                 }
+    //             } catch (e) {
+    //                 this.setState({ errorText: "Failed to process 2FA. Please try again." });
+    //             }
+    //         },
+    //         (error) => {
+    //             if (this.unmounted) return;
+    
+    //             let errorText: ReactNode;
+    //             if (error.httpStatus === 400 && username && username.indexOf("@") > 0) {
+    //                 errorText = _t("auth|unsupported_auth_email");
+    //             } else {
+    //                 errorText = messageForLoginError(error, this.props.serverConfig);
+    //             }
+    
+    //             this.setState({
+    //                 busy: false,
+    //                 busyLoggingIn: false,
+    //                 errorText,
+    //                 loginIncorrect: error.httpStatus === 401 || error.httpStatus === 403,
+    //             });
+    //         },
+    //     );
+    // };
     public onPasswordLogin: OnPasswordLogin = async (
         username: string | undefined,
         phoneCountry: string | undefined,
@@ -209,58 +327,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         });
     
         this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
-            async (data) => {
+            (data) => {
                 this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
                 this.loginCreds = data;
     
-                const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
-    
-                try {
-                    // ✅ Step 1: Check 2FA Status
-                    const statusResponse = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(formattedUsername)}`, {
-                        method: "GET",
-                        headers: {
-                            "api-key": TWO_FA_API_KEY,
-                            "Content-Type": "application/json",
-                        },
-                    });
-    
-                    const statusResult = await statusResponse.json();
-                    if (!statusResponse.ok) throw new Error(statusResult?.error || "Failed to check 2FA status");
-    
-                    const { isConfigured, isEnabled } = statusResult;
-    
-                    if (!isConfigured) {
-                        // ✅ Step 2: If not configured, generate 2FA setup
-                        const generateResponse = await fetch("https://em4.averox.com/2fa/generate", {
-                            method: "POST",
-                            headers: {
-                                "api-key": TWO_FA_API_KEY,
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({ username: formattedUsername }),
-                        });
-    
-                        const generateResult = await generateResponse.json();
-                        if (!generateResponse.ok) throw new Error(generateResult?.error || "Failed to initiate 2FA");
-    
-                        this.setState({
-                            show2FA: true,
-                            qr: generateResult.qr,
-                            secret: generateResult.secret,
-                            otpauthUrl: generateResult.otpauth_url,
-                            twoFAMessage: generateResult.message,
-                        });
-                    } else if (isConfigured && isEnabled) {
-                        // ✅ Step 3: Already configured and enabled → show verification
-                        this.setState({ show2FA: true, twoFAMessage: "Enter your 2FA code" });
-                    } else {
-                        // ✅ Step 4: Configured but disabled → skip 2FA
-                        this.props.onLoggedIn(this.loginCreds!);
-                    }
-                } catch (e) {
-                    this.setState({ errorText: "Failed to process 2FA. Please try again." });
-                }
+                // ✅ Directly log in without 2FA
+                this.props.onLoggedIn(this.loginCreds!);
             },
             (error) => {
                 if (this.unmounted) return;
