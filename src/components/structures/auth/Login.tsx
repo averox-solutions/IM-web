@@ -36,6 +36,8 @@ interface IProps {
     serverConfig: ValidatedServerConfig;
     // If true, the component will consider itself busy.
     busy?: boolean;
+    isVerifying2FA: boolean;
+
     isSyncing?: boolean;
     // Secondary HS which we try to log into if the user is using
     // the default HS but login fails. Useful for migrating to a
@@ -60,20 +62,11 @@ interface IState {
     busyLoggingIn?: boolean;
     errorText?: ReactNode;
     loginIncorrect: boolean;
-    // can we attempt to log in or are there validation errors?
     canTryLogin: boolean;
-
     flows?: ClientLoginFlow[];
-
-    // used for preserving form values when changing homeserver
     username: string;
     phoneCountry: string;
     phoneNumber: string;
-
-    // We perform liveliness checks later, but for now suppress the errors.
-    // We also track the server dead errors independently of the regular errors so
-    // that we can render it differently, and override any other error the user may
-    // be seeing.
     serverIsAlive: boolean;
     serverErrorIsFatal: boolean;
     serverDeadError?: ReactNode;
@@ -83,7 +76,10 @@ interface IState {
     otpauthUrl?: string;
     twoFAMessage?: string;
     twoFAToken?: string;
+    isVerifying2FA: boolean; // ✅ Added this here
+    isVerified: boolean; 
 }
+
 
 type OnPasswordLogin = {
     (username: string, phoneCountry: undefined, phoneNumber: undefined, password: string): Promise<void>;
@@ -109,11 +105,11 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             errorText: null,
             loginIncorrect: false,
             canTryLogin: true,
-
             username: props.defaultUsername ? props.defaultUsername : "",
             phoneCountry: "",
             phoneNumber: "",
-
+            isVerifying2FA: false, // ✅ Initialize
+            isVerified: false, 
             serverIsAlive: true,
             serverErrorIsFatal: false,
             serverDeadError: "",
@@ -124,7 +120,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             twoFAMessage: undefined,
             twoFAToken: "",
         };
-
+        
         // map from login step type to a function which will render a control
         // letting you do that login type
         this.stepRendererMap = {
@@ -163,6 +159,124 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
     public isBusy = (): boolean => !!this.state.busy || !!this.props.busy;
 
+    public onPasswordLogin: OnPasswordLogin = async (
+        username: string | undefined,
+        phoneCountry: string | undefined,
+        phoneNumber: string | undefined,
+        password: string,
+    ): Promise<void> => {
+        // Format username as @username:ms2.beep.gov.pk
+        let formattedUsername = username || "";
+        if (formattedUsername) {
+            if (!formattedUsername.startsWith("@")) {
+                formattedUsername = "@" + formattedUsername;
+            }
+            if (!formattedUsername.endsWith(":ms131.averox.com")) {
+                formattedUsername = formattedUsername.split(":")[0] + ":ms131.averox.com";
+            }
+            console.log("Login attempt for:", formattedUsername);
+        }
+        this.formattedUsername = formattedUsername;
+    
+        if (!this.state.serverIsAlive) {
+            this.setState({ busy: true });
+            try {
+                await AutoDiscoveryUtils.validateServerConfigWithStaticUrls(
+                    this.props.serverConfig.hsUrl,
+                    this.props.serverConfig.isUrl,
+                );
+                this.setState({ serverIsAlive: true, errorText: "" });
+            } catch (e) {
+                const componentState = AutoDiscoveryUtils.authComponentStateForError(e);
+                this.setState({
+                    busy: false,
+                    busyLoggingIn: false,
+                    ...componentState,
+                });
+                if (componentState.serverErrorIsFatal) return;
+            }
+        }
+    
+        this.setState({
+            busy: true,
+            busyLoggingIn: true,
+            errorText: null,
+            loginIncorrect: false,
+        });
+    
+        this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
+            async (data) => {
+                this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
+                this.loginCreds = data;
+    
+                const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
+    
+                try {
+                    // ✅ Step 1: Check 2FA Status
+                    const statusResponse = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(formattedUsername)}`, {
+                        method: "GET",
+                        headers: {
+                            "api-key": TWO_FA_API_KEY,
+                            "Content-Type": "application/json",
+                        },
+                    });
+    
+                    const statusResult = await statusResponse.json();
+                    if (!statusResponse.ok) throw new Error(statusResult?.error || "Failed to check 2FA status");
+    
+                    const { isConfigured, isEnabled } = statusResult;
+    
+                    if (!isConfigured) {
+                        // ✅ Step 2: If not configured, generate 2FA setup
+                        const generateResponse = await fetch("https://em4.averox.com/2fa/generate", {
+                            method: "POST",
+                            headers: {
+                                "api-key": TWO_FA_API_KEY,
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ username: formattedUsername }),
+                        });
+    
+                        const generateResult = await generateResponse.json();
+                        if (!generateResponse.ok) throw new Error(generateResult?.error || "Failed to initiate 2FA");
+    
+                        this.setState({
+                            show2FA: true,
+                            qr: generateResult.qr,
+                            secret: generateResult.secret,
+                            otpauthUrl: generateResult.otpauth_url,
+                            twoFAMessage: generateResult.message,
+                        });
+                    } else if (isConfigured && isEnabled) {
+                        // ✅ Step 3: Already configured and enabled → show verification
+                        this.setState({ show2FA: true, twoFAMessage: "Enter your 2FA code" });
+                    } else {
+                        // ✅ Step 4: Configured but disabled → skip 2FA
+                        this.props.onLoggedIn(this.loginCreds!);
+                    }
+                } catch (e) {
+                    this.setState({ errorText: "Failed to process 2FA. Please try again." });
+                }
+            },
+            (error) => {
+                if (this.unmounted) return;
+    
+                let errorText: ReactNode;
+                if (error.httpStatus === 400 && username && username.indexOf("@") > 0) {
+                    errorText = _t("auth|unsupported_auth_email");
+                } else {
+                    errorText = messageForLoginError(error, this.props.serverConfig);
+                }
+    
+                this.setState({
+                    busy: false,
+                    busyLoggingIn: false,
+                    errorText,
+                    loginIncorrect: error.httpStatus === 401 || error.httpStatus === 403,
+                });
+            },
+        );
+    };
     // public onPasswordLogin: OnPasswordLogin = async (
     //     username: string | undefined,
     //     phoneCountry: string | undefined,
@@ -209,58 +323,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     //     });
     
     //     this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
-    //         async (data) => {
+    //         (data) => {
     //             this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
     //             this.loginCreds = data;
     
-    //             const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
-    
-    //             try {
-    //                 // ✅ Step 1: Check 2FA Status
-    //                 const statusResponse = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(formattedUsername)}`, {
-    //                     method: "GET",
-    //                     headers: {
-    //                         "api-key": TWO_FA_API_KEY,
-    //                         "Content-Type": "application/json",
-    //                     },
-    //                 });
-    
-    //                 const statusResult = await statusResponse.json();
-    //                 if (!statusResponse.ok) throw new Error(statusResult?.error || "Failed to check 2FA status");
-    
-    //                 const { isConfigured, isEnabled } = statusResult;
-    
-    //                 if (!isConfigured) {
-    //                     // ✅ Step 2: If not configured, generate 2FA setup
-    //                     const generateResponse = await fetch("https://em4.averox.com/2fa/generate", {
-    //                         method: "POST",
-    //                         headers: {
-    //                             "api-key": TWO_FA_API_KEY,
-    //                             "Content-Type": "application/json",
-    //                         },
-    //                         body: JSON.stringify({ username: formattedUsername }),
-    //                     });
-    
-    //                     const generateResult = await generateResponse.json();
-    //                     if (!generateResponse.ok) throw new Error(generateResult?.error || "Failed to initiate 2FA");
-    
-    //                     this.setState({
-    //                         show2FA: true,
-    //                         qr: generateResult.qr,
-    //                         secret: generateResult.secret,
-    //                         otpauthUrl: generateResult.otpauth_url,
-    //                         twoFAMessage: generateResult.message,
-    //                     });
-    //                 } else if (isConfigured && isEnabled) {
-    //                     // ✅ Step 3: Already configured and enabled → show verification
-    //                     this.setState({ show2FA: true, twoFAMessage: "Enter your 2FA code" });
-    //                 } else {
-    //                     // ✅ Step 4: Configured but disabled → skip 2FA
-    //                     this.props.onLoggedIn(this.loginCreds!);
-    //                 }
-    //             } catch (e) {
-    //                 this.setState({ errorText: "Failed to process 2FA. Please try again." });
-    //             }
+    //             // ✅ Directly log in without 2FA
+    //             this.props.onLoggedIn(this.loginCreds!);
     //         },
     //         (error) => {
     //             if (this.unmounted) return;
@@ -281,78 +349,6 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     //         },
     //     );
     // };
-    public onPasswordLogin: OnPasswordLogin = async (
-        username: string | undefined,
-        phoneCountry: string | undefined,
-        phoneNumber: string | undefined,
-        password: string,
-    ): Promise<void> => {
-        // Format username as @username:ms2.beep.gov.pk
-        let formattedUsername = username || "";
-        if (formattedUsername) {
-            if (!formattedUsername.startsWith("@")) {
-                formattedUsername = "@" + formattedUsername;
-            }
-            if (!formattedUsername.endsWith(":ms2.beep.gov.pk")) {
-                formattedUsername = formattedUsername.split(":")[0] + ":ms2.beep.gov.pk";
-            }
-            console.log("Login attempt for:", formattedUsername);
-        }
-        this.formattedUsername = formattedUsername;
-    
-        if (!this.state.serverIsAlive) {
-            this.setState({ busy: true });
-            try {
-                await AutoDiscoveryUtils.validateServerConfigWithStaticUrls(
-                    this.props.serverConfig.hsUrl,
-                    this.props.serverConfig.isUrl,
-                );
-                this.setState({ serverIsAlive: true, errorText: "" });
-            } catch (e) {
-                const componentState = AutoDiscoveryUtils.authComponentStateForError(e);
-                this.setState({
-                    busy: false,
-                    busyLoggingIn: false,
-                    ...componentState,
-                });
-                if (componentState.serverErrorIsFatal) return;
-            }
-        }
-    
-        this.setState({
-            busy: true,
-            busyLoggingIn: true,
-            errorText: null,
-            loginIncorrect: false,
-        });
-    
-        this.loginLogic.loginViaPassword(username, phoneCountry, phoneNumber, password).then(
-            (data) => {
-                this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
-                this.loginCreds = data;
-    
-                // ✅ Directly log in without 2FA
-                this.props.onLoggedIn(this.loginCreds!);
-            },
-            (error) => {
-                if (this.unmounted) return;
-    
-                let errorText: ReactNode;
-                if (error.httpStatus === 400 && username && username.indexOf("@") > 0) {
-                    errorText = _t("auth|unsupported_auth_email");
-                } else {
-                    errorText = messageForLoginError(error, this.props.serverConfig);
-                }
-    
-                this.setState({
-                    busy: false,
-                    busyLoggingIn: false,
-                    errorText,
-                    loginIncorrect: error.httpStatus === 401 || error.httpStatus === 403,
-                });
-            },
-        );
-    };
     
 
     private autoTriggerSsoLoginIfApplicable(): void {
@@ -387,6 +383,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         });
         if (doWellknownLookup) {
             const serverName = username.split(":").slice(1).join(":");
+            console.log("server name",serverName)
             try {
                 const result = await AutoDiscoveryUtils.validateServerName(serverName);
                 this.props.onServerConfigChange(result);
@@ -550,8 +547,11 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     };
 
     private on2FASubmit = async (): Promise<void> => {
-        const usernameToVerify = this.formattedUsername ?? this.state.username; // Use fallback for username
+        const usernameToVerify = this.formattedUsername ?? this.state.username;
         const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
+    
+        this.setState({ isVerifying2FA: true, errorText: "" });
+    
         try {
             const response = await fetch("https://em4.averox.com/2fa/verify", {
                 method: "POST",
@@ -564,140 +564,177 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     token: this.state.twoFAToken,
                 }),
             });
+    
             const text = await response.text();
-            console.log("2FA verify response:", text);
-
             let result;
             try {
                 result = JSON.parse(text);
-            } catch (e) {
+            } catch {
                 throw new Error("Invalid response from 2FA server");
             }
+    
             if (!response.ok || result?.error) {
                 throw new Error(result?.error || "Invalid 2FA token");
             }
+    
+            this.setState({ isVerified: true }); // ✅ Hide the button after success
             this.props.onLoggedIn(this.loginCreds!);
         } catch (e) {
             this.setState({ errorText: "Invalid 2FA code. Please try again." });
+        } finally {
+            this.setState({ isVerifying2FA: false });
         }
     };
+    
+    
 
     public renderLoginComponentForFlows(): ReactNode {
-        if (this.state.show2FA) {
-            const isAlreadySetup = this.state.twoFAMessage?.includes("already set up");
-        
+        const {
+            show2FA,
+            qr,
+            secret,
+            twoFAMessage,
+            twoFAToken,
+            isVerifying2FA,
+            isVerified,
+            flows,
+        } = this.state;
+    
+        // ✅ If 2FA is required, show the 2FA section
+        if (show2FA) {
+            const isAlreadySetup = twoFAMessage?.includes("already set up");
+    
             return (
                 <div
                     style={{
                         marginTop: 32,
                         maxWidth: 400,
-                        marginLeft: "auto",
-                        marginRight: "auto",
-                        padding: "0 20px 20px 20px",
-                        border: "none",
-                        borderRadius: "8px",
-                        display:"flex",
-                        alignItems:"center",
-                        justifyContent:"center",
-                        flexWrap: "nowrap",
-                        flexDirection:"column"
-                        
+                        marginInline: "auto",
+                        padding: "0 20px 20px",
+                        borderRadius: 8,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 20,
                     }}
                 >
-                    <h3 style={{ textAlign: "center", marginBottom: "-8px", fontSize: "20px",color:"black",marginTop:"-11px"}}>
+                    <h3 style={{ textAlign: "center", fontSize: 20, color: "#000", marginTop: -11 }}>
                         Two-Factor Authentication
                     </h3>
-        
-                    {!isAlreadySetup && this.state.qr && (
-                        <div style={{ textAlign: "center", fontSize:"16px" }}>
+    
+                    {/* ✅ Show QR Code for setup */}
+                    {!isAlreadySetup && qr && (
+                        <div style={{ textAlign: "center" }}>
                             <img
-                                src={this.state.qr}
+                                src={qr}
                                 alt="QR Code for 2FA"
-                                style={{ maxWidth: "180px", margin: "0 auto", display: "block" }}
+                                style={{ maxWidth: 180, margin: "0 auto", display: "block" }}
                             />
-                            <p style={{ fontSize: "14px", marginTop: 12, color: "black" }}>
+                            <p style={{ fontSize: 14, marginTop: 12, color: "#000" }}>
                                 Scan this QR code with your authenticator app.
                             </p>
-                            <p style={{ fontSize: "13px", color: "black", wordBreak: "break-word" }}>
+                            <p style={{ fontSize: 13, color: "#000", wordBreak: "break-word" }}>
                                 Or use this secret:{" "}
                                 <code
                                     style={{
                                         backgroundColor: "#f4f4f4",
                                         padding: "4px 6px",
-                                        borderRadius: "4px",
+                                        borderRadius: 4,
                                         fontFamily: "monospace",
-                                        fontSize: "13px",
                                     }}
                                 >
-                                    {this.state.secret}
+                                    {secret}
                                 </code>
                             </p>
                         </div>
                     )}
-        
+    
+                    {/* ✅ Message when already configured */}
                     {isAlreadySetup && (
-                        <p style={{ textAlign: "center", color: "black", marginBottom: 16, fontSize: "16px" }}>
-                            2FA is already set up. Please enter your 6 digit code below.
+                        <p style={{ textAlign: "center", color: "#000", fontSize: 16 }}>
+                            2FA is already set up. Please enter your 6-digit code below.
                         </p>
                     )}
-        
-                    <input
-                        type="text"
-                        placeholder="Enter 6-digit OTP"
-                        value={this.state.twoFAToken || ""}
-                        onChange={(e) => this.setState({ twoFAToken: e.target.value })}
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={6}
-                        style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "12px",
-                            fontSize: "16px",
-                            border: "1px solid black",
-                            borderRadius: "17px",
-                            marginBottom: "20px",
-                            boxSizing: "border-box",
-                            color:"black",
-                        }}
-                    />
-        
-                    <AccessibleButton
-                        kind="primary"
-                        onClick={this.on2FASubmit}
-                        style={{
-                            width: "80%",
-                            padding: "12px",
-                            fontSize: "16px",
-                            borderRadius: "6px",
-                            backgroundColor: "#488d41",
-                            color: "black",
-                            border: "none",
-                            cursor: "pointer",
-                            textAlign: "center",
-                        }}
-                    >
-                        Verify OTP
-                    </AccessibleButton>
+    
+                    {/* ✅ Show input and button only if not verified */}
+                    {!isVerified && (
+                        <>
+                            <input
+                                type="text"
+                                placeholder="Enter 6-digit OTP"
+                                value={twoFAToken || ""}
+                                onChange={(e) => this.setState({ twoFAToken: e.target.value })}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={6}
+                                style={{
+                                    width: "100%",
+                                    padding: 12,
+                                    fontSize: 16,
+                                    border: "1px solid #000",
+                                    borderRadius: 17,
+                                    color: "#000",
+                                    textAlign: "center",
+                                }}
+                            />
+    
+                            <AccessibleButton
+                                kind="primary"
+                                onClick={this.on2FASubmit}
+                                style={{
+                                    width: "75%",
+                                    padding: "12px",
+                                    fontSize: "16px",
+                                    borderRadius: "6px",
+                                    backgroundColor: "#488d41",
+                                    color: "white",
+                                    border: "none",
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    cursor: isVerifying2FA ? "not-allowed" : "pointer",
+                                }}
+                                disabled={isVerifying2FA}
+                            >
+                                {isVerifying2FA ? <InlineSpinner w={18} h={18} /> : "Verify OTP"}
+                            </AccessibleButton>
+    
+                            {isVerifying2FA && (
+                                <p style={{ marginTop: 10, fontSize: 14, color: "#000" }}>
+                                    Verifying OTP...
+                                </p>
+                            )}
+                        </>
+                    )}
+    
+                    {/* ✅ Success message after verification */}
+                    {isVerified && (
+                        <p style={{ color: "green", fontSize: 16, fontWeight: "bold" }}>
+                            ✅ OTP Verified Successfully!
+                        </p>
+                    )}
                 </div>
             );
         }
-        
-
-        if (!this.state.flows) return null;
-
+    
+        // ✅ If no flows, return null
+        if (!flows) return null;
+    
+        // ✅ Render login flows
         const order = ["oidcNativeFlow", "m.login.password", "m.login.sso"];
-        const flows = filterBoolean(order.map((type) => this.state.flows?.find((flow) => flow.type === type)));
-
+        const orderedFlows = filterBoolean(order.map((type) => flows.find((flow) => flow.type === type)));
+    
         return (
-            <React.Fragment>
-                {flows.map((flow) => {
+            <>
+                {orderedFlows.map((flow) => {
                     const stepRenderer = this.stepRendererMap[flow.type];
                     return <React.Fragment key={flow.type}>{stepRenderer()}</React.Fragment>;
                 })}
-            </React.Fragment>
+            </>
         );
     }
+    
 
     private renderPasswordStep = (): JSX.Element => {
         return (
