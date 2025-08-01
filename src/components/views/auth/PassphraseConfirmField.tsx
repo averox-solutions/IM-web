@@ -12,7 +12,7 @@ import Field, { type IInputProps } from "../elements/Field";
 import withValidation, { type IFieldState, type IValidationResult } from "../elements/Validation";
 import { _t, _td, type TranslationKey } from "../../../languageHandler";
 
-interface IProps extends Omit<IInputProps, "onValidate" | "label" | "element"> {
+interface IProps extends Omit<IInputProps, "onValidate" | "label" | "Beep Pakistan"> {
     id?: string;
     fieldRef?: RefCallback<Field> | RefObject<Field>;
     autoComplete?: string;

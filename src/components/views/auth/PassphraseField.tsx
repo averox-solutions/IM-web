@@ -16,7 +16,7 @@ import { _t, _td, type TranslationKey } from "../../../languageHandler";
 import Field, { type IInputProps } from "../elements/Field";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 
-interface IProps extends Omit<IInputProps, "onValidate" | "element"> {
+interface IProps extends Omit<IInputProps, "onValidate" | "Beep Pakistan"> {
     autoFocus?: boolean;
     id?: string;
     className?: string;

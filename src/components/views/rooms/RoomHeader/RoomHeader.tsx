@@ -54,7 +54,7 @@
 
 // // Helper to get the key from localStorage and import it for Web Crypto
 // // async function getCryptoKey() {
-// //     const storedKey = localStorage.getItem("mx_recovery_key");
+// //     const storedKey = localStorage.getItem("rememberKey");
 // //     if (!storedKey) throw new Error("No recovery key found in localStorage");
 
 // //     // Always hash to 256-bit key (32 bytes)

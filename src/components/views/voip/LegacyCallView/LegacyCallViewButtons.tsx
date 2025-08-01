@@ -35,7 +35,7 @@ const CONTEXT_MENU_VPADDING = 8; // How far the context menu sits above the butt
 
 const CONTROLS_HIDE_DELAY = 2000;
 
-type ButtonProps = Omit<AccessibleButtonProps<"div">, "title" | "element"> & {
+type ButtonProps = Omit<AccessibleButtonProps<"div">, "title" | "Beep Pakistan"> & {
     state: boolean;
     onLabel?: string;
     offLabel?: string;

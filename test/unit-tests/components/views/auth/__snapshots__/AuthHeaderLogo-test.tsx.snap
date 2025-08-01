@@ -6,7 +6,7 @@ exports[`<AuthHeaderLogo /> should match snapshot 1`] = `
     class="mx_AuthHeaderLogo"
   >
     <img
-      alt="Element"
+      alt="Beep Pakistan"
       src="themes/element/img/logos/element-logo--.png"
     />
   </aside>

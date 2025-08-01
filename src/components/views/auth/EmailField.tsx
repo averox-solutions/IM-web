@@ -13,7 +13,7 @@ import { _t, _td, type TranslationKey } from "../../../languageHandler";
 import withValidation, { type IFieldState, type IValidationResult } from "../elements/Validation";
 import * as Email from "../../../email";
 
-interface IProps extends Omit<IInputProps, "onValidate" | "element"> {
+interface IProps extends Omit<IInputProps, "onValidate" | "Beep Pakistan"> {
     id?: string;
     fieldRef?: RefCallback<Field> | RefObject<Field>;
     value: string;
