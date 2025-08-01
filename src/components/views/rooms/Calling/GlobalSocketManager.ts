@@ -810,27 +810,32 @@ class GlobalSocketManager {
                         this.currentDesktopNotification = null;
                     }
 
-                    // Create simple notification like the working call_ended pattern
-                    const notification = new Notification(`Incoming ${callType} Call`, {
-                        body: `${caller} is calling... (Click to answer)`,
+                    // Create notification with action buttons (fallback to simple notification)
+                    const notificationOptions: NotificationOptions = {
+                        body: `${caller} is calling...`,
                         icon: "/favicon.ico",
-                    });
+                        requireInteraction: true, // Keep notification until user interacts
+                        tag: "incoming-call", // Replace any existing call notifications
+                    };
+
+                    // Note: Action buttons require service worker notifications, not regular Notification constructor
+                    // For now, using simple notification that focuses window to show in-tab Accept/Decline
+                    notificationOptions.body = `${caller} is calling... Click to open tab and respond`;
+
+                    const notification = new Notification(`Incoming ${callType} Call`, notificationOptions);
 
                     // Store reference to current notification
                     this.currentDesktopNotification = notification;
 
-                    // Handle notification click (focus window and accept call)
+                    // Handle notification click (focus window to show Accept/Decline UI)
                     notification.onclick = () => {
-                        console.log("🔔 Desktop notification clicked - accepting call");
+                        console.log("🔔 Desktop notification clicked - focusing window to show Accept/Decline options");
                         window.focus(); // Bring browser window to front
                         notification.close();
                         this.currentDesktopNotification = null;
 
-                        // Stop ring sound
-                        LegacyCallHandler.instance.pause(AudioID.Ring);
-
-                        // Accept the call
-                        this.handleAcceptIncomingCall(callData);
+                        // Don't auto-accept - let user interact with in-tab notification
+                        // The in-tab notification should already be visible with proper Accept/Decline buttons
                     };
 
                     // Handle notification close

@@ -1508,17 +1508,27 @@ const normalizeDisplayName = (name: string): string => {
 };
 
 // WhatsApp-style Audio Call Component
-const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean }> = ({
+const AudioCallInterface: React.FC<{
+    isVideo: boolean;
+    permissionsReady: boolean;
+    onVideoToggle?: (enableVideo: boolean) => Promise<void>;
+    isTransitioning?: boolean;
+    globalCallTimer?: number;
+    isCallEstablished?: boolean;
+}> = ({
     isVideo,
     permissionsReady,
+    onVideoToggle,
+    isTransitioning = false,
+    globalCallTimer = 0,
+    isCallEstablished = false,
 }) => {
     const room = useRoomContext();
     const participants = useParticipants();
-    const [callTimer, setCallTimer] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
-    const callStartTime = useRef<number | null>(null);
     const callEstablished = useRef(false);
     const autoLeaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const callStartTimeLocal = useRef<number | null>(null);
     const isAutoEndingRef = useRef<boolean>(false);
 
     // Get all tracks for audio handling
@@ -1548,8 +1558,8 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
         if (!room) return;
 
         // Track call start time when we have exactly 1 participant (the caller)
-        if (participantCount === 1 && !callStartTime.current) {
-            callStartTime.current = Date.now();
+        if (participantCount === 1 && !callStartTimeLocal.current) {
+            callStartTimeLocal.current = Date.now();
             console.log("🎯 Audio call started - 30s no-answer timeout activated");
         }
 
@@ -1557,14 +1567,14 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
         if (participantCount >= 2) {
             if (!callEstablished.current) {
                 callEstablished.current = true;
-                callStartTime.current = null; // Clear no-answer timeout
+                callStartTimeLocal.current = null; // Clear no-answer timeout
                 console.log("🎯 Audio call established - multiple participants detected");
             }
         }
 
         // Scenario 1: No-answer timeout (30 seconds with only 1 participant)
-        if (participantCount === 1 && !callEstablished.current && callStartTime.current) {
-            const timeElapsed = Date.now() - callStartTime.current;
+        if (participantCount === 1 && !callEstablished.current && callStartTimeLocal.current) {
+            const timeElapsed = Date.now() - callStartTimeLocal.current;
             const remainingTime = 30000 - timeElapsed; // 30 seconds total
 
             if (remainingTime > 0) {
@@ -1632,25 +1642,7 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
         };
     }, []);
 
-    // Call timer effect - separate from auto-leave timer
-    useEffect(() => {
-        let timerStartTime: number | null = null;
-
-        if (participants.length >= 2) {
-            timerStartTime = Date.now();
-        }
-
-        const timer = setInterval(() => {
-            if (timerStartTime && participants.length >= 2) {
-                const elapsed = Math.floor((Date.now() - timerStartTime) / 1000);
-                setCallTimer(elapsed);
-            } else {
-                setCallTimer(0);
-            }
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [participants.length]);
+    // Use global call timer instead of local timer
 
     // Format timer display
     const formatTime = (seconds: number): string => {
@@ -1931,7 +1923,7 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
                             {isMuted && <span>🔇 </span>}
                             <span>{getStatusText()}</span>
                         </div>
-                        {callTimer > 0 && (
+                        {globalCallTimer > 0 && (
                             <div
                                 style={{
                                     fontSize: "18px",
@@ -1940,7 +1932,7 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
                                     opacity: 0.9,
                                 }}
                             >
-                                {formatTime(callTimer)}
+                                {formatTime(globalCallTimer)}
                             </div>
                         )}
                     </div>
@@ -1970,6 +1962,17 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
                             >
                                 {isMuted ? "🔇" : "🎙️"}
                             </button>
+
+                            {onVideoToggle && (
+                                <button
+                                    className={`audio-control-button group-call video-toggle ${isTransitioning ? "transitioning" : ""}`}
+                                    onClick={() => onVideoToggle(true)}
+                                    title={isTransitioning ? "Switching to video..." : "Turn on camera"}
+                                    disabled={isTransitioning}
+                                >
+                                    {isTransitioning ? "⏳" : "📹"}
+                                </button>
+                            )}
 
                             <button
                                 className={`audio-control-button group-call end-call ${!permissionsReady ? "permissions-pending" : ""}`}
@@ -2120,7 +2123,7 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
                 </div>
 
                 {/* Timer */}
-                {callTimer > 0 && <div className="audio-call-timer">{formatTime(callTimer)}</div>}
+                {globalCallTimer > 0 && <div className="audio-call-timer">{formatTime(globalCallTimer)}</div>}
 
                 {/* Controls */}
                 <div className="audio-call-controls">
@@ -2131,6 +2134,17 @@ const AudioCallInterface: React.FC<{ isVideo: boolean; permissionsReady: boolean
                     >
                         {isMuted ? "🔇" : "🎙️"}
                     </button>
+
+                    {onVideoToggle && (
+                        <button
+                            className={`audio-control-button video-toggle ${isTransitioning ? "transitioning" : ""}`}
+                            onClick={() => onVideoToggle(true)}
+                            title={isTransitioning ? "Switching to video..." : "Turn on camera"}
+                            disabled={isTransitioning}
+                        >
+                            {isTransitioning ? "⏳" : "📹"}
+                        </button>
+                    )}
 
                     <button
                         className={`audio-control-button end-call ${!permissionsReady ? "permissions-pending" : ""}`}
@@ -2198,6 +2212,98 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
     const participants = useParticipants();
     const currentCount = participants.length;
 
+    // Dynamic video mode state - allows switching from audio to video during call
+    const [isDynamicVideoMode, setIsDynamicVideoMode] = useState(isVideo);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Shared call timer state - persists across UI mode switches
+    const [callTimer, setCallTimer] = useState(0);
+    const callStartTimeGlobal = useRef<number | null>(null);
+    const callEstablishedGlobal = useRef(false);
+
+    // Detect if any participant has video enabled
+    const hasAnyVideoParticipant = participants.some((participant) => participant.isCameraEnabled === true);
+
+    // Determine if we should use video interface (any participant has video OR user toggled to video)
+    const shouldUseVideoInterface = isDynamicVideoMode || hasAnyVideoParticipant;
+
+    // Auto-reset dynamic video mode when local participant turns off camera via LiveKit controls
+    useEffect(() => {
+        const localParticipant = participants.find((p) => p.isLocal);
+        if (localParticipant && localParticipant.isCameraEnabled === false && isDynamicVideoMode) {
+            console.log("🔄 Local camera disabled via LiveKit - resetting dynamic video mode");
+            setIsDynamicVideoMode(false);
+        }
+    }, [participants, isDynamicVideoMode]);
+
+    // Debug logging for video state changes
+    useEffect(() => {
+        const videoParticipants = participants.filter((p) => p.isCameraEnabled === true);
+        console.log(
+            "🎥 Video participants:",
+            videoParticipants.map((p) => ({
+                name: p.name || p.identity,
+                isLocal: p.isLocal,
+                isCameraEnabled: p.isCameraEnabled,
+            })),
+        );
+        console.log(
+            `🎬 UI Mode: ${shouldUseVideoInterface ? "VIDEO" : "AUDIO"} (isDynamic: ${isDynamicVideoMode}, hasAnyVideo: ${hasAnyVideoParticipant})`,
+        );
+    }, [participants, isDynamicVideoMode, hasAnyVideoParticipant, shouldUseVideoInterface]);
+
+    // Global call timer that persists across UI mode switches
+    useEffect(() => {
+        if (!room) return;
+
+        // Start timer when call is established (2+ participants)
+        if (currentCount >= 2 && !callEstablishedGlobal.current) {
+            callEstablishedGlobal.current = true;
+            callStartTimeGlobal.current = Date.now();
+            console.log("🕐 Global call timer started");
+        }
+
+        // Update timer every second
+        const timer = setInterval(() => {
+            if (callEstablishedGlobal.current && callStartTimeGlobal.current) {
+                const elapsed = Math.floor((Date.now() - callStartTimeGlobal.current) / 1000);
+                setCallTimer(elapsed);
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [currentCount, room]);
+
+    // Handle dynamic video mode toggle
+    const handleVideoModeToggle = async (enableVideo: boolean): Promise<void> => {
+        if (!room || isTransitioning) return;
+
+        setIsTransitioning(true);
+        try {
+            if (enableVideo) {
+                // Enable camera for video mode
+                await room.localParticipant.setCameraEnabled(true);
+                console.log("📹 Camera enabled - switching to video mode");
+            } else {
+                // Disable camera for audio mode
+                await room.localParticipant.setCameraEnabled(false);
+                console.log("📹 Camera disabled - switching to audio mode");
+            }
+            setIsDynamicVideoMode(enableVideo);
+        } catch (error) {
+            console.error("Failed to toggle video mode:", error);
+        } finally {
+            setIsTransitioning(false);
+        }
+    };
+
+    // Track dynamic video mode changes for better UX
+    useEffect(() => {
+        if (isDynamicVideoMode !== isVideo) {
+            console.log(`🔄 Video mode changed: ${isVideo} → ${isDynamicVideoMode}`);
+        }
+    }, [isDynamicVideoMode, isVideo]);
+
     // Notify parent component about participant count changes
     useEffect(() => {
         // Dispatch custom event with participant count
@@ -2215,7 +2321,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
 
     // Get all tracks (video and audio) for proper audio/video handling
     // For video calls, explicitly exclude screen_share to prevent mobile screen issues
-    const allTracks = useTracks(isVideo ? ["camera", "microphone"] : ["microphone"], {
+    const allTracks = useTracks(shouldUseVideoInterface ? ["camera", "microphone"] : ["microphone"], {
         onlySubscribed: false,
     });
 
@@ -2251,7 +2357,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
             }
 
             // For video calls, prioritize camera tracks strictly
-            if (isVideo) {
+            if (shouldUseVideoInterface) {
                 // If we don't have this participant yet
                 if (!acc.find((t) => t.participant.sid === participantSid)) {
                     // Only add camera tracks for video calls - this prevents mobile screen issues
@@ -2716,11 +2822,25 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
 
     const isE2EEEnabled = room?.isE2EEEnabled;
 
-    // For audio calls, use the WhatsApp-style interface
-    if (!isVideo) {
+    // For audio calls, use the WhatsApp-style interface with video toggle capability
+    // Show audio interface only when NO participants have video enabled
+    if (!shouldUseVideoInterface) {
         return (
-            <div className="whatsapp-audio-call-container">
-                <AudioCallInterface isVideo={isVideo} permissionsReady={permissionsReady} />
+            <div
+                className={`whatsapp-audio-call-container ${isTransitioning ? "transitioning" : ""}`}
+                style={{
+                    transition: "all 0.3s ease-in-out",
+                    opacity: isTransitioning ? 0.7 : 1,
+                }}
+            >
+                <AudioCallInterface
+                    isVideo={isDynamicVideoMode}
+                    permissionsReady={permissionsReady}
+                    onVideoToggle={handleVideoModeToggle}
+                    isTransitioning={isTransitioning}
+                    globalCallTimer={callTimer}
+                    isCallEstablished={callEstablishedGlobal.current}
+                />
             </div>
         );
     }
@@ -2728,8 +2848,15 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
     // For video calls, use the existing grid interface
     return (
         <div
-            className="professional-video-room"
-            style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
+            className={`professional-video-room ${isTransitioning ? "transitioning" : ""}`}
+            style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                transition: "all 0.3s ease-in-out",
+                opacity: isTransitioning ? 0.7 : 1,
+            }}
         >
             {/* Professional Status Bar */}
             <div className="professional-status-bar">
@@ -3476,7 +3603,7 @@ export const VideoRoom = ({
             console.log("🎯 User chose to join ongoing call");
             setShowJoinConfirmation(false);
             setConnectionApproved(true);
-            
+
             // Immediately trigger connection for joining ongoing calls
             if (!connectCalled.current) {
                 connectCalled.current = true;
