@@ -474,6 +474,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                 fieldRef={(field) => (this[RegistrationField.Password] = field)}
                 minScore={PASSWORD_MIN_SCORE}
                 value={this.state.password}
+                maxLength={15} // ✅ Limit to 15 characters
                 onChange={this.onPasswordChange}
                 onValidate={this.onPasswordValidate}
                 userInputs={[this.state.username]}
@@ -481,6 +482,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             />
         );
     }
+    
 
     public renderPasswordConfirm(): JSX.Element {
         return (
@@ -490,12 +492,14 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                 autoComplete="new-password"
                 value={this.state.passwordConfirm}
                 password={this.state.password}
+                maxLength={15} // ✅ Limit to 15 characters
                 onChange={this.onPasswordConfirmChange}
                 onValidate={this.onPasswordConfirmValidate}
                 tooltipAlignment={this.tooltipAlignment()}
             />
         );
     }
+    
 
     public renderPhoneNumber(): ReactNode {
         if (!this.showPhoneNumber()) {
@@ -535,6 +539,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                 label={_t("common|username")}
                 placeholder={_t("common|username")}
                 value={this.state.username}
+                maxLength={15} // ✅ Limit to 15 characters
                 onChange={this.onUsernameChange}
                 onValidate={this.onUsernameValidate}
                 tooltipAlignment={this.tooltipAlignment()}
@@ -543,6 +548,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             />
         );
     }
+    
 
     public render(): ReactNode {
         const registerButton = (

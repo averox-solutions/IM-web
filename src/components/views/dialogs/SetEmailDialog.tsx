@@ -78,8 +78,13 @@ export default class SetEmailDialog extends React.Component<IProps, IState> {
                 logger.error("Unable to add email address " + emailAddress + " " + err);
                 Modal.createDialog(ErrorDialog, {
                     title: _t("settings|general|error_add_email"),
+<<<<<<< HEAD
                     description: _t("unable to add email please contact your administrator"),
+=======
+                    description: _t("Failed to set the email. Please contact your administrator."),
+>>>>>>> 7de3915fc6147bc37b274bf55066ffb5a292b75d
                 });
+                
             },
         );
         this.setState({ emailBusy: true });

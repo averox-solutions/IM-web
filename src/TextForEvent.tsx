@@ -180,13 +180,13 @@ function textForMemberEvent(
                     return () => _t("timeline|m.room.member|set_avatar", { senderName });
                 } else if (showHiddenEvents ?? SettingsStore.getValue("showHiddenEventsInTimeline")) {
                     // This is a null rejoin, it will only be visible if using 'show hidden events' (labs)
-                    return () => _t("timeline|m.room.member|no_change", { senderName });
+                    return () => _t(" ", { senderName });
                 } else {
                     return null;
                 }
             } else {
                 if (!ev.target) logger.warn("Join message has no target! -- " + ev.getContent().state_key);
-                return () => _t("timeline|m.room.member|join", { targetName });
+                return () => _t(" ", { targetName });
             }
         case KnownMembership.Leave:
             if (ev.getSender() === ev.getStateKey()) {
@@ -664,7 +664,7 @@ function textForPinnedEvent(event: MatrixEvent, client: MatrixClient, allowJSX: 
         );
     }
 
-    return () => _t("timeline|m.room.pinned_events|changed", { senderName });
+    return null;
 }
 
 function textForWidgetEvent(event: MatrixEvent): (() => string) | null {

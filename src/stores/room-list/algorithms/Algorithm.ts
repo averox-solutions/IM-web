@@ -434,8 +434,50 @@ export class Algorithm extends EventEmitter {
      * for each tag. May be empty, but never null/undefined.
      */
     public getOrderedRooms(): ITagMap {
-        return this._cachedStickyRooms || this.cachedRooms;
+        const roomsMap = this._cachedStickyRooms || this.cachedRooms;
+    
+        const filteredMap: ITagMap = {};
+        const archivedRooms: any[] = [];
+        const directRooms: any[] = [];
+    
+        const userIdPattern = /^@[^:]+:ms131\.averox\.com$/; // Matches @username:ms131.averox.com
+    
+        for (const [tag, rooms] of Object.entries(roomsMap)) {
+            filteredMap[tag] = rooms.filter(room => {
+                const name = room.name || "";
+    
+                // Exclude rooms where name includes "chat ended by"
+                if (name.toLowerCase().includes("chat ended by")) {
+                    return false;
+                }
+    
+                // If user left the room, move to archived
+                if (room.getMyMembership() === "leave") {
+                    archivedRooms.push(room);
+                    return false;
+                }
+    
+                // If name matches Matrix user ID pattern for ms131.averox.com
+                if (userIdPattern.test(name)) {
+                    directRooms.push(room);
+                }
+    
+                return true;
+            });
+        }
+    
+        // Add archived rooms under im.vector.fake.archived
+        filteredMap["im.vector.fake.archived"] = archivedRooms;
+    
+        // Add direct rooms under im.vector.fake.direct (ensure key exists)
+        filteredMap["im.vector.fake.direct"] = directRooms;
+    
+        return filteredMap;
     }
+    
+    
+    
+    
 
     /**
      * This returns the same as getOrderedRooms(), but without the sticky room

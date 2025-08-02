@@ -942,7 +942,7 @@ export default class ScrollPanel extends React.Component<IProps> {
                 wrappedRef={this.collectScroll}
                 onScroll={this.onScroll}
                 className={`mx_ScrollPanel ${this.props.className}`}
-                style={this.props.style}
+                // style={this.props.style}
             >
                 {this.props.fixedChildren}
                 <div className="mx_RoomView_messageListWrapper">

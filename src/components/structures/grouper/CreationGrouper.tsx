@@ -123,9 +123,9 @@ export class CreationGrouper extends BaseGrouper {
         const roomId = ev.getRoomId();
         const creator = ev.sender?.name ?? ev.getSender();
         if (roomId && DMRoomMap.shared().getUserIdForRoomId(roomId)) {
-            summaryText = _t("timeline|creation_summary_dm", { creator });
+            summaryText = _t(" ", { creator });
         } else {
-            summaryText = _t("timeline|creation_summary_room", { creator });
+            summaryText = _t(" ", { creator });
         }
 
         ret.push(<NewRoomIntro key="newroomintro" />);

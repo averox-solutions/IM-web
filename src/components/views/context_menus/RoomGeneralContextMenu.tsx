@@ -296,13 +296,17 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                         {favoriteOption}
                         {lowPriorityOption}
                         {inviteOption}
+<<<<<<< HEAD
                         {/* {copyLinkOption} */}
+=======
+                        {copyLinkOption}
+>>>>>>> 7de3915fc6147bc37b274bf55066ffb5a292b75d
                         {/* {settingsOption} */}
                     </>
                 )}
                 {developerToolsOption}
             </IconizedContextMenuOptionList>
-            <IconizedContextMenuOptionList red>{leaveOption}</IconizedContextMenuOptionList>
+            {/* <IconizedContextMenuOptionList red>{leaveOption}</IconizedContextMenuOptionList> */}
         </IconizedContextMenu>
     );
 };

@@ -1519,4 +1519,9 @@ export default class RoomList extends React.PureComponent<IProps, IState> {
             </RovingTabIndexProvider>
         );
     }
+<<<<<<< HEAD
 }
+=======
+}
+
+>>>>>>> 7de3915fc6147bc37b274bf55066ffb5a292b75d
