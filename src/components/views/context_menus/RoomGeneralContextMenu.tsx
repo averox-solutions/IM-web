@@ -302,7 +302,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                 )}
                 {developerToolsOption}
             </IconizedContextMenuOptionList>
-            {/* <IconizedContextMenuOptionList red>{leaveOption}</IconizedContextMenuOptionList> */}
+            <IconizedContextMenuOptionList red>{leaveOption}</IconizedContextMenuOptionList>
         </IconizedContextMenu>
     );
 };
