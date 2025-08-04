@@ -136,9 +136,13 @@ export default async function createRoom(client: MatrixClient, opts: IOpts): Pro
             }
         }
     }
-    if (opts.dmUserId && createOpts.is_direct === undefined) {
-        createOpts.is_direct = true;
-    }
+// Force DMs to always have is_direct and correct preset
+if (opts.dmUserId) {
+    createOpts.is_direct = true; // Ensure it's marked as DM
+    createOpts.preset = Preset.TrustedPrivateChat; // Ensure proper DM preset
+}
+
+    
 
     if (opts.roomType) {
         createOpts.creation_content = {

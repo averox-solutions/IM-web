@@ -87,8 +87,10 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
 
     public get orderedLists(): ITagMap {
         if (!this.algorithm) return {}; // No tags yet.
+        console.log('this is my order list algorithm', this.algorithm.getOrderedRooms());
         return this.algorithm.getOrderedRooms();
     }
+  
 
     // Intended for test usage
     public async resetStore(): Promise<void> {
@@ -136,7 +138,6 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
      */
     private handleRVSUpdate({ trigger = true }): void {
         if (!this.matrixClient) return; // We assume there won't be RVS updates without a client
-
         const activeRoomId = SdkContextClass.instance.roomViewStore.getRoomId();
         if (!activeRoomId && this.algorithm.stickyRoom) {
             this.algorithm.setStickyRoom(null);

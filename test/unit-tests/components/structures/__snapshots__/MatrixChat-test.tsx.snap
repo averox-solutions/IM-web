@@ -249,7 +249,7 @@ exports[`<MatrixChat /> with a soft-logged-out session should show the soft-logo
             class="mx_AuthHeaderLogo"
           >
             <img
-              alt="Element"
+              alt="Beep Pakistan"
               src="themes/element/img/logos/element-logo--.png"
             />
           </aside>

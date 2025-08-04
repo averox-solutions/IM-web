@@ -6,7 +6,7 @@ exports[`<ErrorView /> should match snapshot 1`] = `
     class="mx_ErrorView cpd-theme-light"
   >
     <img
-      alt="Element"
+      alt="Beep Pakistan"
       class="mx_ErrorView_logo"
       height="160"
       src="themes/element/img/logos/element-logo--.jfif"
@@ -40,7 +40,7 @@ exports[`<UnsupportedBrowserView /> should match snapshot 1`] = `
     class="mx_ErrorView cpd-theme-light"
   >
     <img
-      alt="Element"
+      alt="Beep Pakistan"
       class="mx_ErrorView_logo"
       height="160"
       src="themes/element/img/logos/element-logo--.jfif"

@@ -14,7 +14,7 @@ import { OverflowMenuContext } from "./MessageComposerButtons";
 import { IconizedContextMenuOption } from "../context_menus/IconizedContextMenu";
 import { type Ref } from "../../../accessibility/roving/types";
 
-interface Props extends Omit<ButtonProps<"div">, "element"> {
+interface Props extends Omit<ButtonProps<"div">, "Beep Pakistan"> {
     inputRef?: Ref;
     title: string;
     iconClassName: string;

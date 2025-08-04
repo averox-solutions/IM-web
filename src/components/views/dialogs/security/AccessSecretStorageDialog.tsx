@@ -189,18 +189,27 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
 
     private onRecoveryKeyNext = async (ev: FormEvent<HTMLFormElement> | React.MouseEvent): Promise<void> => {
         ev.preventDefault();
-
+    
         if (!this.state.recoveryKeyValid) return;
-
+    
         this.setState({ keyMatches: null });
         const input = { recoveryKey: this.state.recoveryKey };
         const keyMatches = await this.props.checkPrivateKey(input);
         if (keyMatches) {
+            try {
+                // ✅ Save recovery key to localStorage
+                localStorage.setItem("rememberKey", this.state.recoveryKey);
+                console.log("Recovery key saved to localStorage.");
+            } catch (e) {
+                console.error("Failed to save recovery key to localStorage:", e);
+            }
+    
             this.props.onFinished(input);
         } else {
             this.setState({ keyMatches });
         }
     };
+    
 
     private onPassPhraseChange = (ev: ChangeEvent<HTMLInputElement>): void => {
         this.setState({

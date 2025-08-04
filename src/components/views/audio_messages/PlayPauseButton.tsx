@@ -13,7 +13,7 @@ import { _t } from "../../../languageHandler";
 import { type Playback, PlaybackState } from "../../../audio/Playback";
 import AccessibleButton, { type ButtonProps } from "../elements/AccessibleButton";
 
-type Props = Omit<ButtonProps<"div">, "title" | "onClick" | "disabled" | "element" | "ref"> & {
+type Props = Omit<ButtonProps<"div">, "title" | "onClick" | "disabled" | "Beep Pakistan" | "ref"> & {
     // Playback instance to manipulate. Cannot change during the component lifecycle.
     playback: Playback;
 

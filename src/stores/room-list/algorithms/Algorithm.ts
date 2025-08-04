@@ -433,9 +433,107 @@ export class Algorithm extends EventEmitter {
      * @returns {ITagMap} The cached list of rooms, ordered,
      * for each tag. May be empty, but never null/undefined.
      */
+    // public getOrderedRooms(): ITagMap {
+    //     const roomsMap = this._cachedStickyRooms || this.cachedRooms;
+    
+    //     const filteredMap: ITagMap = {};
+    //     const archivedRooms: any[] = [];
+    //     const directRooms: any[] = [];
+    
+    //     const userIdPattern = /^@[^:]+:ms131\.averox\.com$/; // Matches @username:ms131.averox.com
+    
+    //     for (const [tag, rooms] of Object.entries(roomsMap)) {
+    //         filteredMap[tag] = rooms.filter(room => {
+    //             const name = room.name || "";
+    
+    //             // Exclude rooms where name includes "chat ended by"
+    //             if (name.toLowerCase().includes("chat ended by")) {
+    //                 return false;
+    //             }
+    
+    //             // If user left the room, move to archived
+    //             if (room.getMyMembership() === "leave") {
+    //                 archivedRooms.push(room);
+    //                 return false;
+    //             }
+    
+    //             // If name matches Matrix user ID pattern for ms131.averox.com
+    //             if (userIdPattern.test(name)) {
+    //                 directRooms.push(room);
+    //             }
+    
+    //             return true;
+    //         });
+    //     }
+    
+    //     // Add archived rooms under im.vector.fake.archived
+    //     filteredMap["im.vector.fake.archived"] = archivedRooms;
+    
+    //     // Add direct rooms under im.vector.fake.direct (ensure key exists)
+    //     filteredMap["im.vector.fake.direct"] = directRooms;
+    
+    //     return filteredMap;
+    // }
     public getOrderedRooms(): ITagMap {
-        return this._cachedStickyRooms || this.cachedRooms;
+        const roomsMap = this._cachedStickyRooms || this.cachedRooms;
+    
+        const filteredMap: ITagMap = {};
+    
+        for (const [tag, rooms] of Object.entries(roomsMap)) {
+            filteredMap[tag] = rooms.filter(room => {
+                const name = room.name || "";
+    
+                // ✅ Keep only this logic: Exclude rooms where name includes "chat ended by"
+                if (name.toLowerCase().includes("chat ended by")) {
+                    return false;
+                }
+    
+                return true;
+            });
+        }
+    
+        return filteredMap;
     }
+    
+    
+    
+    // public getOrderedRooms(): ITagMap {
+    //     const roomsMap = this._cachedStickyRooms || this.cachedRooms;
+    
+    //     const filteredMap: ITagMap = {};
+    //     filteredMap["im.vector.fake.conferences"] = []; // Always include conferences list
+    
+    //     for (const [tag, rooms] of Object.entries(roomsMap)) {
+    //         // Initialize each tag in filteredMap
+    //         if (!filteredMap[tag]) filteredMap[tag] = [];
+    
+    //         for (const room of rooms) {
+    //             const name = room.name || "";
+    
+    //             // ✅ Exclude rooms where name includes "chat ended by"
+    //             if (name.toLowerCase().includes("chat ended by")) {
+    //                 continue;
+    //             }
+    
+    //             // ✅ Detect if it's a video room
+    //             const createEvent = room.currentState.getStateEvents("m.room.create", "");
+    //             const type = createEvent?.getContent()?.type;
+    //             const isVideoRoom = type === "org.matrix.msc3401.call";
+    
+    //             // ✅ If it's a video room, also add to conferences
+    //             if (isVideoRoom) {
+    //                 filteredMap["im.vector.fake.conferences"].push(room);
+    //             }
+    
+    //             // ✅ Always keep the room in its original tag
+    //             filteredMap[tag].push(room);
+    //         }
+    //     }
+    
+    //     return filteredMap;
+    // }
+    
+    
 
     /**
      * This returns the same as getOrderedRooms(), but without the sticky room

@@ -177,7 +177,7 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
     
         if (successful && this.recoveryKey?.encodedPrivateKey) {
             // Save to localStorage
-            localStorage.setItem("mx_recovery_key", this.recoveryKey.encodedPrivateKey);
+            localStorage.setItem("rememberKey", this.recoveryKey.encodedPrivateKey);
     
             this.setState({
                 copied: true,
@@ -191,7 +191,7 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
         const encodedKey = this.recoveryKey.encodedPrivateKey;
     
         // Save to localStorage
-        localStorage.setItem("mx_recovery_key", encodedKey);
+        localStorage.setItem("rememberKey", encodedKey);
     
         // Create and download file
         const blob = new Blob([encodedKey], {

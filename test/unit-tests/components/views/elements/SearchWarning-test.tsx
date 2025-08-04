@@ -16,7 +16,7 @@ describe("<SearchWarning />", () => {
     describe("with desktop builds available", () => {
         beforeEach(() => {
             SdkConfig.put({
-                brand: "Element",
+                brand: "Beep Pakistan",
                 desktop_builds: {
                     available: true,
                     logo: "https://logo",

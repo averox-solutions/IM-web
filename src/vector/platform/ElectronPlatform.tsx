@@ -390,7 +390,7 @@ export default class ElectronPlatform extends BasePlatform {
 
     public getSSOCallbackUrl(fragmentAfterLogin?: string): URL {
         const url = super.getSSOCallbackUrl(fragmentAfterLogin);
-        url.protocol = "element";
+        url.protocol = "Beep Pakistan";
         url.searchParams.set(SSO_ID_KEY, this.ssoID);
         return url;
     }

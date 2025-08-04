@@ -300,14 +300,23 @@ class GlobalSocketManager {
             },
         });
 
-        // Only start ring sound if notification was successfully created
+        // Only start ring sound if notification was successfully created AND user is not already in a call
         if (notificationId) {
-            console.log("🔊 Starting ring sound for incoming LiveKit call (notification shown successfully)");
-            LegacyCallHandler.instance.play(AudioID.Ring).catch((error) => {
-                console.warn("Failed to play ring sound:", error);
-            });
-
-            console.log("📤 GlobalSocketManager showed incoming LiveKit call notification:", notificationId);
+            // Double-check that user is not in an active call before playing ringtone
+            if (this.isUserInActiveCall()) {
+                console.log("🚫 User is already in an active call - not playing ringtone for incoming call");
+                // Still show notification but don't play sound
+                console.log(
+                    "📤 GlobalSocketManager showed incoming LiveKit call notification (silent):",
+                    notificationId,
+                );
+            } else {
+                console.log("🔊 Starting ring sound for incoming LiveKit call (notification shown successfully)");
+                LegacyCallHandler.instance.play(AudioID.Ring).catch((error) => {
+                    console.warn("Failed to play ring sound:", error);
+                });
+                console.log("📤 GlobalSocketManager showed incoming LiveKit call notification:", notificationId);
+            }
         } else {
             console.warn("❌ Failed to show notification, not playing ring sound");
         }
@@ -494,6 +503,31 @@ class GlobalSocketManager {
     };
 
     /**
+     * Check if user is currently in an active call
+     */
+    private isUserInActiveCall(): boolean {
+        // Check global call active state first (most reliable)
+        if ((window as any).getCallActiveState && (window as any).getCallActiveState()) {
+            return true;
+        }
+
+        // Fallback to DOM checks
+        // Check for active LiveKit call modals
+        const hasLiveKitModal =
+            document.querySelector(".mx_LiveKitCall_active") ||
+            document.body.classList.contains("mx_LiveKitCall_active");
+
+        // Check for active MediaSoup call modal
+        const hasMediaSoupModal =
+            document.querySelector(".mx_CallModal") || document.querySelector('[data-testid="call-modal"]');
+
+        // Check for any active call UI components
+        const hasActiveCallUI = document.querySelector(".lk-video-grid") || document.querySelector(".mx_CallView");
+
+        return !!(hasLiveKitModal || hasMediaSoupModal || hasActiveCallUI);
+    }
+
+    /**
      * Handle page visibility changes
      */
     private handleVisibilityChange = (): void => {
@@ -570,30 +604,7 @@ class GlobalSocketManager {
             });
 
             // Check if user is already in an active call - ignore new incoming calls
-            const isUserInActiveCall = (): boolean => {
-                // Check global call active state first (most reliable)
-                if ((window as any).getCallActiveState && (window as any).getCallActiveState()) {
-                    return true;
-                }
-
-                // Fallback to DOM checks
-                // Check for active LiveKit call modals
-                const hasLiveKitModal =
-                    document.querySelector(".mx_LiveKitCall_active") ||
-                    document.body.classList.contains("mx_LiveKitCall_active");
-
-                // Check for active MediaSoup call modal
-                const hasMediaSoupModal =
-                    document.querySelector(".mx_CallModal") || document.querySelector('[data-testid="call-modal"]');
-
-                // Check for any active call UI components
-                const hasActiveCallUI =
-                    document.querySelector(".lk-video-grid") || document.querySelector(".mx_CallView");
-
-                return !!(hasLiveKitModal || hasMediaSoupModal || hasActiveCallUI);
-            };
-
-            if (isUserInActiveCall()) {
+            if (this.isUserInActiveCall()) {
                 console.log("🚫 GlobalSocketManager: Ignoring incoming call - user is already in an active call:", {
                     roomId,
                     fromUsername,
@@ -708,11 +719,15 @@ class GlobalSocketManager {
         const caller = callData.isGroup ? callData.groupName : callData.fromUsername;
         const callType = callData.isVideo ? "Video" : "Voice";
 
-        // Start ring sound
-        console.log("🔊 Playing ring sound for fallback notification");
-        LegacyCallHandler.instance.play(AudioID.Ring).catch((error) => {
-            console.warn("Failed to play ring sound:", error);
-        });
+        // Only start ring sound if user is not already in an active call
+        if (this.isUserInActiveCall()) {
+            console.log("🚫 User is already in an active call - not playing ringtone for fallback notification");
+        } else {
+            console.log("🔊 Playing ring sound for fallback notification");
+            LegacyCallHandler.instance.play(AudioID.Ring).catch((error) => {
+                console.warn("Failed to play ring sound:", error);
+            });
+        }
 
         // Create simple notification
         const notification = document.createElement("div");
@@ -810,27 +825,32 @@ class GlobalSocketManager {
                         this.currentDesktopNotification = null;
                     }
 
-                    // Create simple notification like the working call_ended pattern
-                    const notification = new Notification(`Incoming ${callType} Call`, {
-                        body: `${caller} is calling... (Click to answer)`,
+                    // Create notification with action buttons (fallback to simple notification)
+                    const notificationOptions: NotificationOptions = {
+                        body: `${caller} is calling...`,
                         icon: "/favicon.ico",
-                    });
+                        requireInteraction: true, // Keep notification until user interacts
+                        tag: "incoming-call", // Replace any existing call notifications
+                    };
+
+                    // Note: Action buttons require service worker notifications, not regular Notification constructor
+                    // For now, using simple notification that focuses window to show in-tab Accept/Decline
+                    notificationOptions.body = `${caller} is calling... Click to open tab and respond`;
+
+                    const notification = new Notification(`Incoming ${callType} Call`, notificationOptions);
 
                     // Store reference to current notification
                     this.currentDesktopNotification = notification;
 
-                    // Handle notification click (focus window and accept call)
+                    // Handle notification click (focus window to show Accept/Decline UI)
                     notification.onclick = () => {
-                        console.log("🔔 Desktop notification clicked - accepting call");
+                        console.log("🔔 Desktop notification clicked - focusing window to show Accept/Decline options");
                         window.focus(); // Bring browser window to front
                         notification.close();
                         this.currentDesktopNotification = null;
 
-                        // Stop ring sound
-                        LegacyCallHandler.instance.pause(AudioID.Ring);
-
-                        // Accept the call
-                        this.handleAcceptIncomingCall(callData);
+                        // Don't auto-accept - let user interact with in-tab notification
+                        // The in-tab notification should already be visible with proper Accept/Decline buttons
                     };
 
                     // Handle notification close
