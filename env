@@ -1,5 +1,5 @@
-REACT_APP_BACKEND_URL="https://lk-130.averox.com"
-REACT_APP_LIVEKIT_SERVER_URL="wss://lk-130.averox.com/rtc/"
+REACT_APP_BACKEND_URL="https://lk-auth-im.averox.com"
+REACT_APP_LIVEKIT_SERVER_URL="wss://lk-auth-im.averox.com/rtc/"
 # REACT_APP_LIVEKIT_SERVER_URL="ws://localhost:7880"
 FIREBASE_API_KEY=AIzaSyCa7iThs1i072l94e4mkSfrduX351Nnz2Y
 FIREBASE_AUTH_DOMAIN=beep-ios-fe047.firebaseapp.com

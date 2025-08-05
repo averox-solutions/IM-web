@@ -561,40 +561,57 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         await this.startDm();
     };
 
+    // private startDm = async (): Promise<void> => {
+    //     this.setBusy(true);
+    
+    //     try {
+    //         const cli = MatrixClientPeg.safeGet();
+    //         const targets = this.convertFilter();
+    
+    //         for (const target of targets) {
+    //             if ("userId" in target) {
+    //                 try {
+    //                     const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
+    //                     console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
+    //                     console.log(`Is iOS platform:`, is_iOS);
+    
+    //                     // Send notification POST request
+    //                     await fetch("http://localhost:4000/send-notification", {
+    //                         method: "POST",
+    //                         headers: {
+    //                             "Content-Type": "application/json",
+    //                         },
+    //                         body: JSON.stringify({
+    //                             fcmToken: fcmtoken,
+    //                             notificationTitle: "Invitation",
+    //                             notificationBody: `You got invited by ${cli.getUserId()}`,
+    //                             badgeValue: 1,
+    //                             platform: is_iOS ? "ios" : "android",
+    //                         }),
+    //                     });
+    //                 } catch (fetchError) {
+    //                     logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
+    //                 }
+    //             }
+    //         }
+    
+    //         await startDmOnFirstMessage(cli, targets);
+    //         this.props.onFinished(true);
+    //     } catch (err) {
+    //         logger.error(err);
+    //         this.setState({
+    //             busy: false,
+    //             errorText: _t("invite|error_dm"),
+    //         });
+    //     }
+    // };
+
     private startDm = async (): Promise<void> => {
         this.setBusy(true);
-    
+
         try {
             const cli = MatrixClientPeg.safeGet();
             const targets = this.convertFilter();
-    
-            for (const target of targets) {
-                if ("userId" in target) {
-                    try {
-                        const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
-                        console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
-                        console.log(`Is iOS platform:`, is_iOS);
-    
-                        // Send notification POST request
-                        await fetch("http://localhost:4000/send-notification", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                fcmToken: fcmtoken,
-                                notificationTitle: "Invitation",
-                                notificationBody: `You got invited by ${cli.getUserId()}`,
-                                badgeValue: 1,
-                                platform: is_iOS ? "ios" : "android",
-                            }),
-                        });
-                    } catch (fetchError) {
-                        logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
-                    }
-                }
-            }
-    
             await startDmOnFirstMessage(cli, targets);
             this.props.onFinished(true);
         } catch (err) {
@@ -605,6 +622,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             });
         }
     };
+
     
 
     private setBusy(busy: boolean): void {
