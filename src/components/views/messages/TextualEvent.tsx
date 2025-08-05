@@ -41,7 +41,8 @@ export default class TextualEvent extends React.Component<IProps> {
             true,
             this.context?.showHiddenEvents,
         );
-        if (!text) return null;
-        return <div className="mx_TextualEvent">{text}</div>;
+        // if (!text) return null;
+        // return <div className="mx_TextualEvent">{text}</div>;
+        return null;
     }
 }

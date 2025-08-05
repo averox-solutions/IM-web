@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import { JoinRule, type Room } from "matrix-js-sdk/src/matrix";
+import { JoinRule, type Room, RoomEvent } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 import { isNullOrUndefined } from "matrix-js-sdk/src/utils";
 import { EventEmitter } from "events";
@@ -76,12 +76,100 @@ export class Algorithm extends EventEmitter {
      */
     public updatesInhibited = false;
 
+    /**
+     * Check if any room has a "chat ended by" name and trigger refresh if needed
+     */
+    private checkForChatEndedRooms(): void {
+        let hasChatEndedRoom = false;
+        
+        for (const room of this.rooms) {
+            const name = room.name || "";
+            if (name.toLowerCase().includes("chat ended by")) {
+                hasChatEndedRoom = true;
+                break;
+            }
+        }
+        
+        // If we found a chat ended room, trigger a refresh after a short delay
+        if (hasChatEndedRoom) {
+            this.scheduleChatEndedRefresh();
+        }
+    }
+
+    /**
+     * Debounced refresh trigger to prevent multiple rapid refreshes
+     */
+    private refreshTimeout: NodeJS.Timeout | null = null;
+    private scheduleChatEndedRefresh(): void {
+        // Clear any existing timeout to prevent multiple refreshes
+        if (this.refreshTimeout) {
+            clearTimeout(this.refreshTimeout);
+        }
+        
+        // Schedule a new refresh
+        this.refreshTimeout = setTimeout(() => {
+            this.triggerChatEndedRefresh();
+            this.refreshTimeout = null;
+        }, 1000); // 1 second delay to allow the name change to settle
+    }
+
+    /**
+     * Trigger a refresh to remove chat ended rooms
+     */
+    private triggerChatEndedRefresh(): void {
+        if (this.updatesInhibited) return;
+        
+        // Force a refresh by emitting the list updated event
+        this.emit(LIST_UPDATED_EVENT, true);
+        
+        logger.info("Triggered refresh due to chat ended room detection");
+    }
+
+    /**
+     * Setup listeners for room name changes
+     */
+    private setupRoomNameListeners(): void {
+        // Add listeners for existing rooms
+        for (const room of this.rooms) {
+            this.addRoomNameListener(room);
+        }
+    }
+
+    /**
+     * Add a listener for room name changes
+     */
+    private addRoomNameListener(room: Room): void {
+        room.on(RoomEvent.Name, this.onRoomNameChange);
+    }
+
+    /**
+     * Handle room name changes
+     */
+    private onRoomNameChange = (): void => {
+        // Check all rooms for chat ended names
+        this.checkForChatEndedRooms();
+    };
+
     public start(): void {
         CallStore.instance.on(CallStoreEvent.ConnectedCalls, this.onConnectedCalls);
+        
+        // Add room name change listeners for all rooms
+        this.setupRoomNameListeners();
     }
 
     public stop(): void {
         CallStore.instance.off(CallStoreEvent.ConnectedCalls, this.onConnectedCalls);
+        
+        // Remove room name listeners
+        for (const room of this.rooms) {
+            room.off(RoomEvent.Name, this.onRoomNameChange);
+        }
+        
+        // Clear any pending refresh timeout
+        if (this.refreshTimeout) {
+            clearTimeout(this.refreshTimeout);
+            this.refreshTimeout = null;
+        }
     }
 
     public get stickyRoom(): Room | null {
@@ -569,6 +657,11 @@ export class Algorithm extends EventEmitter {
 
         this.rooms = rooms;
 
+        // Add room name listeners for all rooms
+        for (const room of rooms) {
+            this.addRoomNameListener(room);
+        }
+
         const newTags: ITagMap = {};
         for (const tagId in this.sortAlgorithms) {
             // noinspection JSUnfilteredForInLoop
@@ -724,6 +817,15 @@ export class Algorithm extends EventEmitter {
     public handleRoomUpdate(room: Room, cause: RoomUpdateCause): boolean {
         if (!this.algorithms) throw new Error("Not ready: no algorithms to determine tags from");
 
+        // Check if room name changed to include "chat ended by"
+        if (cause === RoomUpdateCause.Timeline || cause === RoomUpdateCause.PossibleTagChange) {
+            const name = room.name || "";
+            if (name.toLowerCase().includes("chat ended by")) {
+                // Trigger a refresh after a short delay to remove the room
+                this.scheduleChatEndedRefresh();
+            }
+        }
+
         // Note: check the isSticky against the room ID just in case the reference is wrong
         const isSticky = this._stickyRoom?.room?.roomId === room.roomId;
         if (cause === RoomUpdateCause.NewRoom) {
@@ -768,6 +870,8 @@ export class Algorithm extends EventEmitter {
             // or if we know about the reference (as it should be replaced).
             if (cause === RoomUpdateCause.NewRoom && !isSticky && !knownRoomRef) {
                 this.rooms.push(room);
+                // Add room name listener for new room
+                this.addRoomNameListener(room);
             }
         }
 

@@ -38,7 +38,7 @@ import RightPanelStore from "./stores/right-panel/RightPanelStore";
 import { highlightEvent, isLocationEvent } from "./utils/EventUtils";
 import { ElementCall } from "./models/Call";
 import { getSenderName } from "./utils/event/getSenderName";
-import PosthogTrackers from "./PosthogTrackers.ts";
+import PosthogTrackers from "./PosthogTrackers";
 
 function getRoomMemberDisplayname(client: MatrixClient, event: MatrixEvent, userId = event.getSender()): string {
     const roomId = event.getRoomId();
@@ -129,7 +129,8 @@ function textForMemberEvent(
                     return () => _t("timeline|m.room.member|accepted_invite", { targetName });
                 }
             } else {
-                return () => _t("timeline|m.room.member|invite", { senderName, targetName });
+                // Show "sender invites" for invite events
+                return () => `${senderName} invites`;
             }
         }
         case KnownMembership.Ban:
@@ -180,23 +181,34 @@ function textForMemberEvent(
                     return () => _t("timeline|m.room.member|set_avatar", { senderName });
                 } else if (showHiddenEvents ?? SettingsStore.getValue("showHiddenEventsInTimeline")) {
                     // This is a null rejoin, it will only be visible if using 'show hidden events' (labs)
-                    return () => _t(" ", { senderName });
+                    return () => `${senderName} joined`;
                 } else {
                     return null;
                 }
             } else {
                 if (!ev.target) logger.warn("Join message has no target! -- " + ev.getContent().state_key);
-                return () => _t(" ", { targetName });
+                
+                // Check if this is the current user joining (sender === target)
+                const isCurrentUserJoining = ev.getSender() === ev.getStateKey();
+                
+                if (isCurrentUserJoining) {
+                    // Current user is joining - show "user joined"
+                    return () => `${targetName} joined`;
+                } else {
+                    // Someone else is joining - show "sender invites"
+                    return () => `${senderName} invites`;
+                }
             }
         case KnownMembership.Leave:
             if (ev.getSender() === ev.getStateKey()) {
                 if (prevContent.membership === KnownMembership.Invite) {
                     return () => _t("timeline|m.room.member|reject_invite", { targetName });
                 } else {
+                    // User is leaving - show "user left"
                     return () =>
                         reason
-                            ? _t("timeline|m.room.member|left_reason", { targetName, reason })
-                            : _t("timeline|m.room.member|left", { targetName });
+                            ? `${targetName} left: ${reason}`
+                            : `${targetName} left`;
                 }
             } else if (prevContent.membership === KnownMembership.Ban) {
                 return () => _t("timeline|m.room.member|unban", { senderName, targetName });
@@ -241,7 +253,6 @@ function textForTopicEvent(ev: MatrixEvent): (() => string) | null {
 }
 
 function textForRoomAvatarEvent(ev: MatrixEvent): (() => string) | null {
-    const senderDisplayName = ev?.sender?.name || ev.getSender();
     return null;
 }
 

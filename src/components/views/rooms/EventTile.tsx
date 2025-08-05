@@ -933,16 +933,19 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
             this.shouldHideEvent(),
         );
         const { isQuoteExpanded } = this.state;
+        
+        // Hide invite events from the timeline
+        if (isInfoMessage && eventType === "m.room.member" && this.props.mxEvent.getContent().membership === "invite") {
+            return null;
+        }
+        
         // This shouldn't happen: the caller should check we support this type
         // before trying to instantiate us
         if (!hasRenderer) {
             const { mxEvent } = this.props;
             logger.warn(`Event type not supported: type:${eventType} isState:${mxEvent.isState()}`);
-            return (
-                <div className="mx_EventTile mx_EventTile_info mx_MNoticeBody">
-                    <div className="mx_EventTile_line">{_t("timeline|error_no_renderer")}</div>
-                </div>
-            );
+            return null;
+        
         }
 
         const isProbablyMedia = MediaEventHelper.isEligible(this.props.mxEvent);
@@ -1069,16 +1072,16 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                 ![TimelineRenderingType.ThreadsList, TimelineRenderingType.Notification].includes(
                     this.context.timelineRenderingType,
                 );
-            avatar = (
-                <div className="mx_EventTile_avatar">
-                    <MemberAvatar
-                        member={member}
-                        size={avatarSize}
-                        viewUserOnClick={viewUserOnClick}
-                        forceHistorical={this.props.mxEvent.getType() === EventType.RoomMember}
-                    />
-                </div>
-            );
+            // avatar = (
+            //     <div className="mx_EventTile_avatar">
+            //         <MemberAvatar
+            //             member={member}
+            //             size={avatarSize}
+            //             viewUserOnClick={viewUserOnClick}
+            //             forceHistorical={this.props.mxEvent.getType() === EventType.RoomMember}
+            //         />
+            //     </div>
+            // );
         }
 
         if (needsSenderProfile && this.props.hideSender !== true) {
@@ -1335,13 +1338,13 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                                 forceDot={true}
                             />
                         </div>
-                        {isRenderingNotification && room ? (
+                        {/* {isRenderingNotification && room ? (
                             <div className="mx_EventTile_avatar">
                                 <RoomAvatar room={room} size="28px" />
                             </div>
                         ) : (
                             avatar
-                        )}
+                        )} */}
                         <div className={lineClasses} key="mx_EventTile_line">
                             <div className="mx_EventTile_body">
                                 {this.props.mxEvent.isRedacted() ? (

@@ -55,19 +55,19 @@ const CodeBlock: React.FC<Props> = ({ children, onHeightChanged }) => {
         );
     }
 
-    let lineNumbers: JSX.Element | undefined;
-    if (showCodeLineNumbers) {
-        // Calculate number of lines in pre
-        const number = children.innerHTML.replace(/\n(<\/code>)?$/, "").split(/\n/).length;
-        // Iterate through lines starting with 1 (number of the first line is 1)
-        lineNumbers = (
-            <span className="mx_EventTile_lineNumbers">
-                {Array.from({ length: number }, (_, i) => i + 1).map((i) => (
-                    <span key={i}>{i}</span>
-                ))}
-            </span>
-        );
-    }
+    // let lineNumbers: JSX.Element | undefined;
+    // if (showCodeLineNumbers) {
+    //     // Calculate number of lines in pre
+    //     const number = children.innerHTML.replace(/\n(<\/code>)?$/, "").split(/\n/).length;
+    //     // Iterate through lines starting with 1 (number of the first line is 1)
+    //     // lineNumbers = (
+    //     //     <span className="mx_EventTile_lineNumbers">
+    //     //         {Array.from({ length: number }, (_, i) => i + 1).map((i) => (
+    //     //             <span key={i}>{i}</span>
+    //     //         ))}
+    //     //     </span>
+    //     // );
+    // }
 
     async function highlightCode(div: HTMLElement | null): Promise<void> {
         const code = div?.getElementsByTagName("code")[0];

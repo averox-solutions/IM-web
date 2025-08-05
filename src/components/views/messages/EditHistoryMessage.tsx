@@ -192,16 +192,17 @@ export default class EditHistoryMessage extends React.PureComponent<IProps, ISta
             // Note: we keep the `sending` state class for tests, not for our styles
             mx_EventTile_sending: isSending,
         });
-        return (
-            <li>
-                <div className={classes}>
-                    <div className="mx_EventTile_line">
-                        <span className="mx_MessageTimestamp">{timestamp}</span>
-                        {contentContainer}
-                        {this.renderActionBar()}
-                    </div>
-                </div>
-            </li>
-        );
+        return null;
+        // (
+        //     // <li>
+        //     //     <div className={classes}>
+        //     //         <div className="mx_EventTile_line">
+        //     //             <span className="mx_MessageTimestamp">{timestamp}</span>
+        //     //             {contentContainer}
+        //     //             {this.renderActionBar()}
+        //     //         </div>
+        //     //     </div>
+        //     // </li>
+        // );
     }
 }
