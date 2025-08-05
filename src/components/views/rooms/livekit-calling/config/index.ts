@@ -18,8 +18,9 @@ export const GET_ROOM_KEY_ENDPOINT = `${LIVEKIT_API_BASE_URL}/room-key`;
 export const LIVEKIT_SERVER_CONFIG = {
     // These should be configured in your backend
     // defaultServerUrl: process.env.REACT_APP_LIVEKIT_SERVER_URL || "ws://localhost:7880",
-    defaultServerUrl: "wss://lk-130.averox.com/rtc",
+    defaultServerUrl: "wss://lk-auth-im.averox.com/rtc",
     // defaultServerUrl: "ws://localhost:7880",
     // Add other server configurations as needed
 };
+
 
