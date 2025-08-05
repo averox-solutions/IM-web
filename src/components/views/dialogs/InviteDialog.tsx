@@ -14,7 +14,7 @@ import { type MatrixCall } from "matrix-js-sdk/src/webrtc/call";
 import { logger } from "matrix-js-sdk/src/logger";
 import { uniqBy } from "lodash";
 import { CloseIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
-
+import { fetchUserTokenAndPlatform } from "../../../utils/userdetails";
 import { Icon as EmailPillAvatarIcon } from "../../../../res/img/icon-email-pill-avatar.svg";
 import { _t, _td } from "../../../languageHandler";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
@@ -563,10 +563,38 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
     private startDm = async (): Promise<void> => {
         this.setBusy(true);
-
+    
         try {
             const cli = MatrixClientPeg.safeGet();
             const targets = this.convertFilter();
+    
+            for (const target of targets) {
+                if ("userId" in target) {
+                    try {
+                        const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
+                        console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
+                        console.log(`Is iOS platform:`, is_iOS);
+    
+                        // Send notification POST request
+                        await fetch("http://localhost:4000/send-notification", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                fcmToken: fcmtoken,
+                                notificationTitle: "Invitation",
+                                notificationBody: `You got invited by ${cli.getUserId()}`,
+                                badgeValue: 1,
+                                platform: is_iOS ? "ios" : "android",
+                            }),
+                        });
+                    } catch (fetchError) {
+                        logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
+                    }
+                }
+            }
+    
             await startDmOnFirstMessage(cli, targets);
             this.props.onFinished(true);
         } catch (err) {
@@ -577,6 +605,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             });
         }
     };
+    
 
     private setBusy(busy: boolean): void {
         this.setState({
