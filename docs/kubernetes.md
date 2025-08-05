@@ -48,7 +48,7 @@ Then you can deploy it to your cluster with something like `kubectl apply -f my-
             "disable_guests": false,
             "disable_login_language_selector": false,
             "disable_3pid_login": false,
-            "brand": "Element",
+            "brand": "Beep Pakistan",
             "integrations_ui_url": "https://scalar.vector.im/",
             "integrations_rest_url": "https://scalar.vector.im/api",
             "integrations_widgets_urls": [

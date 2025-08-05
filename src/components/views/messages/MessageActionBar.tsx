@@ -552,6 +552,9 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
                     mx_MessageActionBar_expandCollapseMessageButton: true,
                 });
 
+                // COMMENTED OUT: Expand/collapse reply chain functionality
+                // This removes the "text and expand link" content from new chats
+                /*
                 toolbarOpts.push(
                     <RovingAccessibleButton
                         className={expandClassName}
@@ -568,6 +571,7 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
                         {this.props.isQuoteExpanded ? <CollapseMessageIcon /> : <ExpandMessageIcon />}
                     </RovingAccessibleButton>,
                 );
+                */
             }
 
             // The menu button should be last, so dump it there.

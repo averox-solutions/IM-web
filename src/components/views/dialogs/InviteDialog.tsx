@@ -14,7 +14,7 @@ import { type MatrixCall } from "matrix-js-sdk/src/webrtc/call";
 import { logger } from "matrix-js-sdk/src/logger";
 import { uniqBy } from "lodash";
 import { CloseIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
-
+import { fetchUserTokenAndPlatform } from "../../../utils/userdetails";
 import { Icon as EmailPillAvatarIcon } from "../../../../res/img/icon-email-pill-avatar.svg";
 import { _t, _td } from "../../../languageHandler";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
@@ -57,7 +57,7 @@ import {
     startDmOnFirstMessage,
     ThreepidMember,
 } from "../../../utils/direct-messages";
-import { InviteKind } from "./InviteDialogTypes";
+import { InviteKind, isDirectMessageInvite, isGroupInvite, isCallTransferInvite } from "./InviteDialogTypes";
 import Modal from "../../../Modal";
 import dis from "../../../dispatcher/dispatcher";
 import { privateShouldBeEncrypted } from "../../../utils/rooms";
@@ -303,7 +303,7 @@ interface InviteRoomProps extends BaseProps {
 }
 
 function isRoomInvite(props: Props): props is InviteRoomProps {
-    return props.kind === InviteKind.Invite;
+    return props.kind !== undefined && isGroupInvite(props.kind);
 }
 
 interface InviteCallProps extends BaseProps {
@@ -563,10 +563,38 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
     private startDm = async (): Promise<void> => {
         this.setBusy(true);
-
+    
         try {
             const cli = MatrixClientPeg.safeGet();
             const targets = this.convertFilter();
+    
+            for (const target of targets) {
+                if ("userId" in target) {
+                    try {
+                        const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
+                        console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
+                        console.log(`Is iOS platform:`, is_iOS);
+    
+                        // Send notification POST request
+                        await fetch("http://localhost:4000/send-notification", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                fcmToken: fcmtoken,
+                                notificationTitle: "Invitation",
+                                notificationBody: `You got invited by ${cli.getUserId()}`,
+                                badgeValue: 1,
+                                platform: is_iOS ? "ios" : "android",
+                            }),
+                        });
+                    } catch (fetchError) {
+                        logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
+                    }
+                }
+            }
+    
             await startDmOnFirstMessage(cli, targets);
             this.props.onFinished(true);
         } catch (err) {
@@ -577,6 +605,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             });
         }
     };
+    
 
     private setBusy(busy: boolean): void {
         this.setState({
@@ -1221,10 +1250,6 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         this.setState({ currentTabId: tabId });
     };
 
-    private async onLinkClick(e: React.MouseEvent<HTMLAnchorElement>): Promise<void> {
-        e.preventDefault();
-        selectText(e.currentTarget);
-    }
 
     private get screenName(): ScreenName | undefined {
         switch (this.props.kind) {
@@ -1292,7 +1317,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
         const cli = MatrixClientPeg.safeGet();
         const userId = cli.getUserId()!;
-        if (this.props.kind === InviteKind.Dm) {
+        if (this.props.kind && isDirectMessageInvite(this.props.kind)) {
             title = _t("space|add_existing_room_space|dm_heading");
 
             if (identityServersEnabled) {
@@ -1335,16 +1360,9 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             );
             const link = makeUserPermalink(MatrixClientPeg.safeGet().getSafeUserId());
             footer = (
-                <div className="mx_InviteDialog_footer">
-                    <h3>{_t("invite|send_link_prompt")}</h3>
-                    <CopyableText getTextToCopy={() => makeUserPermalink(MatrixClientPeg.safeGet().getSafeUserId())}>
-                        <a className="mx_InviteDialog_footer_link" href={link} onClick={this.onLinkClick}>
-                            {link}
-                        </a>
-                    </CopyableText>
-                </div>
+              <></>
             );
-        } else if (this.props.kind === InviteKind.Invite) {
+        } else if (this.props.kind && isGroupInvite(this.props.kind)) {
             const roomId = this.props.roomId;
             const room = MatrixClientPeg.get()?.getRoom(roomId);
             const isSpace = room?.isSpaceRoom();

@@ -1,86 +1,161 @@
-/*
-Copyright 2024 New Vector Ltd.
-Copyright 2022 The Matrix.org Foundation C.I.C.
+// // // /*
+// // // Copyright 2024 New Vector Ltd.
+// // // SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+// // // */
 
-SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
-Please see LICENSE files in the repository root for full details.
-*/
+// // // import { type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
+// // // import { type Optional } from "matrix-events-sdk";
+// // // import { Action } from "../../dispatcher/actions";
+// // // import { type ViewRoomPayload } from "../../dispatcher/payloads/ViewRoomPayload";
+// // // import { determineCreateRoomEncryptionOption, type Member } from "../direct-messages";
+// // // import { isLocalRoom } from "../localRoom/isLocalRoom";
+// // // import dis from "../../dispatcher/dispatcher";
+// // // import createRoom, { type IOpts } from "../../createRoom";
+// // // import { findDMForUser } from "./findDMForUser";
 
-import { type IInvite3PID, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
-import { type Optional } from "matrix-events-sdk";
+// // // /**
+// // //  * Starts a direct message room with a single target user.
+// // //  * Always enforces 1:1 behavior to avoid accidental group creation.
+// // //  *
+// // //  * @param client Matrix client instance
+// // //  * @param targets List of members to DM (only first is used)
+// // //  * @param showSpinner Whether to show loading spinner
+// // //  * @returns The created or existing room ID, or null on error
+// // //  */
+// // // export async function startDm(client: MatrixClient, targets: Member[], showSpinner = true): Promise<string | null> {
+// // //     const primaryTarget = targets[0].userId; // ✅ Always enforce single-user DM
 
-import { Action } from "../../dispatcher/actions";
-import { type ViewRoomPayload } from "../../dispatcher/payloads/ViewRoomPayload";
-import { determineCreateRoomEncryptionOption, type Member } from "../direct-messages";
-import DMRoomMap from "../DMRoomMap";
-import { isLocalRoom } from "../localRoom/isLocalRoom";
-import { findDMForUser } from "./findDMForUser";
-import dis from "../../dispatcher/dispatcher";
-import { getAddressType } from "../../UserAddress";
-import createRoom, { type IOpts } from "../../createRoom";
+// // //     // ✅ Reuse existing DM if found
+// // //     const existingRoom: Optional<Room> = findDMForUser(client, primaryTarget);
+// // //     if (existingRoom && !isLocalRoom(existingRoom)) {
+// // //         dis.dispatch<ViewRoomPayload>({
+// // //             action: Action.ViewRoom,
+// // //             room_id: existingRoom.roomId,
+// // //             should_peek: false,
+// // //             joining: false,
+// // //             metricsTrigger: "MessageUser",
+// // //         });
+// // //         return existingRoom.roomId;
+// // //     }
 
-/**
- * Start a DM.
- *
- * @returns {Promise<string | null} Resolves to the room id.
- */
-export async function startDm(client: MatrixClient, targets: Member[], showSpinner = true): Promise<string | null> {
-    const targetIds = targets.map((t) => t.userId);
+// // //     const createRoomOptions: IOpts = {
+// // //         inlineErrors: true,
+// // //         dmUserId: primaryTarget,
+// // //         spinner: showSpinner,
+// // //         createOpts: {
+// // //             invite: [primaryTarget], // ✅ Prevent multi-invite
+// // //         },
+// // //     };
 
-    // Check if there is already a DM with these people and reuse it if possible.
-    let existingRoom: Optional<Room>;
-    if (targetIds.length === 1) {
-        existingRoom = findDMForUser(client, targetIds[0]);
-    } else {
-        existingRoom = DMRoomMap.shared().getDMRoomForIdentifiers(targetIds) ?? undefined;
+// // //     // ✅ Add encryption if supported
+// // //     if (await determineCreateRoomEncryptionOption(client, [targets[0]])) {
+// // //         createRoomOptions.encryption = true;
+// // //     }
+
+// // //     return createRoom(client, createRoomOptions);
+// // // }
+// // import { MatrixClient } from "matrix-js-sdk/src/matrix";
+// // import { logger } from "matrix-js-sdk/src/logger";
+// // import { Member } from "../direct-messages";
+// // import { determineCreateRoomEncryptionOption } from "../direct-messages";
+
+// // export async function startDm(client: MatrixClient, targets: Member[], forceEncryption: boolean): Promise<string | null> {
+// //     const userIds = targets.map(t => t.userId);
+
+// //     let shouldEncrypt = forceEncryption;
+// //     if (!forceEncryption) {
+// //         shouldEncrypt = await determineCreateRoomEncryptionOption(client, targets);
+// //     }
+
+// //     const createOpts: any = {
+// //         invite: userIds,
+// //         is_direct: true,
+// //         preset: "trusted_private_chat",
+// //     };
+
+// //     if (shouldEncrypt) {
+// //         createOpts.initial_state = [{
+// //             type: "m.room.encryption",
+// //             state_key: "",
+// //             content: { algorithm: "m.megolm.v1.aes-sha2" },
+// //         }];
+// //     }
+
+// //     try {
+// //         const { room_id } = await client.createRoom(createOpts);
+// //         return room_id;
+// //     } catch (err) {
+// //         logger.error("Error creating DM room", err);
+// //         return null;
+// //     }
+// // }
+// import { MatrixClient } from "matrix-js-sdk/src/matrix";
+// import { logger } from "matrix-js-sdk/src/logger";
+// import { Member } from "../direct-messages";
+// import { determineCreateRoomEncryptionOption } from "../direct-messages";
+
+// export async function startDm(client: MatrixClient, targets: Member[], forceEncryption: boolean): Promise<string | null> {
+//     const userIds = targets.map(t => t.userId);
+
+//     let shouldEncrypt = forceEncryption;
+//     if (!forceEncryption) {
+//         shouldEncrypt = await determineCreateRoomEncryptionOption(client, targets);
+//     }
+
+//     const createOpts: any = {
+//         invite: userIds,
+//         is_direct: true,
+//         preset: "trusted_private_chat",
+//     };
+
+//     if (shouldEncrypt) {
+//         createOpts.initial_state = [{
+//             type: "m.room.encryption",
+//             state_key: "",
+//             content: { algorithm: "m.megolm.v1.aes-sha2" },
+//         }];
+//     }
+
+//     try {
+//         const { room_id } = await client.createRoom(createOpts);
+//         return room_id;
+//     } catch (err) {
+//         logger.error("Error creating DM room", err);
+//         return null;
+//     }
+// }
+import { MatrixClient } from "matrix-js-sdk/src/matrix";
+import { logger } from "matrix-js-sdk/src/logger";
+import { Member } from "../direct-messages";
+import { determineCreateRoomEncryptionOption } from "../direct-messages";
+
+export async function startDm(client: MatrixClient, targets: Member[], forceEncryption: boolean): Promise<string | null> {
+    const userIds = targets.map(t => t.userId);
+
+    let shouldEncrypt = forceEncryption;
+    if (!forceEncryption) {
+        shouldEncrypt = await determineCreateRoomEncryptionOption(client, targets);
     }
-    if (existingRoom && !isLocalRoom(existingRoom)) {
-        dis.dispatch<ViewRoomPayload>({
-            action: Action.ViewRoom,
-            room_id: existingRoom.roomId,
-            should_peek: false,
-            joining: false,
-            metricsTrigger: "MessageUser",
-        });
-        return Promise.resolve(existingRoom.roomId);
+
+    const createOpts: any = {
+        invite: userIds,
+        is_direct: true,
+        preset: "trusted_private_chat",
+    };
+
+    if (shouldEncrypt) {
+        createOpts.initial_state = [{
+            type: "m.room.encryption",
+            state_key: "",
+            content: { algorithm: "m.megolm.v1.aes-sha2" },
+        }];
     }
 
-    const createRoomOptions: IOpts = { inlineErrors: true };
-
-    if (await determineCreateRoomEncryptionOption(client, targets)) {
-        createRoomOptions.encryption = true;
+    try {
+        const { room_id } = await client.createRoom(createOpts);
+        return room_id;
+    } catch (err) {
+        logger.error("Error creating DM room", err);
+        return null;
     }
-
-    // Check if it's a traditional DM and create the room if required.
-    // TODO: [Canonical DMs] Remove this check and instead just create the multi-person DM
-    const isSelf = targetIds.length === 1 && targetIds[0] === client.getUserId();
-    if (targetIds.length === 1 && !isSelf) {
-        createRoomOptions.dmUserId = targetIds[0];
-    }
-
-    if (targetIds.length > 1) {
-        createRoomOptions.createOpts = targetIds.reduce<{
-            invite_3pid: IInvite3PID[];
-            invite: string[];
-        }>(
-            (roomOptions, address) => {
-                const type = getAddressType(address);
-                if (type === "email") {
-                    const invite: IInvite3PID = {
-                        id_server: client.getIdentityServerUrl(true)!,
-                        medium: "email",
-                        address,
-                    };
-                    roomOptions.invite_3pid.push(invite);
-                } else if (type === "mx-user-id") {
-                    roomOptions.invite.push(address);
-                }
-                return roomOptions;
-            },
-            { invite: [], invite_3pid: [] },
-        );
-    }
-
-    createRoomOptions.spinner = showSpinner;
-    return createRoom(client, createRoomOptions);
 }

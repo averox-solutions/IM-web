@@ -54,7 +54,7 @@
 
 // // Helper to get the key from localStorage and import it for Web Crypto
 // // async function getCryptoKey() {
-// //     const storedKey = localStorage.getItem("mx_recovery_key");
+// //     const storedKey = localStorage.getItem("rememberKey");
 // //     if (!storedKey) throw new Error("No recovery key found in localStorage");
 
 // //     // Always hash to 256-bit key (32 bytes)
@@ -1122,7 +1122,10 @@ import LiveKitRoomManager from "../livekit-calling/LiveKitRoomManager";
 import LegacyCallHandler, { AudioID } from "../../../../LegacyCallHandler";
 import { showToast } from "../Calling/notificationUtils";
 import CryptoJS from "crypto-js";
-
+import { VideoRoomChatButton } from "./VideoRoomChatButton.tsx";
+import { isVideoRoom as calcIsVideoRoom } from "../../../../utils/video-rooms.ts";
+import { MainSplitContentType } from "../../../structures/RoomView.tsx";
+import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
 
 
 // --- LOG CALL FUNCTION (AES-CBC, API POST) ---
@@ -1703,6 +1706,15 @@ export default function RoomHeader({
         };
     }, [isLiveKitCallActive, activeCallData]);
 
+    const roomContext = useScopedRoomContext("mainSplitContentType");
+    const isVideoRoom = calcIsVideoRoom(room);
+    const showChatButton =
+        isVideoRoom ||
+        roomContext.mainSplitContentType === MainSplitContentType.MaximisedWidget ||
+        roomContext.mainSplitContentType === MainSplitContentType.Call;
+
+
+     
     return (
         <>
             <CurrentRightPanelPhaseContextProvider roomId={room.roomId}>
@@ -1731,6 +1743,7 @@ export default function RoomHeader({
                     >
                         <Box flex="1" className="mx_RoomHeader_info">
                             <BodyText
+                            style={{color: "black"}}
                                 as="div"
                                 size="lg"
                                 weight="semibold"
@@ -1777,49 +1790,54 @@ export default function RoomHeader({
                         </Box>
                     </button>
 
-                    <button
-                        onClick={GroupCallVoice}
-                        disabled={isLiveKitCallActive || !!activeCallData}
-                        title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
-                        style={{
-                            backgroundColor: "rgb(72, 141, 65)",
-                            border: "none",
-                            borderRadius: "50%",
-                            width: "40px",
-                            height: "40px",
-                            padding: "8px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "background-color 0.2s ease, opacity 0.2s ease",
-                            cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                            opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                        }}
-                    >
-                        <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                    </button>
+                    {!showChatButton && (
+                            <>
+                                <button
+                                    onClick={GroupCallVoice}
+                                    disabled={isLiveKitCallActive || !!activeCallData}
+                                    title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
+                                    style={{
+                                        backgroundColor: "rgb(72, 141, 65)",
+                                        border: "none",
+                                        borderRadius: "50%",
+                                        width: "40px",
+                                        height: "40px",
+                                        padding: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        transition: "background-color 0.2s ease, opacity 0.2s ease",
+                                        cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+                                        opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+                                    }}
+                                >
+                                    <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                                </button>
 
-                    <button
-                        onClick={GroupCallVideo}
-                        disabled={isLiveKitCallActive || !!activeCallData}
-                        title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
-                        style={{
-                            backgroundColor: "rgb(72, 141, 65)",
-                            border: "none",
-                            borderRadius: "50%",
-                            width: "40px",
-                            height: "40px",
-                            padding: "8px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "background-color 0.2s ease, opacity 0.2s ease",
-                            cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                            opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                        }}
-                    >
-                        <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                    </button>
+                                <button
+                                    onClick={GroupCallVideo}
+                                    disabled={isLiveKitCallActive || !!activeCallData}
+                                    title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
+                                    style={{
+                                        backgroundColor: "rgb(72, 141, 65)",
+                                        border: "none",
+                                        borderRadius: "50%",
+                                        width: "40px",
+                                        height: "40px",
+                                        padding: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        transition: "background-color 0.2s ease, opacity 0.2s ease",
+                                        cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+                                        opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+                                    }}
+                                >
+                                    <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                                </button>
+                            </>
+                        )}
+
 
                     {notificationsEnabled && !allSamePowerLevel && (
                         <Tooltip label={_t("notifications|enable_prompt_toast_title")}>
@@ -1835,6 +1853,7 @@ export default function RoomHeader({
                             </IconButton>
                         </Tooltip>
                     )}
+                    {showChatButton && <VideoRoomChatButton room={room} />}
 
                     {/* Room Summary Button - hide or disable if restricted */}
                     {!allSamePowerLevel && (

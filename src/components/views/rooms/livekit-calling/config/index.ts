@@ -22,3 +22,5 @@ export const LIVEKIT_SERVER_CONFIG = {
     // defaultServerUrl: "ws://localhost:7880",
     // Add other server configurations as needed
 };
+
+

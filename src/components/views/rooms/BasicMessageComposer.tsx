@@ -385,6 +385,7 @@ export default class BasicMessageEditor extends React.Component<IProps, IState> 
         this.modifiedFlag = true;
         const sel = document.getSelection()!;
         const { caret, text } = getCaretOffsetAndText(this.editorRef.current, sel);
+        console.log("Message input:", text);
         this.props.model.update(text, event.inputType, caret);
     };
 

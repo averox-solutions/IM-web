@@ -15,7 +15,7 @@ import AccessibleButton, { type ButtonProps } from "../../elements/AccessibleBut
 
 type Props<T extends keyof HTMLElementTagNameMap> = Omit<
     ButtonProps<T>,
-    "aria-label" | "title" | "kind" | "className" | "element"
+    "aria-label" | "title" | "kind" | "className" | "Beep Pakistan"
 > & {
     isExpanded: boolean;
 };

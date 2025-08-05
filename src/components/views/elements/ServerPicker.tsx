@@ -93,6 +93,7 @@ const ServerPicker: React.FC<IProps> = ({ title, dialogTitle, serverConfig, onSe
             ) : null}
             <span className="mx_ServerPicker_server" title={typeof serverName === "string" ? serverName : undefined}>
                 {serverName}
+                
             </span>
             {editBtn}
             {desc}

@@ -186,13 +186,29 @@ const UploadButtonContextProvider: React.FC<IUploadButtonProps> = ({ roomId, rel
             onUploadClick();
         }
     });
+    function multiUploadButton(): ReactElement {
+        return <MultiUploadButton key="multi_upload" />;
+    }
+    
+
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
     const onUploadFileInputChange = (ev: React.ChangeEvent<HTMLInputElement>): void => {
         if (ev.target.files?.length === 0) return;
 
+        const files = Array.from(ev.target.files!);
+        const tooLarge = files.find(file => file.size > MAX_FILE_SIZE);
+        if (tooLarge) {
+            Modal.createDialog(ErrorDialog, {
+                title: _t("common|error"),
+                description: _t("File is too large. Maximum allowed size is 100MB."),
+            });
+            return;
+        }
+
         // Take a copy, so we can safely reset the value of the form control
         ContentMessages.sharedInstance().sendContentListToRoom(
-            Array.from(ev.target.files!),
+            files,
             roomId,
             relation,
             cli,
@@ -205,7 +221,25 @@ const UploadButtonContextProvider: React.FC<IUploadButtonProps> = ({ roomId, rel
         // NB. we need to set 'value': the 'files' property is immutable.
         ev.target.value = "";
     };
-
+    const MultiUploadButton: React.FC = () => {
+        const overflowMenuCloser = useContext(OverflowMenuContext);
+        const uploadButtonFn = useContext(UploadButtonContext);
+    
+        const onClick = (): void => {
+            uploadButtonFn?.(); // Triggers file input
+            overflowMenuCloser?.(); // Closes menu if open
+        };
+    
+        return (
+            <CollapsibleButton
+                className="mx_MessageComposer_button"
+                iconClassName="mx_MessageComposer_multiUpload"
+                onClick={onClick}
+                title={_t("composer|multi_attachment")} // New translation key for tooltip
+            />
+        );
+    };
+    
     const uploadInputStyle = { display: "none" };
     return (
         <UploadButtonContext.Provider value={onUploadClick}>
@@ -215,7 +249,7 @@ const UploadButtonContextProvider: React.FC<IUploadButtonProps> = ({ roomId, rel
                 ref={uploadInput}
                 type="file"
                 style={uploadInputStyle}
-                multiple
+                multiple // ✅ Allows multi-select
                 onClick={chromeFileInputFix}
                 onChange={onUploadFileInputChange}
             />

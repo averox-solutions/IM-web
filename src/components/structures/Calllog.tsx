@@ -72,7 +72,6 @@ export const Calllog = () => {
                 const fromUserId = log.fromUserId ? decryptValue(log.fromUserId, key, iv) : "";
                 const userCalledId = Array.isArray(log.userCalledId) ? decryptArray(log.userCalledId, key, iv) : [];
 
-                // Critical fields check
                 if (!date || !roomId || (!groupName && !fromUserId && userCalledId.length === 0)) {
                     hasError = true;
                 }
@@ -93,6 +92,8 @@ export const Calllog = () => {
                     userCalledId,
                 };
             });
+
+            decryptedLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
             setCallLogs(decryptedLogs.filter(Boolean));
         } catch (err) {
@@ -156,7 +157,6 @@ export const Calllog = () => {
 
                         const callTypeLabel = isVideoCall ? "Video" : "Voice";
                         const directionLabel = isIncoming ? "Incoming" : "Outgoing";
-                        const missedLabel = isMissedCall ? "Missed" : null;
 
                         return (
                             <li key={idx} className="mx_RoomTile" style={{ gap: "12px" }}>
@@ -190,7 +190,7 @@ export const Calllog = () => {
                                             {isGroupCall && (
                                                 <span style={{ marginRight: 8, color: "#488d41" }}>Group Call</span>
                                             )}
-                                            {missedLabel && (
+                                            {isMissedCall && (
                                                 <span
                                                     style={{
                                                         marginRight: 8,
@@ -205,14 +205,13 @@ export const Calllog = () => {
                                             <span style={{ marginLeft: 8 }}>{callTypeLabel}</span>
                                         </div>
                                     </div>
-                                    {/* <div className="call-type" style={{ display: "flex", gap: "7px" }}>
+                                    <div className="call-type" style={{ display: "flex", gap: "7px" }}>
                                         <span
                                             style={{
                                                 backgroundColor: isMissedCall ? "#d9534f" : "rgb(72, 141, 65)",
                                                 borderRadius: "50%",
-                                                width: "15px",
-                                                height: "15px",
-                                                padding: "8px",
+                                                width: "35px",
+                                                height: "35px",
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
@@ -224,7 +223,7 @@ export const Calllog = () => {
                                                 <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
                                             )}
                                         </span>
-                                    </div> */}
+                                    </div>
                                 </div>
                             </li>
                         );

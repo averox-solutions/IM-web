@@ -404,7 +404,7 @@ const AddThreepidSection: React.FC<{ medium: "email" | "msisdn"; disabled?: bool
                     addTask.current = undefined;
                     Modal.createDialog(ErrorDialog, {
                         title: medium === "email" ? _t("settings|general|error_add_email") : _t("common|error"),
-                        description: extractErrorMessageFromError(err, _t("invite|failed_generic")),
+                        description:  _t("unable to add email please contact your administrator"),
                     });
                 });
         },

@@ -17,7 +17,7 @@ zxcvbnOptions.setOptions({
     dictionary: {
         ...zxcvbnCommonPackage.dictionary,
         ...zxcvbnEnPackage.dictionary,
-        userInputs: ["riot", "matrix", "element", SdkConfig.get().brand],
+        userInputs: ["riot", "matrix", "Beep Pakistan", SdkConfig.get().brand],
     },
     graphs: zxcvbnCommonPackage.adjacencyGraphs,
     useLevenshteinDistance: true,
