@@ -389,6 +389,34 @@ export class MessageComposer extends React.Component<IProps, IState> {
         return true;
     };
 
+    // private sendMessage = async (): Promise<void> => {
+    //     if (this.state.haveRecording && this.voiceRecordingButton.current) {
+    //         // There shouldn't be any text message to send when a voice recording is active, so
+    //         // just send out the voice recording.
+    //         await this.voiceRecordingButton.current?.send();
+    //         return;
+    //     }
+
+    //     this.messageComposerInput.current?.sendMessage();
+
+    //     if (this.state.isWysiwygLabEnabled) {
+    //         const { relation, replyToEvent } = this.props;
+    //         const composerContent = this.state.composerContent;
+    //         this.setState({ composerContent: "", initialComposerContent: "" });
+    //         dis.dispatch({
+    //             action: Action.ClearAndFocusSendMessageComposer,
+    //             timelineRenderingType: this.context.timelineRenderingType,
+    //         });
+    //         await sendMessage(composerContent, this.state.isRichTextEnabled, {
+    //             mxClient: this.props.mxClient,
+    //             roomContext: this.context,
+    //             relation,
+    //             replyToEvent,
+    //         });
+    //     }
+    // };
+
+
     private sendMessage = async (): Promise<void> => {
         if (this.state.haveRecording && this.voiceRecordingButton.current) {
             // There shouldn't be any text message to send when a voice recording is active, so
@@ -396,12 +424,16 @@ export class MessageComposer extends React.Component<IProps, IState> {
             await this.voiceRecordingButton.current?.send();
             return;
         }
-
+    
         this.messageComposerInput.current?.sendMessage();
-
+    
         if (this.state.isWysiwygLabEnabled) {
             const { relation, replyToEvent } = this.props;
             const composerContent = this.state.composerContent;
+    
+            // Log the message content to the console
+            console.log("Message sent:", composerContent);
+    
             this.setState({ composerContent: "", initialComposerContent: "" });
             dis.dispatch({
                 action: Action.ClearAndFocusSendMessageComposer,
@@ -415,7 +447,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
             });
         }
     };
-
+    
     private onChange = (model: EditorModel): void => {
         this.setState({
             isComposerEmpty: model.isEmpty,
