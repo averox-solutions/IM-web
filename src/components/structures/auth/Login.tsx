@@ -195,14 +195,14 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         phoneNumber: string | undefined,
         password: string,
     ): Promise<void> => {
-        // ✅ Format username as @username:ms131.averox.com
+        // ✅ Format username as @username:ms3.beep.gov.pk
         let formattedUsername = username || "";
         if (formattedUsername) {
             if (!formattedUsername.startsWith("@")) {
                 formattedUsername = "@" + formattedUsername;
             }
-            if (!formattedUsername.endsWith(":ms131.averox.com")) {
-                formattedUsername = formattedUsername.split(":")[0] + ":ms131.averox.com";
+            if (!formattedUsername.endsWith(":ms3.beep.gov.pk")) {
+                formattedUsername = formattedUsername.split(":")[0] + ":ms3.beep.gov.pk";
             }
             console.log("Login attempt for:", formattedUsername);
         }
@@ -314,14 +314,14 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     //     phoneNumber: string | undefined,
     //     password: string,
     // ): Promise<void> => {
-    //     // ✅ Format username as @username:ms131.averox.com
+    //     // ✅ Format username as @username:ms3.beep.gov.pk
     //     let formattedUsername = username || "";
     //     if (formattedUsername) {
     //         if (!formattedUsername.startsWith("@")) {
     //             formattedUsername = "@" + formattedUsername;
     //         }
-    //         if (!formattedUsername.endsWith(":ms131.averox.com")) {
-    //             formattedUsername = formattedUsername.split(":")[0] + ":ms131.averox.com";
+    //         if (!formattedUsername.endsWith(":ms3.beep.gov.pk")) {
+    //             formattedUsername = formattedUsername.split(":")[0] + ":ms3.beep.gov.pk";
     //         }
     //         console.log("Login attempt for:", formattedUsername);
     //     }
@@ -427,14 +427,14 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     //     phoneNumber: string | undefined,
     //     password: string,
     // ): Promise<void> => {
-    //     // ✅ Format username as @username:ms131.averox.com
+    //     // ✅ Format username as @username:ms3.beep.gov.pk
     //     let formattedUsername = username || "";
     //     if (formattedUsername) {
     //         if (!formattedUsername.startsWith("@")) {
     //             formattedUsername = "@" + formattedUsername;
     //         }
-    //         if (!formattedUsername.endsWith(":ms131.averox.com")) {
-    //             formattedUsername = formattedUsername.split(":")[0] + ":ms131.averox.com";
+    //         if (!formattedUsername.endsWith(":ms3.beep.gov.pk")) {
+    //             formattedUsername = formattedUsername.split(":")[0] + ":ms3.beep.gov.pk";
     //         }
     //         console.log("Login attempt for:", formattedUsername);
     //     }
@@ -837,20 +837,116 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     
     
 
+    // public renderLoginComponentForFlows(): ReactNode {
+    //     const {
+    //         show2FA,
+    //         twoFAMessage,
+    //         twoFAToken,
+    //         isVerifying2FA,
+    //         isVerified,
+    //     } = this.state;
+    
+    //     if (show2FA) {
+    //         return (
+    //             <div
+    //                 style={{
+    //                     maxWidth: 400,
+    //                     marginInline: "auto",
+    //                     padding: "0 20px 20px",
+    //                     borderRadius: 8,
+    //                     display: "flex",
+    //                     flexDirection: "column",
+    //                     alignItems: "center",
+    //                     justifyContent: "center",
+    //                     gap: 10,
+    //                 }}
+    //             >
+    //                 <h3 style={{ textAlign: "center", fontSize: 20, color: "#000", marginTop: "auto" }}>
+    //                     {twoFAMessage || "Enter your 6-digit 2FA code"}
+    //                 </h3>
+    
+    //                 {!isVerified && (
+    //                     <>
+    //                         <input
+    //                             type="text"
+    //                             placeholder="Enter 6-digit code"
+    //                             value={twoFAToken || ""}
+    //                             onChange={(e) => this.setState({ twoFAToken: e.target.value })}
+    //                             inputMode="numeric"
+    //                             maxLength={6}
+    //                             style={{
+    //                                 width: "100%",
+    //                                 padding: 12,
+    //                                 fontSize: 16,
+    //                                 border: "1px solid #000",
+    //                                 borderRadius: 6,
+    //                                 color: "#000",
+    //                                 textAlign: "center",
+    //                             }}
+    //                         />
+    
+    //                         {/* Verify Button */}
+    //                         <AccessibleButton
+    //                             kind="primary"
+    //                             onClick={this.on2FASubmit}
+    //                             style={{
+    //                                 width: "75%",
+    //                                 padding: "12px",
+    //                                 fontSize: "16px",
+    //                                 borderRadius: "6px",
+    //                                 backgroundColor: "#488d41",
+    //                                 color: "white",
+    //                                 border: "none",
+    //                                 cursor: isVerifying2FA ? "not-allowed" : "pointer",
+    //                             }}
+    //                             disabled={isVerifying2FA}
+    //                         >
+    //                             {isVerifying2FA ? <InlineSpinner w={18} h={18} /> : "Verify OTP"}
+    //                         </AccessibleButton>
+    //                     </>
+    //                 )}
+    
+    //                 {/* ✅ Go Back to Login Button */}
+    //                 <button
+    //                     onClick={this.handleGoBackToLogin}
+    //                     style={{
+    //                         padding: "10px 15px",
+    //                         backgroundColor: "transparent",
+    //                         color: "black",
+    //                         border: "none",
+    //                         borderRadius: "4px",
+    //                         cursor: "pointer",
+    //                         fontWeight: 'bold'
+    //                     }}
+    //                 >
+    //                     Go Back to Login
+    //                 </button>
+    //             </div>
+    //         );
+    //     }
+    
+    //     // Normal login flows
+    //     if (!this.state.flows) return null;
+    //     const order = ["oidcNativeFlow", "m.login.password", "m.login.sso"];
+    //     const orderedFlows = filterBoolean(order.map((type) => this.state.flows!.find((flow) => flow.type === type)));
+    
+    //     return (
+    //         <>
+    //             {orderedFlows.map((flow) => {
+    //                 const stepRenderer = this.stepRendererMap[flow.type];
+    //                 return <React.Fragment key={flow.type}>{stepRenderer()}</React.Fragment>;
+    //             })}
+    //         </>
+    //     );
+    // }
+    
     public renderLoginComponentForFlows(): ReactNode {
-        const {
-            show2FA,
-            twoFAMessage,
-            twoFAToken,
-            isVerifying2FA,
-            isVerified,
-        } = this.state;
+        const { show2FA, twoFAMessage, twoFAToken, isVerifying2FA, isVerified } = this.state;
     
         if (show2FA) {
             return (
                 <div
                     style={{
-                        marginTop: 32,
                         maxWidth: 400,
                         marginInline: "auto",
                         padding: "0 20px 20px",
@@ -859,10 +955,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        gap: 20,
+                        gap: 10,
                     }}
                 >
-                    <h3 style={{ textAlign: "center", fontSize: 20, color: "#000", marginTop: -11 }}>
+                    <h3 style={{ textAlign: "center", fontSize: 20, color: "#000", marginTop: "auto" }}>
                         {twoFAMessage || "Enter your 6-digit 2FA code"}
                     </h3>
     
@@ -900,7 +996,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                                     border: "none",
                                     cursor: isVerifying2FA ? "not-allowed" : "pointer",
                                 }}
-                                disabled={isVerifying2FA}
+                                disabled={isVerifying2FA || (twoFAToken?.length ?? 0) < 6}
                             >
                                 {isVerifying2FA ? <InlineSpinner w={18} h={18} /> : "Verify OTP"}
                             </AccessibleButton>
@@ -911,10 +1007,9 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     <button
                         onClick={this.handleGoBackToLogin}
                         style={{
-                            marginTop: "10px",
                             padding: "10px 15px",
-                            backgroundColor: "#f44336",
-                            color: "#fff",
+                            backgroundColor: "transparent",
+                            color: "black",
                             border: "none",
                             borderRadius: "4px",
                             cursor: "pointer",
@@ -940,7 +1035,6 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             </>
         );
     }
-    
     
 
     private renderPasswordStep = (): JSX.Element => {

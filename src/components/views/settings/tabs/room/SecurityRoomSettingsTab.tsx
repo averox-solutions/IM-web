@@ -79,19 +79,30 @@ export default class SecurityRoomSettingsTab extends React.Component<IProps, ISt
                 HistoryVisibility.Shared,
             ),
             hasAliases: false, // async loaded in componentDidMount
-            encrypted: null, // async loaded in componentDidMount
+            encrypted: true, // async loaded in componentDidMount
             showAdvancedSection: false,
         };
     }
 
     public async componentDidMount(): Promise<void> {
         this.context.on(RoomStateEvent.Events, this.onStateEvent);
-
-        this.setState({
-            hasAliases: await this.hasAliases(),
-            encrypted: Boolean(await this.context.getCrypto()?.isEncryptionEnabledInRoom(this.props.room.roomId)),
-        });
+    
+        const hasAliases = await this.hasAliases();
+        const isEncrypted = Boolean(await this.context.getCrypto()?.isEncryptionEnabledInRoom(this.props.room.roomId));
+    
+        if (!isEncrypted) {
+            try {
+                await this.context.sendStateEvent(this.props.room.roomId, EventType.RoomEncryption, {
+                    algorithm: MEGOLM_ENCRYPTION_ALGORITHM,
+                });
+            } catch (e) {
+                logger.error("Error auto-enabling encryption:", e);
+            }
+        }
+    
+        this.setState({ hasAliases, encrypted: true });
     }
+    
 
     private pullContentPropertyFromEvent<T>(event: MatrixEvent | null | undefined, key: string, defaultValue: T): T {
         return event?.getContent()[key] || defaultValue;
@@ -166,7 +177,7 @@ export default class SecurityRoomSettingsTab extends React.Component<IProps, ISt
             ),
             onFinished: (confirm) => {
                 if (!confirm) {
-                    this.setState({ encrypted: false });
+                    this.setState({ encrypted: true });
                     return;
                 }
 
@@ -457,12 +468,13 @@ export default class SecurityRoomSettingsTab extends React.Component<IProps, ISt
                             <InlineSpinner />
                         ) : (
                             <>
-                                <LabelledToggleSwitch
-                                    value={isEncrypted}
-                                    onChange={this.onEncryptionChange}
+                               <LabelledToggleSwitch
+                                    value={true}
+                                    onChange={() => {}}
                                     label={_t("common|encrypted")}
-                                    disabled={!canEnableEncryption}
+                                    disabled={true}
                                 />
+
                                 {isEncryptionForceDisabled && !isEncrypted && (
                                     <Caption>{_t("room_settings|security|encryption_forced")}</Caption>
                                 )}

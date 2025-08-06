@@ -540,7 +540,10 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let editButton: JSX.Element | undefined;
-        if (rightClick && canEditContent(cli, mxEvent)) {
+        const isPollEvent =
+            mxEvent.getType() === M_POLL_START.name || mxEvent.getType() === M_POLL_START.altName;
+        
+        if (rightClick && canEditContent(cli, mxEvent) && !isPollEvent) {
             editButton = (
                 <IconizedContextMenuOption
                     iconClassName="mx_MessageContextMenu_iconEdit"
@@ -549,6 +552,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                 />
             );
         }
+        
 
         let replyButton: JSX.Element | undefined;
         if (rightClick && contentActionable && canSendMessages) {

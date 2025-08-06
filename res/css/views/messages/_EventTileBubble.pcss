@@ -18,28 +18,30 @@ Please see LICENSE files in the repository root for full details.
     display: grid;
     grid-template-columns: 24px minmax(0, 1fr) min-content min-content;
 
-   
 
     .mx_EventTileBubble_title,
     .mx_EventTileBubble_subtitle {
         grid-column: 2;
         overflow-wrap: break-word;
         min-inline-size: 50px;
-        text-align:center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .mx_EventTileBubble_title {
         font-weight: var(--cpd-font-weight-semibold);
         font-size: $font-15px;
         grid-row: 1;
- text-align:center;
+        text-align:center;
     }
 
     .mx_EventTileBubble_subtitle {
         font-size: $font-12px;
         grid-row: 2;
- text-align:center;
-
+        text-align:center;
+        margin-left: auto;
+        margin-top: auto;
     }
 
     .mx_MessageTimestamp {
@@ -47,6 +49,8 @@ Please see LICENSE files in the repository root for full details.
         grid-row: 1 / 3;
         align-self: center;
         margin-left: $spacing-16;
-        margin-top:auto;
+        margin-top: auto;
+        margin-left: auto;
+        margin-top: auto;
     }
 }

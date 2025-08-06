@@ -296,7 +296,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                         {favoriteOption}
                         {lowPriorityOption}
                         {inviteOption}
-                        {copyLinkOption}
+                        {/* {copyLinkOption} */}
                         {/* {settingsOption} */}
                     </>
                 )}

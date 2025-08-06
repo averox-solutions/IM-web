@@ -38,7 +38,7 @@ Please see LICENSE files in the repository root for full details.
         background-color: #cef6db;
         top: 19px; /* v-align with avatar */
         right: -8px;
-        
+        display:none;
         &::before {
             content: "";
             position: absolute;
@@ -110,10 +110,7 @@ Please see LICENSE files in the repository root for full details.
         position: relative;
     }
 
-    .mx_SpaceItem:not(.hasSubSpaces) > .mx_SpaceButton {
-        margin-left: var(--gutterSize);
-        min-width: 40px;
-    }
+
 
     .mx_SpaceButton {
         border-radius: 8px;
@@ -122,6 +119,7 @@ Please see LICENSE files in the repository root for full details.
         padding: 4px 4px 4px 0;
         width: 100%;
         cursor: pointer;
+        justify-content:center
 
         &.mx_SpaceButton_active {
             &:not(.mx_SpaceButton_narrow) .mx_SpaceButton_selectionWrapper {

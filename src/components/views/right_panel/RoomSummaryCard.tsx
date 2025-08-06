@@ -298,10 +298,7 @@ const RoomSummaryCard: React.FC<IProps> = ({
 
             <Flex as="section" justify="center" gap="var(--cpd-space-2x)" className="mx_RoomSummaryCard_badges">
                 {!isDirectMessage && roomState.getJoinRule() === JoinRule.Public && (
-                    <Badge kind="grey">
-                        <PublicIcon width="1em" />
-                        {_t("common|public_room")}
-                    </Badge>
+                  <></>
                 )}
 
                 {isRoomEncrypted && e2eStatus !== E2EStatus.Warning && (
@@ -314,15 +311,15 @@ const RoomSummaryCard: React.FC<IProps> = ({
                 {!e2eStatus && (
                     <Badge kind="grey">
                         <LockOffIcon width="1em" />
-                        {_t("common|unencrypted")}
+                        {_t("common|encrypted")}
                     </Badge>
                 )}
 
                 {e2eStatus === E2EStatus.Warning && (
-                    <Badge kind="red">
-                        <ErrorIcon width="1em" />
-                        {_t("common|not_trusted")}
-                    </Badge>
+                    <Badge kind="green">
+                         <LockIcon width="1em" />
+                              {_t("common|encrypted")}
+                                  </Badge>
                 )}
             </Flex>
 

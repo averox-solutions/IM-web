@@ -987,32 +987,34 @@ const DmAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex, dispatcher = default
             </>
         );
     } else if (!activeSpace && showCreateRooms) {
-        return (
-            <AccessibleButton
-                tabIndex={tabIndex}
-                onClick={(e) => {
-                    dispatcher.dispatch({ action: "view_create_chat" });
-                    PosthogTrackers.trackInteraction("WebRoomListRoomsSublistPlusMenuCreateChatItem", e);
-                }}
-                aria-label={_t("action|start_chat")}
-                title={_t("action|start_chat")}
-                style={{
-                    backgroundColor: "#488D41",
-                    color: "#ffffff",
-                    border: "none",
-                    padding: "1px 25px",
-                    fontSize: "15px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    display: "inline-block",
-                    textAlign: "center",
-                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-                    transition: "background-color 0.3s ease, transform 0.2s ease"
-                }}
-            >
-                Create a new chat
-            </AccessibleButton>
-        );
+        // return (
+        //     <AccessibleButton
+        //         tabIndex={tabIndex}
+        //         onClick={(e) => {
+        //             dispatcher.dispatch({ action: "view_create_chat" });
+        //             PosthogTrackers.trackInteraction("WebRoomListRoomsSublistPlusMenuCreateChatItem", e);
+        //         }}
+        //         aria-label={_t("action|start_chat")}
+        //         title={_t("action|start_chat")}
+        //         style={{
+        //             backgroundColor: "#488D41",
+        //             color: "#ffffff",
+        //             border: "none",
+        //             padding: "1px 25px",
+        //             fontSize: "15px",
+        //             borderRadius: "8px",
+        //             cursor: "pointer",
+        //             display: "inline-block",
+        //             textAlign: "center",
+        //             boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+        //             transition: "background-color 0.3s ease, transform 0.2s ease"
+        //         }}
+        //     >
+        //         Create a new chat
+        //     </AccessibleButton>
+        // );
+
+        return null
     }
 
     return null;
@@ -1170,7 +1172,7 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
     if (showCreateRoom || showExploreRooms) {
         return (
             <>
-                <ContextMenuTooltipButton
+                {/* <ContextMenuTooltipButton
                     tabIndex={tabIndex}
                     onClick={openMenu}
                     aria-label={_t("room_list|add_room_label")}
@@ -1192,7 +1194,7 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
                     }}
                 >
                     <span>Create a New Group</span>
-                </ContextMenuTooltipButton>
+                </ContextMenuTooltipButton> */}
 
                 {contextMenu}
             </>
