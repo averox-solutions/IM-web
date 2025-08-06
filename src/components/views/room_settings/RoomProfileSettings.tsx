@@ -96,9 +96,18 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         });
     };
 
-    private isSaveEnabled = (): boolean => {
-        return Boolean(Object.values(this.state.profileFieldsTouched).length);
-    };
+    // Ensure topic length between 10-15 and name length between 1-15 characters
+private isSaveEnabled = (): boolean => {
+    const { displayName, topic, profileFieldsTouched } = this.state;
+
+    const hasChanges = Object.values(profileFieldsTouched).some(Boolean);
+
+    const nameValid = displayName.trim().length > 0 && displayName.trim().length <= 15;
+    const topicValid = topic.trim().length >= 10 && topic.trim().length <= 15;
+
+    return hasChanges && nameValid && topicValid;
+};
+
 
     private cancelProfileChanges = async (e: ButtonEvent): Promise<void> => {
         e.stopPropagation();
@@ -117,15 +126,28 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
     private saveProfile = async (e: React.FormEvent): Promise<void> => {
         e.stopPropagation();
         e.preventDefault();
-
+    
+        // Final validation
+        const { displayName, topic } = this.state;
+        if (
+            displayName.trim().length === 0 ||
+            displayName.trim().length > 15 ||
+            topic.trim().length < 10 ||
+            topic.trim().length > 15
+        ) {
+            console.warn("Validation failed: Name or topic length is invalid.");
+            return;
+        }
+    
         if (!this.isSaveEnabled()) return;
         this.setState({ profileFieldsTouched: {} });
-
+    
         const client = MatrixClientPeg.safeGet();
         const newState: Partial<IState> = {};
+    
+    
 
         // TODO: What do we do about errors?
-        const displayName = this.state.displayName.trim();
         if (this.state.originalDisplayName !== this.state.displayName) {
             await client.setRoomName(this.props.roomId, displayName);
             newState.originalDisplayName = displayName;
@@ -155,41 +177,30 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
     };
 
     private onDisplayNameChanged = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        this.setState({ displayName: e.target.value });
-        if (this.state.originalDisplayName === e.target.value) {
-            this.setState({
-                profileFieldsTouched: {
-                    ...this.state.profileFieldsTouched,
-                    name: false,
-                },
-            });
-        } else {
-            this.setState({
-                profileFieldsTouched: {
-                    ...this.state.profileFieldsTouched,
-                    name: true,
-                },
-            });
-        }
+        const value = e.target.value.slice(0, 15); // ✅ Limit to 15 characters
+        this.setState({ displayName: value });
+    
+        this.setState({
+            profileFieldsTouched: {
+                ...this.state.profileFieldsTouched,
+                name: this.state.originalDisplayName !== value,
+            },
+        });
     };
 
     private onTopicChanged = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
-        this.setState({ topic: e.target.value });
-        if (this.state.originalTopic === e.target.value) {
-            this.setState({
-                profileFieldsTouched: {
-                    ...this.state.profileFieldsTouched,
-                    topic: false,
-                },
-            });
-        } else {
-            this.setState({
-                profileFieldsTouched: {
-                    ...this.state.profileFieldsTouched,
-                    topic: true,
-                },
-            });
+        let value = e.target.value;
+        if (value.length > 15) {
+            value = value.slice(0, 15); // ✅ Hard limit at 15
         }
+        this.setState({ topic: value });
+    
+        this.setState({
+            profileFieldsTouched: {
+                ...this.state.profileFieldsTouched,
+                topic: this.state.originalTopic !== value,
+            },
+        });
     };
 
     public render(): React.ReactNode {
@@ -219,28 +230,32 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
             <form onSubmit={this.saveProfile} autoComplete="off" noValidate={true} className="mx_RoomProfileSettings">
                 <div className="mx_RoomProfileSettings_profile">
                     <div className="mx_RoomProfileSettings_profile_controls">
-                        <Field
-                            label={_t("room_settings|general|name_field_label")}
-                            type="text"
-                            value={this.state.displayName}
-                            autoComplete="off"
-                            onChange={this.onDisplayNameChanged}
-                            disabled={!this.state.canSetName}
-                        />
-                        <Field
-                            className={classNames(
-                                "mx_RoomProfileSettings_profile_controls_topic",
-                                "mx_RoomProfileSettings_profile_controls_topic--room",
-                            )}
-                            id="profileTopic" // See: NewRoomIntro.tsx
-                            label={_t("room_settings|general|topic_field_label")}
-                            disabled={!this.state.canSetTopic}
-                            type="text"
-                            value={this.state.topic}
-                            autoComplete="off"
-                            onChange={this.onTopicChanged}
-                            element="textarea"
-                        />
+                    <Field
+    label={_t("room_settings|general|name_field_label")}
+    type="text"
+    value={this.state.displayName}
+    autoComplete="off"
+    maxLength={15} // ✅ Added
+    onChange={this.onDisplayNameChanged}
+    disabled={!this.state.canSetName}
+/>
+<Field
+    className={classNames(
+        "mx_RoomProfileSettings_profile_controls_topic",
+        "mx_RoomProfileSettings_profile_controls_topic--room",
+    )}
+    id="profileTopic"
+    label={_t("room_settings|general|topic_field_label")}
+    disabled={!this.state.canSetTopic}
+    type="text"
+    value={this.state.topic}
+    autoComplete="off"
+    minLength={10} // ✅ Added
+    maxLength={15} // ✅ Added
+    onChange={this.onTopicChanged}
+    element="textarea"
+/>
+
                     </div>
                     <AvatarSetting
                         avatar={

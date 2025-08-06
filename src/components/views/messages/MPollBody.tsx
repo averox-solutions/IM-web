@@ -22,7 +22,7 @@ import {
 import { RelatedRelations } from "matrix-js-sdk/src/models/related-relations";
 import { type PollStartEvent, type PollAnswerSubevent } from "matrix-js-sdk/src/extensible_events_v1/PollStartEvent";
 import { PollResponseEvent } from "matrix-js-sdk/src/extensible_events_v1/PollResponseEvent";
-
+import { MatrixEventEvent } from "matrix-js-sdk/src/models/event";
 import { _t } from "../../../languageHandler";
 import Modal from "../../../Modal";
 import { type IBodyProps } from "./IBodyProps";
@@ -40,7 +40,8 @@ interface IState {
     // poll instance has fetched at least one page of responses
     pollInitialised: boolean;
     selected?: string | null | undefined; // Which option was clicked by the local user
-    voteRelations?: Relations; // Voting (response) events
+    voteRelations?: Relations;
+    refreshTimestamp: number; // Voting (response) events
 }
 
 export function createVoteRelations(getRelationsForEvent: GetRelationsForEvent, eventId: string): RelatedRelations {
@@ -148,9 +149,16 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         this.state = {
             selected: null,
             pollInitialised: false,
+            refreshTimestamp: Date.now(),
         };
     }
 
+    private onPollEdited = async (): Promise<void> => {
+        if (this.state.poll) {
+            await this.state.poll.getResponses(); // re-fetch
+        }
+        this.setState({ refreshTimestamp: Date.now() });
+    };
     public componentDidMount(): void {
         const room = this.context?.getRoom(this.props.mxEvent.getRoomId());
         const poll = room?.polls.get(this.props.mxEvent.getId()!);
@@ -159,10 +167,14 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         } else {
             room?.on(PollEvent.New, this.setPollInstance.bind(this));
         }
+          // ✅ Listen for poll edits (m.replace)
+   
+this.props.mxEvent.on(MatrixEventEvent.Replaced, this.onPollEdited);
     }
 
     public componentWillUnmount(): void {
         this.removeListeners();
+        this.props.mxEvent.off(MatrixEventEvent.Replaced, this.onPollEdited);
     }
 
     private async setPollInstance(poll: Poll): Promise<void> {
@@ -286,8 +298,9 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         if (!poll?.pollEvent) {
             return null;
         }
+        const pollEvent = this.props.mxEvent.unstableExtensibleEvent as PollStartEvent;
+        if (!pollEvent) return null;
 
-        const pollEvent = poll.pollEvent;
 
         const pollId = this.props.mxEvent.getId()!;
         const isFetchingResponses = !pollInitialised || poll.isFetchingResponses;
@@ -325,7 +338,7 @@ export default class MPollBody extends React.Component<IBodyProps, IState> {
         ) : null;
 
         return (
-            <div className="mx_MPollBody">
+            <div className="mx_MPollBody" key={this.state.refreshTimestamp}>
                 <h2 data-testid="pollQuestion">
                     {pollEvent.question.text}
                     {editedSpan}

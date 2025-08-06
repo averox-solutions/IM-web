@@ -529,6 +529,11 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             const threadId =
                 this.props.relation?.rel_type === THREAD_RELATION_TYPE.name ? this.props.relation.event_id : null;
 
+            // Log user ID and final message for debugging
+            const userId = this.props.mxClient.getSafeUserId();
+            console.log("User ID:", userId);
+            console.log("Final message:", content.body);
+            
             const prom = doMaybeLocalRoomAction(
                 roomId,
                 (actualRoomId: string) => this.props.mxClient.sendMessage(actualRoomId, threadId ?? null, content!),
