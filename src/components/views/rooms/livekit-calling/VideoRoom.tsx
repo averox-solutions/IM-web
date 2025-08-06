@@ -3411,7 +3411,6 @@ export const VideoRoom = ({
     isAcceptingIncomingCall = false, // Default to false for backward compatibility
     onLeave,
 }: VideoRoomProps): JSX.Element => {
-    console.log(`🎥 VideoRoom initialized - isVideo: ${isVideo}, callType: ${isVideo ? "VIDEO" : "AUDIO"}`);
 
     // State for managing ongoing call detection
     const [ongoingCallInfo, setOngoingCallInfo] = useState<{
