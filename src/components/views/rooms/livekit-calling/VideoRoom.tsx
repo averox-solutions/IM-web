@@ -553,28 +553,33 @@ const livekitCallStyles = `
         min-width: calc(var(--name-font-size, 12px) + 4px) !important;
         text-align: center !important;
         position: relative !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
     }
 
     .lk-participant-metadata.muted {
-        color: #e72828 !important;
-        background: rgba(24, 18, 7, 0.3) !important;
+        color: #ff4444 !important;
+        background: rgba(255, 68, 68, 0.2) !important;
+        border: 1px solid rgba(255, 68, 68, 0.4) !important;
         border-radius: 3px !important;
-        width: calc(var(--name-font-size, 12px) + 6px) !important;
-        height: calc(var(--name-font-size, 12px) + 6px) !important;
+        width: calc(var(--name-font-size, 12px) + 8px) !important;
+        height: calc(var(--name-font-size, 12px) + 8px) !important;
         backdrop-filter: blur(4px) !important;
-        font-size: calc(var(--name-font-size, 12px) - 2px) !important;
+        font-size: calc(var(--name-font-size, 12px)) !important;
         flex-shrink: 0 !important;
+        line-height: 1 !important;
     }
 
     .lk-participant-metadata.camera-off {
         color: #ffa502 !important;
         background: rgba(255, 165, 2, 0.3) !important;
         border-radius: 3px !important;
-        width: calc(var(--name-font-size, 12px) + 6px) !important;
-        height: calc(var(--name-font-size, 12px) + 6px) !important;
+        width: calc(var(--name-font-size, 12px) + 8px) !important;
+        height: calc(var(--name-font-size, 12px) + 8px) !important;
         backdrop-filter: blur(4px) !important;
-        font-size: calc(var(--name-font-size, 12px) - 3px) !important;
+        font-size: calc(var(--name-font-size, 12px)) !important;
         flex-shrink: 0 !important;
+        line-height: 1 !important;
     }
 
     /* Control bar styling */
@@ -1473,7 +1478,7 @@ const ProfessionalParticipantTile: React.FC<{ trackRef: TrackReference }> = ({ t
                 <div className="lk-participant-indicators">
                     {isMuted && (
                         <div className="lk-participant-metadata muted" title="Microphone muted">
-                            🔇
+                            🎤
                         </div>
                     )}
                     {participant.isCameraEnabled === false && (
@@ -1903,7 +1908,7 @@ const AudioCallInterface: React.FC<{
                                         }}
                                     >
                                         {isLocalUser ? "You" : displayName}
-                                        {participant.isMicrophoneEnabled === false && " 🔇"}
+                                        {participant.isMicrophoneEnabled === false && " 🎤"}
                                     </div>
                                 </div>
                             );
@@ -2455,10 +2460,11 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         }, 100);
     }, [currentCount, uniqueTracks.length]);
 
-    // Auto-leave logic: Only for video calls (audio calls have their own logic in AudioCallInterface)
+    // Auto-leave logic: Only when using video interface (including audio-to-video conversions)
     useEffect(() => {
-        // Skip auto-leave for audio calls since AudioCallInterface handles it
-        if (!isVideo) return;
+        // Skip auto-leave for pure audio calls since AudioCallInterface handles it
+        // But allow auto-leave for audio-to-video conversions when video interface is active
+        if (!shouldUseVideoInterface) return;
 
         // Clear any existing timeout
         if (autoLeaveTimeout.current) {
@@ -2541,7 +2547,7 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 }
             }, 3000); // 3 second grace period
         }
-    }, [currentCount, room, isVideo]);
+    }, [currentCount, room, shouldUseVideoInterface]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -3427,7 +3433,7 @@ export const VideoRoom = ({
         };
 
         // Set up custom event listener for participant count updates
-        const handleParticipantCountUpdate = (event: CustomEvent) => {
+        const handleParticipantCountUpdate = (event: CustomEvent): void => {
             (window as any).__currentParticipantCount = event.detail.count;
         };
 
