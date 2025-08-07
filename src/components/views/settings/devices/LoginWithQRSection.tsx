@@ -51,16 +51,7 @@ const LoginWithQRSection: React.FC<IProps> = ({ onShowQr, versions, oidcClientCo
     const offerShowQr = shouldShowQr(cli, !!isCrossSigningReady, oidcClientConfig, versions);
 
     return (
-        <SettingsSubsection heading={_t("settings|sessions|sign_in_with_qr")}>
-            <div className="mx_LoginWithQRSection">
-                <p className="mx_SettingsTab_subsectionText">{_t("settings|sessions|sign_in_with_qr_description")}</p>
-                <AccessibleButton onClick={onShowQr} kind="primary" disabled={!offerShowQr}>
-                    <QrCodeIcon height={20} width={20} />
-                    {_t("settings|sessions|sign_in_with_qr_button")}
-                </AccessibleButton>
-                {!offerShowQr && <Text size="sm">{_t("settings|sessions|sign_in_with_qr_unsupported")}</Text>}
-            </div>
-        </SettingsSubsection>
+       <></>
     );
 };
 
