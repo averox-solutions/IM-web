@@ -83,8 +83,17 @@ Please see LICENSE files in the repository root for full details.
         }
     }
 
-    .mx_MessageActionBar .mx_AccessibleButton {
+     .mx_AccessibleButton {
         display: flex;
+        align-items: center;
+
+        padding-inline-start: $spacing-8;
+        padding-inline-end: $spacing-8;
+
+        font-size: $font-15px;
+    }
+     .mx_MessageActionBar  {
+        display: none;
         align-items: center;
 
         padding-inline-start: $spacing-8;
