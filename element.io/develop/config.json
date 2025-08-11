@@ -18,7 +18,7 @@
         "https://scalar-staging.vector.im/api",
         "https://scalar-staging.riot.im/scalar/api"
     ],
-    "bug_report_endpoint_url": "https://element.io/bugreports/submit",
+    "bug_report_endpoint_url": "https://im.beep.gov.pk/bugreports/submit",
     "uisi_autorageshake_app": "element-auto-uisi",
     "show_labs_settings": true,
     "room_directory": {
@@ -30,11 +30,11 @@
     },
     "terms_and_conditions_links": [
         {
-            "url": "https://element.io/privacy",
+            "url": "https://im.beep.gov.pk/privacy",
             "text": "Privacy Policy"
         },
         {
-            "url": "https://element.io/cookie-policy",
+            "url": "https://im.beep.gov.pk/cookie-policy",
             "text": "Cookie Policy"
         }
     ],
@@ -46,7 +46,7 @@
         "project_api_key": "phc_Jzsm6DTm6V2705zeU5dcNvQDlonOR68XvX2sh1sEOHO",
         "api_host": "https://posthog.element.io"
     },
-    "privacy_policy_url": "https://element.io/cookie-policy",
+    "privacy_policy_url": "https://im.beep.gov.pk/cookie-policy",
     "features": {
         "threadsActivityCentre": true,
         "feature_video_rooms": true,

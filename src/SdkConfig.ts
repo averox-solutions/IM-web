@@ -18,8 +18,8 @@ import { type DeepReadonly, type Defaultize } from "./@types/common";
 // see element-web config.md for docs, or the IConfigOptions interface for dev docs
 export const DEFAULTS: DeepReadonly<IConfigOptions> = {
     brand: "Beep Pakistan",
-    help_url: "https://element.io/help",
-    help_encryption_url: "https://element.io/help#encryption",
+    help_url: "https://im.beep.gov.pk/help",
+    help_encryption_url: "https://im.beep.gov.pk/help#encryption",
     integrations_ui_url: "https://scalar.vector.im/",
     integrations_rest_url: "https://scalar.vector.im/api",
     uisi_autorageshake_app: "element-auto-uisi",
@@ -44,7 +44,7 @@ export const DEFAULTS: DeepReadonly<IConfigOptions> = {
         available: true,
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         logo: require("../res/img/element-desktop-logo.svg").default,
-        url: "https://element.io/get-started",
+        url: "https://im.beep.gov.pk/get-started",
     },
 
     feedback: {
@@ -56,11 +56,11 @@ export const DEFAULTS: DeepReadonly<IConfigOptions> = {
     desktop_builds: {
         available: true,
         logo: "vector-icons/1024.png",
-        url: "https://element.io/download",
+        url: "https://im.beep.gov.pk/download",
         url_macos: "https://packages.element.io/desktop/install/macos/Element.dmg",
         url_win64: "https://packages.element.io/desktop/install/win32/x64/Element%20Setup.exe",
         url_win32: "https://packages.element.io/desktop/install/win32/ia32/Element%20Setup.exe",
-        url_linux: "https://element.io/download#linux",
+        url_linux: "https://im.beep.gov.pk/download#linux",
     },
     mobile_builds: {
         ios: "https://apps.apple.com/app/vector/id1083446067",

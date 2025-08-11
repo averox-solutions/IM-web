@@ -415,7 +415,7 @@ export default class LeftPanel extends React.Component<IProps, IState> {
                             {roomList}
                         </div>
                     </nav>
-                    {/* <Calllog/> */}
+                    <Calllog/>
                 </div>
             </div>
         );
