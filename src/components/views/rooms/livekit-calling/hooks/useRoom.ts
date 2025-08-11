@@ -101,7 +101,7 @@ export const useRoom = ({
 
                 // Use the provided token directly without making API call
                 const keyProvider = new ExternalE2EEKeyProvider();
-                
+
                 // Use the custom key if provided in testMode
                 const e2eeKey = testMode.customKey || "default-e2ee-key-for-incoming-call";
                 await keyProvider.setKey(e2eeKey);
@@ -184,6 +184,7 @@ export const useRoom = ({
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
                 },
                 body: JSON.stringify(requestBody),
             });
@@ -299,6 +300,7 @@ export const useRoom = ({
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d"
                 },
                 body: JSON.stringify(requestBody),
             });

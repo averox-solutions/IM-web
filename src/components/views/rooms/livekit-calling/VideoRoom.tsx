@@ -1574,6 +1574,17 @@ const AudioCallInterface: React.FC<{
                 callEstablished.current = true;
                 callStartTimeLocal.current = null; // Clear no-answer timeout
                 console.log("🎯 Audio call established - multiple participants detected");
+
+                // Emit call established event to clear outgoing call state globally
+                const callEstablishedEvent = new CustomEvent("liveKitCallEstablished", {
+                    detail: {
+                        participantCount,
+                        callType: "audio",
+                        timestamp: new Date().toISOString(),
+                    },
+                });
+                window.dispatchEvent(callEstablishedEvent);
+                console.log("📤 Emitted liveKitCallEstablished event (audio)");
             }
         }
 
@@ -2486,6 +2497,17 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 callEstablished.current = true;
                 callStartTime.current = null; // Clear no-answer timeout
                 console.log("🎯 Video call established - multiple participants detected");
+
+                // Emit call established event to clear outgoing call state globally
+                const callEstablishedEvent = new CustomEvent("liveKitCallEstablished", {
+                    detail: {
+                        participantCount: currentCount,
+                        callType: "video",
+                        timestamp: new Date().toISOString(),
+                    },
+                });
+                window.dispatchEvent(callEstablishedEvent);
+                console.log("📤 Emitted liveKitCallEstablished event (video)");
             }
         }
 
@@ -3411,7 +3433,6 @@ export const VideoRoom = ({
     isAcceptingIncomingCall = false, // Default to false for backward compatibility
     onLeave,
 }: VideoRoomProps): JSX.Element => {
-
     // State for managing ongoing call detection
     const [ongoingCallInfo, setOngoingCallInfo] = useState<{
         participants: Array<{ userId: string; username: string; isOnline: boolean }>;
@@ -3463,7 +3484,29 @@ export const VideoRoom = ({
             // Close the call modal if this is the same room
             if (data.roomId === roomId) {
                 console.log("📞 VideoRoom: Call ended for current room, closing modal");
-                onLeave?.();
+                console.log("📞 VideoRoom: onLeave callback available:", !!onLeave);
+                console.log("📞 VideoRoom: About to call onLeave()");
+
+                // Call the onLeave callback to close the UI
+                if (onLeave) {
+                    onLeave();
+                    console.log("📞 VideoRoom: onLeave() called successfully");
+                } else {
+                    console.warn("📞 VideoRoom: onLeave callback not available!");
+                }
+
+                // Set global call state to false to ensure UI cleanup
+                if ((window as any).setCallActiveState) {
+                    console.log("📞 VideoRoom: Setting global call active state to false");
+                    (window as any).setCallActiveState(false);
+                }
+
+                console.log("📞 VideoRoom: Call decline handling completed");
+            } else {
+                console.log("📞 VideoRoom: Call ended for different room:", {
+                    eventRoomId: data.roomId,
+                    currentRoomId: roomId,
+                });
             }
         };
 

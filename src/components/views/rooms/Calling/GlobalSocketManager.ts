@@ -14,9 +14,9 @@ import type { ActionPayload } from "../../../../dispatcher/payloads";
 import LegacyCallHandler, { AudioID } from "../../../../LegacyCallHandler";
 
 // Use the same backend URL as the existing socket service
-const SOCKET_URL = process.env.REACT_APP_BACKEND_URL || "ws://localhost:3000";
+const SOCKET_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3000";
 
-// Type declarations for window properties used in LiveKit calling
+console.log("socket.url", SOCKET_URL); // Type declarations for window properties used in LiveKit calling
 declare global {
     interface Window {
         showLiveKitCallNotification?: (
@@ -48,6 +48,8 @@ class GlobalSocketManager {
     private isInitialized: boolean = false;
     private dispatcherRef: string | null = null;
     private currentDesktopNotification: Notification | null = null;
+    private isUserMakingOutgoingCall: boolean = false; // Track if user is making an outgoing call
+    private outgoingCallRoomId: string | null = null; // Track which room the outgoing call is for
 
     /**
      * Get the singleton instance
@@ -123,10 +125,23 @@ class GlobalSocketManager {
                 return;
             }
 
+            console.log("🔑 Socket API Key Debug:", {
+                apiKey: "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
+                socketUrl: SOCKET_URL,
+                userId: userId,
+            });
+
             // Initialize socket connection with correct configuration
             this.socket = io(SOCKET_URL, {
                 auth: {
-                    userId: userId,
+                    "userId": userId,
+                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
+                },
+                extraHeaders: {
+                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
+                },
+                query: {
+                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
                 },
                 transports: ["websocket"],
                 forceNew: true,
@@ -214,6 +229,9 @@ class GlobalSocketManager {
 
         // Listen for call ended events globally
         window.addEventListener("liveKitCallEnded", this.handleGlobalCallEnded);
+
+        // Listen for call established events to clear outgoing call state
+        window.addEventListener("liveKitCallEstablished", this.handleGlobalCallEstablished);
 
         // Listen for page visibility changes to handle desktop notifications
         document.addEventListener("visibilitychange", this.handleVisibilityChange);
@@ -343,6 +361,20 @@ class GlobalSocketManager {
         }
         console.log("🧹 Removed all existing LiveKit call notifications");
 
+        // Send call picked up event to backend to notify other devices
+        if (this.socket && callData.roomId && currentUserId) {
+            const pickupData = {
+                roomId: callData.roomId,
+                userId: currentUserId,
+                timestamp: new Date().toISOString(),
+            };
+
+            console.log("📤 GlobalSocketManager emitting call_picked_up event:", pickupData);
+            this.socket.emit("call_picked_up", pickupData);
+        } else {
+            console.warn("❌ Cannot emit call_picked_up - socket, roomId, or userId not available");
+        }
+
         // Prepare call data for LiveKitRoomManager
         const activeCall = {
             roomId: callData.roomId,
@@ -364,9 +396,6 @@ class GlobalSocketManager {
         window.dispatchEvent(acceptedCallEvent);
 
         console.log("📤 GlobalSocketManager dispatched globalCallAccepted event");
-
-        // TODO: Send acceptance response to backend
-        console.log("📤 Should send call acceptance to backend");
     };
 
     /**
@@ -431,7 +460,7 @@ class GlobalSocketManager {
     };
 
     /**
-     * Handle call declined events at global level
+     * Handle call declined events at global level - CENTRALIZED HANDLER
      */
     private handleGlobalCallDeclined = (event: Event): void => {
         const customEvent = event as CustomEvent;
@@ -449,23 +478,106 @@ class GlobalSocketManager {
         // Check if this decline is for our current outgoing call
         if (data && data.fromUserId === currentUserId) {
             console.log("📞 Our call was declined by:", data.declinedBy);
+            console.log("📞 Full decline event data:", data);
+            console.log("📞 Stored outgoing call roomId:", this.outgoingCallRoomId);
+            console.log("📞 Checking if user was making an outgoing call:", this.isUserMakingOutgoingCall);
 
-            // Clear any outgoing call notifications
-            if ((window as any).clearAllLiveKitCallNotifications) {
-                (window as any).clearAllLiveKitCallNotifications();
-            }
+            // Only process if we were making an outgoing call
+            if (this.isUserMakingOutgoingCall) {
+                console.log("📞 User was making an outgoing call, processing decline");
 
-            // Show toast notification that call was declined
-            const declinedByUser = data.declinedBy || "User";
-            // Assuming showToast is available on window or removed if not needed
-            // For now, keeping it as it was in the original file
-            if (window.showToast) {
-                window.showToast(`Call declined by ${declinedByUser}`, "info", 3000);
+                // Clear any outgoing call notifications
+                if ((window as any).clearAllLiveKitCallNotifications) {
+                    (window as any).clearAllLiveKitCallNotifications();
+                }
+
+                // SIMPLIFIED APPROACH: Direct call closure
+                console.log("📞 Attempting direct call closure methods");
+
+                // Method 1: Set global call state to false
+                if ((window as any).setCallActiveState) {
+                    console.log("📞 Setting global call active state to false");
+                    (window as any).setCallActiveState(false);
+                }
+
+                // Method 2: Call global close function if available
+                if ((window as any).globalCloseLiveKitCall) {
+                    console.log("📞 Calling global close function");
+                    (window as any).globalCloseLiveKitCall();
+                }
+
+                // Method 3: Dispatch simplified close event
+                const closeEvent = new CustomEvent("forceCloseLiveKitCall", {
+                    detail: {
+                        reason: "declined",
+                        roomId: data.roomId || this.outgoingCallRoomId,
+                    },
+                });
+                window.dispatchEvent(closeEvent);
+                console.log("📞 Dispatched forceCloseLiveKitCall event");
+
+                // Method 4: Force remove LiveKit call modal from DOM
+                setTimeout(() => {
+                    // Remove any LiveKit modal containers
+                    const modalContainers = document.querySelectorAll('[style*="position: fixed"][style*="z-index"]');
+                    modalContainers.forEach((container) => {
+                        if (container.innerHTML.includes("lk-") || container.innerHTML.includes("LiveKit")) {
+                            console.log("📞 Force removing LiveKit modal from DOM");
+                            container.remove();
+                        }
+                    });
+
+                    // Remove LiveKit body class
+                    document.body.classList.remove("mx_LiveKitCall_active");
+                    console.log("📞 Removed LiveKit body class");
+                }, 500); // Small delay to ensure other methods run first
+
+                // Show toast notification that call was declined
+                const declinedByUser = data.declinedBy || "User";
+                console.log("📞 Attempting to show toast notification");
+                console.log("📞 window.showToast available:", !!window.showToast);
+
+                if (window.showToast) {
+                    console.log("📞 Calling window.showToast");
+                    window.showToast(`Call declined by ${declinedByUser}`, "info", 3000);
+                    console.log("📞 Toast notification called successfully");
+                } else {
+                    console.warn("📞 window.showToast not available, using fallback");
+                    // Fallback: Use the showToast from RoomHeader imports
+                    try {
+                        const { showToast } = require("../Calling/notificationUtils");
+                        showToast(`Call declined by ${declinedByUser}`, "info", 3000);
+                        console.log("📞 Fallback toast shown");
+                    } catch (error) {
+                        console.error("📞 Fallback toast failed:", error);
+                        console.log(`📞 Call declined by ${declinedByUser}`);
+                    }
+                }
+
+                // Clear outgoing call state since call was declined
+                this.setOutgoingCallState(false);
+
+                console.log("📞 Call decline handled successfully by GlobalSocketManager");
             } else {
-                console.warn("showToast not available on window, cannot show declined call toast");
+                console.log("📞 User was not making an outgoing call, ignoring decline notification");
             }
+        }
+    };
 
-            console.log("📞 Call decline handled successfully by GlobalSocketManager");
+    /**
+     * Handle call established events at global level
+     */
+    private handleGlobalCallEstablished = (event: Event): void => {
+        const customEvent = event as CustomEvent;
+        const data = customEvent.detail;
+
+        console.log("✅ GlobalSocketManager: Call successfully established", data);
+
+        // Clear outgoing call state since call is now successfully connected
+        // This prevents showing decline notifications on subsequent calls from other devices
+        if (this.isUserMakingOutgoingCall) {
+            console.log("📞 Call established successfully, clearing outgoing call state");
+            this.setOutgoingCallState(false);
         }
     };
 
@@ -498,6 +610,9 @@ class GlobalSocketManager {
         if ((window as any).__globalActiveCallData) {
             delete (window as any).__globalActiveCallData;
         }
+
+        // Clear outgoing call state since call has ended
+        this.setOutgoingCallState(false);
 
         console.log("🧹 GlobalSocketManager completed call ended cleanup");
     };
@@ -705,6 +820,48 @@ class GlobalSocketManager {
             window.dispatchEvent(callDeclinedEvent);
 
             console.log("✅ GlobalSocketManager: Dispatched liveKitCallDeclined event");
+        });
+
+        // Listen for cancel incoming call events from backend (when call is picked up on another device)
+        this.socket.on("cancel_incoming_call", (data: any) => {
+            console.log("📞 GlobalSocketManager: Received cancel_incoming_call from backend", data);
+            console.log("📞 Call was picked up on another device, cleaning up notifications on this device");
+
+            const { roomId, pickedUpBy } = data;
+
+            // Immediately stop ring sounds
+            console.log("🔇 Stopping ring sounds due to call pickup on another device");
+            LegacyCallHandler.instance.pause(AudioID.Ring);
+
+            // Stop any custom incoming call sounds
+            if ((window as any).stopIncomingCallSound) {
+                (window as any).stopIncomingCallSound();
+                console.log("🔇 Stopped incoming call sound due to call pickup on another device");
+            }
+
+            // Clear all LiveKit call notifications
+            if ((window as any).clearAllLiveKitCallNotifications) {
+                (window as any).clearAllLiveKitCallNotifications();
+                console.log("🧹 Cleared all notifications due to call pickup on another device");
+            } else {
+                // Fallback if function not available yet
+                document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => el.remove());
+                console.log("🧹 Cleared all notifications (fallback) due to call pickup on another device");
+            }
+
+            // Close any desktop notifications
+            this.closeIncomingCallDesktopNotifications();
+
+            // Show brief toast notification that call was picked up on another device
+            if (window.showToast) {
+                window.showToast("Call answered on another device", "info", 3000);
+            } else {
+                console.log("ℹ️ Call was answered on another device");
+            }
+
+            console.log(
+                `✅ GlobalSocketManager: Call pickup cleanup completed for room ${roomId} (picked up by ${pickedUpBy})`,
+            );
         });
 
         console.log("✅ GlobalSocketManager: Backend socket event listeners established");
@@ -969,6 +1126,47 @@ class GlobalSocketManager {
     }
 
     /**
+     * Set outgoing call state when user initiates a call
+     */
+    public setOutgoingCallState(isOutgoing: boolean, roomId?: string): void {
+        this.isUserMakingOutgoingCall = isOutgoing;
+        this.outgoingCallRoomId = isOutgoing ? roomId || null : null;
+        console.log(
+            `📞 GlobalSocketManager: Outgoing call state set to ${isOutgoing}${roomId ? ` for room ${roomId}` : ""}`,
+        );
+    }
+
+    /**
+     * Check if user is currently making an outgoing call
+     */
+    public isUserMakingCall(): boolean {
+        return this.isUserMakingOutgoingCall;
+    }
+
+    /**
+     * Get the room ID of the current outgoing call
+     */
+    public getOutgoingCallRoomId(): string | null {
+        return this.outgoingCallRoomId;
+    }
+
+    /**
+     * Static method to set outgoing call state from anywhere
+     */
+    public static setGlobalOutgoingCallState(isOutgoing: boolean, roomId?: string): void {
+        const instance = GlobalSocketManager.getInstance();
+        instance.setOutgoingCallState(isOutgoing, roomId);
+    }
+
+    /**
+     * Static method to check if user is making an outgoing call from anywhere
+     */
+    public static isGlobalUserMakingCall(): boolean {
+        const instance = GlobalSocketManager.getInstance();
+        return instance.isUserMakingCall();
+    }
+
+    /**
      * Clean up resources
      */
     private cleanup(): void {
@@ -979,6 +1177,7 @@ class GlobalSocketManager {
         window.removeEventListener("incomingCall", this.handleGlobalIncomingCall);
         window.removeEventListener("liveKitCallDeclined", this.handleGlobalCallDeclined);
         window.removeEventListener("liveKitCallEnded", this.handleGlobalCallEnded);
+        window.removeEventListener("liveKitCallEstablished", this.handleGlobalCallEstablished);
         document.removeEventListener("visibilitychange", this.handleVisibilityChange);
 
         // Close any open desktop notifications

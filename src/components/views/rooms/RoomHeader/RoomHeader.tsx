@@ -1127,12 +1127,12 @@ import { isVideoRoom as calcIsVideoRoom } from "../../../../utils/video-rooms.ts
 import { MainSplitContentType } from "../../../structures/RoomView.tsx";
 import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
 
-
 // --- LOG CALL FUNCTION (AES-CBC, API POST) ---
 export async function logCall(payload: Record<string, any>) {
     console.log("📞 logCall payload (before encryption):", payload);
 
-    const apiKey = process.env.REACT_APP_MY_API_KEY || "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16";
+    const apiKey =
+        process.env.REACT_APP_MY_API_KEY || "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16";
     const apiUrl = process.env.REACT_APP_CALL_LOG_API_URL || "https://beep.s.averox.com/api/call-logs/";
     const rememberKey = localStorage.getItem("rememberKey") || "default-secret";
 
@@ -1161,7 +1161,7 @@ export async function logCall(payload: Record<string, any>) {
             encryptedPayload[key] = value;
         } else if (Array.isArray(value)) {
             encryptedPayload[key] = value.map((item) =>
-                item !== null && item !== undefined ? encryptAES(String(item)) : encryptAES("")
+                item !== null && item !== undefined ? encryptAES(String(item)) : encryptAES(""),
             );
         } else if (value instanceof Date) {
             encryptedPayload[key] = encryptAES(value.toISOString());
@@ -1197,9 +1197,8 @@ export async function logCall(payload: Record<string, any>) {
         return data;
     } catch (e) {
         console.error("🚨 logCall fetch error:", e);
+    }
 }
-}
-
 
 export default function RoomHeader({
     room,
@@ -1258,6 +1257,21 @@ export default function RoomHeader({
 
             setActiveCallData(activeCall);
 
+            // Send call picked up event to backend to notify other devices
+            const socket = GlobalSocketManager.getInstance().getSocket();
+            if (socket && callData.roomId && currentUserId) {
+                const pickupData = {
+                    roomId: callData.roomId,
+                    userId: currentUserId,
+                    timestamp: new Date().toISOString(),
+                };
+
+                console.log("📤 RoomHeader emitting call_picked_up event:", pickupData);
+                socket.emit("call_picked_up", pickupData);
+            } else {
+                console.warn("❌ Cannot emit call_picked_up from RoomHeader - socket, roomId, or userId not available");
+            }
+
             // Log answered call (not missed)
             const now = new Date().toISOString();
             await logCall({
@@ -1282,9 +1296,7 @@ export default function RoomHeader({
                 isVideoCall: true,
                 roomId: room.roomId,
                 groupName: roomName,
-            }).catch(e => console.error("logCall error", e));
-            // TODO: Send acceptance response to backend
-            console.log("📤 Should send call acceptance to backend");
+            }).catch((e) => console.error("logCall error", e));
         },
         [currentUserId],
     );
@@ -1356,19 +1368,19 @@ export default function RoomHeader({
                 console.log("📞 Setting activeCallData to:", activeCall);
                 setActiveCallData(activeCall);
                 const now = new Date().toISOString();
-                 logCall({
+                logCall({
                     userId: client.getUserId() || "",
                     name: [client.getUserId() || ""],
                     imageUrl: [null],
                     date: now,
-                    isVideoCall: isLiveKitCallActive ? (liveKitCallType === "video") : false,
+                    isVideoCall: isLiveKitCallActive ? liveKitCallType === "video" : false,
                     roomId: room.roomId,
                     isIncoming: false,
                     isMissedCall: false, // Not missed
-                    userCalledId: members.filter((member) => member.userId !== client.getUserId()).map((member) => member.userId),
-                }).catch(e => console.error("logCall error", e));
-
-
+                    userCalledId: members
+                        .filter((member) => member.userId !== client.getUserId())
+                        .map((member) => member.userId),
+                }).catch((e) => console.error("logCall error", e));
             } else {
                 console.log("❌ Call is not for this room, ignoring");
             }
@@ -1378,60 +1390,8 @@ export default function RoomHeader({
 
         // NOTE: incomingLiveKitCall events are now handled globally by GlobalSocketManager
 
-        // Unified handler for call decline events
-        const handleCallDeclined = async (data: any): Promise<void> => {
-            console.log("📞 Received call decline event:", data);
-
-            // Check if this decline is for our current outgoing call
-            if (data.fromUserId === currentUserId) {
-                console.log("📞 Our call was declined by:", data.declinedBy);
-
-                // Close any active call screen
-                if (isLiveKitCallActive) {
-                    console.log("📞 Closing active LiveKit call due to decline");
-                    closeLiveKitCall();
-                }
-
-                // Clear any outgoing call notifications
-                if ((window as any).clearAllLiveKitCallNotifications) {
-                    (window as any).clearAllLiveKitCallNotifications();
-                }
-
-                // Show toast notification that call was declined
-                const declinedByUser = data.declinedBy || "User";
-                showToast(`Call declined by ${declinedByUser}`, "info", 3000);
-
-                console.log("📞 Call decline handled successfully");
-
-                // Log missed call
-                const now = new Date().toISOString();
-                await logCall({
-                    userId: client.getUserId() || "",
-                    name: [client.getUserId() || ""],
-                    imageUrl: [null],
-                    date: now,
-                    isVideoCall: isLiveKitCallActive ? (liveKitCallType === "video") : false,
-                    roomId: room.roomId,
-                    isIncoming: false,
-                    isMissedCall: false, // Not missed
-                    userCalledId: members.filter((member) => member.userId !== client.getUserId()).map((member) => member.userId),
-                }).catch(e => console.error("logCall error", e));
-            }
-        };
-
-        // Listen for both socket and custom events using global socket
-        const currentSocket = GlobalSocketManager.getInstance().getSocket();
-        if (currentSocket) {
-            currentSocket.on("call_declined", handleCallDeclined);
-        }
-
-        // Listen for custom LiveKit call declined events
-        window.addEventListener("liveKitCallDeclined", (event: Event) => {
-            const customEvent = event as CustomEvent;
-            if (customEvent.detail) {
-                handleCallDeclined(customEvent.detail);
-            }
-        });
+        // Note: Call declined handling is now centralized in GlobalSocketManager only
+        // This prevents duplicate handlers and race conditions with state management
 
         // Listen for auto-timeout events to show appropriate message
         window.addEventListener("liveKitCallTimeout", async () => {
@@ -1459,25 +1419,35 @@ export default function RoomHeader({
                 name: [client.getUserId() || ""],
                 imageUrl: [null],
                 date: now,
-                isVideoCall: isLiveKitCallActive ? (liveKitCallType === "video") : false,
+                isVideoCall: isLiveKitCallActive ? liveKitCallType === "video" : false,
                 roomId: room.roomId,
                 isIncoming: false,
                 isMissedCall: false, // Missed call
-                userCalledId: members.filter((member) => member.userId !== client.getUserId()).map((member) => member.userId),
-            }).catch(e => console.error("logCall error", e));
+                userCalledId: members
+                    .filter((member) => member.userId !== client.getUserId())
+                    .map((member) => member.userId),
+            }).catch((e) => console.error("logCall error", e));
         });
 
         // Cleanup function
         return () => {
-            const cleanupSocketInst = GlobalSocketManager.getInstance().getSocket();
-            if (cleanupSocketInst) {
-                cleanupSocketInst.off("call_declined", handleCallDeclined);
-            }
             window.removeEventListener("globalCallAccepted", handleGlobalCallAccepted);
-            window.removeEventListener("liveKitCallDeclined", handleCallDeclined);
             window.removeEventListener("liveKitCallTimeout", () => {});
+
+            // Only clear outgoing call state when component actually unmounts (not during re-renders)
+            // We can detect this by checking if the component is truly unmounting
+            console.log("📞 RoomHeader useEffect cleanup - not clearing outgoing state during re-renders");
         };
     }, [handleAcceptIncomingCall, handleRejectIncomingCall, currentUserId, isLiveKitCallActive, room.roomId]);
+
+    // Separate useEffect for component unmounting cleanup
+    useEffect(() => {
+        return () => {
+            // This will only run when the component actually unmounts (no dependencies)
+            console.log("📞 RoomHeader component unmounting - clearing outgoing call state");
+            GlobalSocketManager.setGlobalOutgoingCallState(false);
+        };
+    }, []); // Empty dependency array ensures this only runs on mount/unmount
 
     const allSamePowerLevel = React.useMemo(() => {
         const allMembers = [currentUser, ...otherMember];
@@ -1538,6 +1508,14 @@ export default function RoomHeader({
         setIsLiveKitCallActive(true);
         setLiveKitCallData(participantData);
         setLiveKitCallType("video");
+
+        // Set outgoing call state in GlobalSocketManager to track this device is making a call
+        console.log("📞 GroupCallVideo: Setting outgoing call state to true for room:", participantData.roomId);
+        GlobalSocketManager.setGlobalOutgoingCallState(true, participantData.roomId);
+        console.log(
+            "📞 GroupCallVideo: Outgoing call state set, current value:",
+            GlobalSocketManager.isGlobalUserMakingCall(),
+        );
     }
 
     async function GroupCallVoice(): Promise<void> {
@@ -1579,6 +1557,14 @@ export default function RoomHeader({
         setIsLiveKitCallActive(true);
         setLiveKitCallData(participantData);
         setLiveKitCallType("voice");
+
+        // Set outgoing call state in GlobalSocketManager to track this device is making a call
+        console.log("📞 GroupCallVoice: Setting outgoing call state to true for room:", participantData.roomId);
+        GlobalSocketManager.setGlobalOutgoingCallState(true, participantData.roomId);
+        console.log(
+            "📞 GroupCallVoice: Outgoing call state set, current value:",
+            GlobalSocketManager.isGlobalUserMakingCall(),
+        );
     }
 
     // Helper function to gather participant data for the call
@@ -1620,7 +1606,6 @@ export default function RoomHeader({
                 fromUsername: currentUserId,
                 groupName,
             };
-            
 
             console.log("👥 Gathered participant data:", {
                 roomId: participantData.roomId,
@@ -1644,7 +1629,12 @@ export default function RoomHeader({
 
     // Function to close any active LiveKit call
     const closeLiveKitCall = (): void => {
-        console.log("Closing LiveKit call");
+        console.log("📞 closeLiveKitCall: Function called to close LiveKit call");
+        console.log("📞 closeLiveKitCall: Current state:", {
+            isLiveKitCallActive,
+            hasLiveKitCallData: !!liveKitCallData,
+            hasActiveCallData: !!activeCallData,
+        });
 
         // Remove any existing LiveKit call notifications when closing call
         if ((window as any).clearAllLiveKitCallNotifications) {
@@ -1669,12 +1659,76 @@ export default function RoomHeader({
             userCalledId: members
                 .filter((member) => member.userId !== client.getUserId())
                 .map((member) => member.userId),
-        }).catch(e => console.error("logCall error", e));
-    
+        }).catch((e) => console.error("logCall error", e));
+
+        console.log("📞 closeLiveKitCall: Setting call states to false/null");
         setIsLiveKitCallActive(false);
         setLiveKitCallData(null);
         setActiveCallData(null);
+
+        // CRITICAL: Stop all media tracks to release mic/camera resources
+        console.log("📞 closeLiveKitCall: Stopping all media tracks");
+        try {
+            // Method 1: Stop all media elements
+            const mediaElements = document.querySelectorAll("video, audio");
+            mediaElements.forEach((element) => {
+                if (element.srcObject) {
+                    const stream = element.srcObject as MediaStream;
+                    stream.getTracks().forEach((track) => {
+                        console.log("📞 Stopping track:", track.kind, track.label);
+                        track.stop();
+                    });
+                    element.srcObject = null;
+                }
+            });
+
+            // Method 2: Force stop any global media streams
+            if ((window as any).__globalMediaStream) {
+                console.log("📞 Stopping global media stream");
+                const globalStream = (window as any).__globalMediaStream as MediaStream;
+                globalStream.getTracks().forEach((track) => {
+                    console.log("📞 Stopping global track:", track.kind);
+                    track.stop();
+                });
+                delete (window as any).__globalMediaStream;
+            }
+
+            // Method 3: Dispatch custom event to force LiveKit room disconnect
+            const disconnectEvent = new CustomEvent("forceLiveKitDisconnect", {
+                detail: { reason: "call_declined" },
+            });
+            window.dispatchEvent(disconnectEvent);
+            console.log("📞 Dispatched forceLiveKitDisconnect event");
+
+            console.log("📞 All media tracks cleanup completed");
+        } catch (error) {
+            console.warn("📞 Error releasing media resources:", error);
+        }
+
+        // Clear outgoing call state in GlobalSocketManager since call is ending
+        GlobalSocketManager.setGlobalOutgoingCallState(false);
+
+        console.log("📞 closeLiveKitCall: Call closure completed successfully");
     };
+
+    // Expose close function globally for direct access
+    useEffect(() => {
+        (window as any).globalCloseLiveKitCall = closeLiveKitCall;
+
+        // Listen for force close events
+        const handleForceClose = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            console.log("📞 RoomHeader: Received forceCloseLiveKitCall event:", customEvent.detail);
+            closeLiveKitCall();
+        };
+
+        window.addEventListener("forceCloseLiveKitCall", handleForceClose);
+
+        return () => {
+            delete (window as any).globalCloseLiveKitCall;
+            window.removeEventListener("forceCloseLiveKitCall", handleForceClose);
+        };
+    }, []); // Empty dependency array since closeLiveKitCall doesn't change
 
     // Monitor activeCallData changes
     useEffect(() => {
@@ -1713,8 +1767,6 @@ export default function RoomHeader({
         roomContext.mainSplitContentType === MainSplitContentType.MaximisedWidget ||
         roomContext.mainSplitContentType === MainSplitContentType.Call;
 
-
-     
     return (
         <>
             <CurrentRightPanelPhaseContextProvider roomId={room.roomId}>
@@ -1743,7 +1795,7 @@ export default function RoomHeader({
                     >
                         <Box flex="1" className="mx_RoomHeader_info">
                             <BodyText
-                            style={{color: "black"}}
+                                style={{ color: "black" }}
                                 as="div"
                                 size="lg"
                                 weight="semibold"
@@ -1791,53 +1843,52 @@ export default function RoomHeader({
                     </button>
 
                     {!showChatButton && (
-                            <>
-                                <button
-                                    onClick={GroupCallVoice}
-                                    disabled={isLiveKitCallActive || !!activeCallData}
-                                    title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
-                                    style={{
-                                        backgroundColor: "rgb(72, 141, 65)",
-                                        border: "none",
-                                        borderRadius: "50%",
-                                        width: "40px",
-                                        height: "40px",
-                                        padding: "8px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                        cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                                        opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                                    }}
-                                >
-                                    <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                                </button>
+                        <>
+                            <button
+                                onClick={GroupCallVoice}
+                                disabled={isLiveKitCallActive || !!activeCallData}
+                                title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
+                                style={{
+                                    backgroundColor: "rgb(72, 141, 65)",
+                                    border: "none",
+                                    borderRadius: "50%",
+                                    width: "40px",
+                                    height: "40px",
+                                    padding: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    transition: "background-color 0.2s ease, opacity 0.2s ease",
+                                    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+                                    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+                                }}
+                            >
+                                <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                            </button>
 
-                                <button
-                                    onClick={GroupCallVideo}
-                                    disabled={isLiveKitCallActive || !!activeCallData}
-                                    title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
-                                    style={{
-                                        backgroundColor: "rgb(72, 141, 65)",
-                                        border: "none",
-                                        borderRadius: "50%",
-                                        width: "40px",
-                                        height: "40px",
-                                        padding: "8px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                        cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                                        opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                                    }}
-                                >
-                                    <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                                </button>
-                            </>
-                        )}
-
+                            <button
+                                onClick={GroupCallVideo}
+                                disabled={isLiveKitCallActive || !!activeCallData}
+                                title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
+                                style={{
+                                    backgroundColor: "rgb(72, 141, 65)",
+                                    border: "none",
+                                    borderRadius: "50%",
+                                    width: "40px",
+                                    height: "40px",
+                                    padding: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    transition: "background-color 0.2s ease, opacity 0.2s ease",
+                                    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+                                    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+                                }}
+                            >
+                                <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                            </button>
+                        </>
+                    )}
 
                     {notificationsEnabled && !allSamePowerLevel && (
                         <Tooltip label={_t("notifications|enable_prompt_toast_title")}>
@@ -1871,26 +1922,26 @@ export default function RoomHeader({
                     )}
 
                     {/* FacePile (Member List) - hide if restricted */}
-                   {/* FacePile (Member List) - hide if restricted */}
-                   {((!isDirectMessage && !allSamePowerLevel) || memberCount === 1 || memberCount === 0) && (
-                            <BodyText as="div" size="sm" weight="medium">
-                                <FacePile
-                                    className="mx_RoomHeader_members"
-                                    members={members.slice(0, 3)}
-                                    size="20px"
-                                    overflow={false}
-                                    viewUserOnClick={false}
-                                    tooltipLabel={_t("room|header_face_pile_tooltip")}
-                                    onClick={(e: ButtonEvent) => {
-                                        RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
-                                        e.stopPropagation();
-                                    }}
-                                    aria-label={_t("common|n_members", { count: memberCount })}
-                                >
-                                    {formatCount(memberCount)}
-                                </FacePile>
-                            </BodyText>
-                        )}
+                    {/* FacePile (Member List) - hide if restricted */}
+                    {((!isDirectMessage && !allSamePowerLevel) || memberCount === 1 || memberCount === 0) && (
+                        <BodyText as="div" size="sm" weight="medium">
+                            <FacePile
+                                className="mx_RoomHeader_members"
+                                members={members.slice(0, 3)}
+                                size="20px"
+                                overflow={false}
+                                viewUserOnClick={false}
+                                tooltipLabel={_t("room|header_face_pile_tooltip")}
+                                onClick={(e: ButtonEvent) => {
+                                    RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
+                                    e.stopPropagation();
+                                }}
+                                aria-label={_t("common|n_members", { count: memberCount })}
+                            >
+                                {formatCount(memberCount)}
+                            </FacePile>
+                        </BodyText>
+                    )}
                 </Flex>
                 {askToJoinEnabled && <RoomKnocksBar room={room} />}
             </CurrentRightPanelPhaseContextProvider>
