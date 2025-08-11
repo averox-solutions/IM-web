@@ -1220,6 +1220,8 @@ export default function RoomHeader({
     const [isLiveKitCallActive, setIsLiveKitCallActive] = useState(false);
     const [liveKitCallData, setLiveKitCallData] = useState<any>(null);
     const [liveKitCallType, setLiveKitCallType] = useState<"video" | "voice">("video");
+    const [toUserIds, setToUserIds] = useState<string[]>([]);
+    const [groupName, setGroupName] = useState<string | null>(null);
 
     // Active call state for when user accepts an incoming call
     const [activeCallData, setActiveCallData] = useState<any>(null);
@@ -1288,7 +1290,66 @@ export default function RoomHeader({
         },
         [currentUserId],
     );
+    const saveUserIdsAndGroupNameToLocalStorage = (toUserIds: string[], groupName: string | null) => {
+        const callDataForStorage = {
+            toUserIds,
+            groupName,
+        };
+    
+        // Save to localStorage
+        localStorage.setItem("activeCallData", JSON.stringify(callDataForStorage));
+        console.log("✅ Saved userIds and groupName to localStorage:", callDataForStorage);
+    };
+    
 
+    useEffect(() => {
+        // Function to gather and save participant data
+        const gatherAndSaveParticipantData = (): void => {
+            try {
+                const currentUserId = client.getUserId();
+                if (!currentUserId) {
+                    console.error("❌ Current user ID not available");
+                    return;
+                }
+
+                // Get room members excluding the current user
+                const otherUsers = members.filter((member) => member.userId !== currentUserId);
+                if (otherUsers.length === 0) {
+                    console.warn("⚠️ No other users found in room for calling");
+                    return;
+                }
+
+                // Extract userIds
+                const newToUserIds = otherUsers.map((member) => member.userId);
+
+                // Determine if it's a group call (if there are multiple members)
+                const isGroupCall = otherUsers.length > 1;
+                const newGroupName = isGroupCall ? roomName : null;
+
+                // Update state with the new userIds and groupName
+                setToUserIds(newToUserIds);
+                setGroupName(newGroupName);
+
+                // Save the userIds and groupName to localStorage
+                saveUserIdsAndGroupNameToLocalStorage(newToUserIds, newGroupName);
+            } catch (error) {
+                console.error("❌ Error gathering participant data:", error);
+            }
+        };
+
+        // Call the function immediately to update the local storage with current data
+        gatherAndSaveParticipantData();
+
+        // Set an interval to refresh the localStorage and UI every 5 seconds (adjustable)
+        const intervalId = setInterval(() => {
+            gatherAndSaveParticipantData();
+        }, 500); // Update every 5 seconds
+
+        // Cleanup the interval on component unmount or dependency change
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [room, members, roomName, client.getUserId()]);
     // Handle incoming call rejection
     const handleRejectIncomingCall = useCallback(
         (callData: any): void => {
