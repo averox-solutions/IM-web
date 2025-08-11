@@ -43,6 +43,17 @@ Please see LICENSE files in the repository root for full details.
         }
     }
 }
+.customAllSettingsHover {
+    background-color: transparent;
+    color: black;
+    transition: background-color 0.3s ease; // smooth transition
+}
+
+.customAllSettingsHover:hover {
+    background-color:#488D41; // soft green
+    color: white !important; 
+    cursor: pointer;
+}
 
 .mx_QuickSettingsButton_ContextMenuWrapper .mx_ContextualMenu {
     padding: 16px;
@@ -95,7 +106,7 @@ Please see LICENSE files in the repository root for full details.
 
     .mx_QuickSettingsButton_moreOptionsButton {
         padding-left: 22px;
-        margin-left: 22px;
+        margin-left: 0px;
         font-size: $font-15px;
         line-height: $font-24px;
         color: var(--cpd-color-text-primary);

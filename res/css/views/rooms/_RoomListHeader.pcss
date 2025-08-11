@@ -7,36 +7,99 @@ Please see LICENSE files in the repository root for full details.
 */
 
 .position_class2 {
-    background-color: #488d41;
-    border-radius: 8px;
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    background-size: 200% 200%;
+    border-radius: 40px;
     bottom: 20px;
-    -webkit-box-sizing: border-box;
     box-sizing: border-box;
-    height: 49px;
+    height: 44px;
     left: 216px;
-    margin-left: 8px;
+    margin-left: 24px;
     margin-right: 12px;
     padding: 8px;
     position: absolute;
-    width: 119px;
-    -ms-flex-negative: 0;
-    display: -webkit-box;
-    display: -ms-flexbox;
-    display: flex;
+    width: 98px;
     flex-shrink: 0;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
+    display: flex;
     align-items: center;
-    -webkit-box-pack: center;
-    -ms-flex-pack: center;
     justify-content: center;
-    -ms-flex-line-pack: center;
     align-content: center;
     color: #fff;
+    font-weight: 600;
     z-index: 9999;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* added shadow */
+    cursor: pointer;
+    transition: all 0.4s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 
+    animation: bgShift 5s ease infinite, pulseGlow 3s ease-in-out infinite;
+
+    &:hover {
+        transform: scale(1.07);
+        background: linear-gradient(135deg, #66BB6A, #388E3C);
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    }
+
+    // Optional: smoother icon or text interaction
+    * {
+        transition: transform 0.3s ease;
+    }
+
+    &:hover * {
+        transform: scale(1.03);
+    }
+
+    // inner shine shimmer
+    &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -75%;
+        width: 50%;
+        height: 100%;
+        background: linear-gradient(
+            120deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0) 100%
+        );
+        transform: skewX(-20deg);
+        animation: shimmer 2.5s infinite;
+        border-radius: 40px;
+        pointer-events: none;
+    }
 }
+
+@keyframes bgShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(72, 141, 65, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(72, 141, 65, 0.6);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        left: -75%;
+    }
+    100% {
+        left: 125%;
+    }
+}
+
+
 
 .position_class {
         background-color: $quinary-content;

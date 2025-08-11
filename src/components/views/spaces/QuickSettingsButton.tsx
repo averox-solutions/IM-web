@@ -9,10 +9,11 @@ Please see LICENSE files in the repository root for full details.
 import React from "react";
 import classNames from "classnames";
 import {
-    OverflowHorizontalIcon,
+    SidebarIcon,
     UserProfileSolidIcon,
     FavouriteSolidIcon,
 } from "@vector-im/compound-design-tokens/assets/web/icons";
+import { FaRegArrowAltCircleRight } from "react-icons/fa";
 
 import { _t } from "../../../languageHandler";
 import ContextMenu, { alwaysAboveRightOf, ChevronFace, useContextMenu } from "../../structures/ContextMenu";
@@ -54,6 +55,7 @@ const QuickSettingsButton: React.FC<{
                 <h2>{_t("quick_settings|title")}</h2>
 
                 <AccessibleButton
+                className="customAllSettingsHover"
                     onClick={() => {
                         closeMenu();
                         defaultDispatcher.dispatch({ action: Action.ViewUserSettings });
@@ -103,18 +105,23 @@ const QuickSettingsButton: React.FC<{
                     {_t("common|people")}
                 </StyledCheckbox>
                 <AccessibleButton
-                    className="mx_QuickSettingsButton_moreOptionsButton"
-                    onClick={() => {
-                        closeMenu();
-                        defaultDispatcher.dispatch({
-                            action: Action.ViewUserSettings,
-                            initialTabId: UserTab.Sidebar,
-                        });
-                    }}
-                >
-                    <OverflowHorizontalIcon className="mx_QuickSettingsButton_icon" />
-                    {_t("quick_settings|sidebar_settings")}
-                </AccessibleButton>
+    className="mx_QuickSettingsButton_moreOptionsButton"
+    onClick={() => {
+        closeMenu();
+        defaultDispatcher.dispatch({
+            action: Action.ViewUserSettings,
+            initialTabId: UserTab.Sidebar,
+        });
+    }}
+>
+    <span style={{ display: "flex", alignItems: "center" }}>
+        <FaRegArrowAltCircleRight className="mx_QuickSettingsButton_icon" />
+        <SidebarIcon className="mx_QuickSettingsButton_icon" style={{ marginLeft: "22px" }} />
+        <span style={{ marginLeft: "20px" }}>{_t("quick_settings|sidebar_settings")}</span>
+    </span>
+</AccessibleButton>
+
+
 
                 <QuickThemeSwitcher requestClose={closeMenu} />
             </ContextMenu>

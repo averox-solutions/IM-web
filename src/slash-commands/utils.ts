@@ -70,6 +70,7 @@ export const isCurrentLocalRoom = (cli: MatrixClient | null): boolean => {
     const roomId = SdkContextClass.instance.roomViewStore.getRoomId();
     if (!roomId) return false;
     const room = cli?.getRoom(roomId);
+    console.log(room,'room details')
     if (!room) return false;
     return isLocalRoom(room);
 };
