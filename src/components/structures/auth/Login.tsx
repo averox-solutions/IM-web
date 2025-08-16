@@ -242,7 +242,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             this.setState({ serverIsAlive: true, busy: false, busyLoggingIn: false });
             this.loginCreds = data;
     
-            const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
+            const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
     
             // ✅ Check 2FA status from API
             const statusResponse = await fetch(
