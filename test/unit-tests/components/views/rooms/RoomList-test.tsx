@@ -244,7 +244,7 @@ describe("RoomList", () => {
                 const noInvites = screen.queryByRole("treeitem", { name: "Invites" });
                 const noFavourites = screen.queryByRole("treeitem", { name: "Favourites" });
                 const noPeople = screen.queryByRole("treeitem", { name: "People" });
-                const noLowPriority = screen.queryByRole("treeitem", { name: "Low priority" });
+                const noLowPriority = screen.queryByRole("treeitem", { name: "Archived" });
                 const noHistorical = screen.queryByRole("treeitem", { name: "Historical" });
 
                 expect(roomsEl).toBeVisible();

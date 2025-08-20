@@ -17,8 +17,8 @@ import {
     Heading,
     IconButton,
     Link,
-    Search,
-    Form,
+    // Search,
+    // Form,
 } from "@vector-im/compound-web";
 import FavouriteIcon from "@vector-im/compound-design-tokens/assets/web/icons/favourite";
 import UserAddIcon from "@vector-im/compound-design-tokens/assets/web/icons/user-add";
@@ -335,24 +335,24 @@ const RoomSummaryCard: React.FC<IProps> = ({
     const canInviteToState = useEventEmitterState(room, RoomStateEvent.Update, () => canInviteTo(room));
     const isFavorite = roomTags.includes(DefaultTagID.Favourite);
 
-    const header = onSearchChange && (
-        <Form.Root className="mx_RoomSummaryCard_search" onSubmit={(e) => e.preventDefault()}>
-            <Search
-                placeholder={_t("room|search|placeholder")}
-                name="room_message_search"
-                onChange={onSearchChange}
-                className="mx_no_textinput"
-                ref={searchInputRef}
-                autoFocus={focusRoomSearch}
-                onKeyDown={(e) => {
-                    if (searchInputRef.current && e.key === Key.ESCAPE) {
-                        searchInputRef.current.value = "";
-                        onSearchCancel?.();
-                    }
-                }}
-            />
-        </Form.Root>
-    );
+    // const header = onSearchChange && (
+    //     <Form.Root className="mx_RoomSummaryCard_search" onSubmit={(e) => e.preventDefault()}>
+    //         <Search
+    //             placeholder={_t("room|search|placeholder")}
+    //             name="room_message_search"
+    //             onChange={onSearchChange}
+    //             className="mx_no_textinput"
+    //             ref={searchInputRef}
+    //             autoFocus={focusRoomSearch}
+    //             onKeyDown={(e) => {
+    //                 if (searchInputRef.current && e.key === Key.ESCAPE) {
+    //                     searchInputRef.current.value = "";
+    //                     onSearchCancel?.();
+    //                 }
+    //             }}
+    //         />
+    //     </Form.Root>
+    // );
 
     return (
         <BaseCard
@@ -360,7 +360,7 @@ const RoomSummaryCard: React.FC<IProps> = ({
             className="mx_RoomSummaryCard"
             ariaLabelledBy="room-summary-panel-tab"
             role="tabpanel"
-            header={header}
+            // header={header}
         >
             {roomInfo}
 

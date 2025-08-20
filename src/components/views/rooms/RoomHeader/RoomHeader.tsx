@@ -1086,6 +1086,15 @@ import NotificationsIcon from "@vector-im/compound-design-tokens/assets/web/icon
 import VerifiedIcon from "@vector-im/compound-design-tokens/assets/web/icons/verified";
 import ErrorIcon from "@vector-im/compound-design-tokens/assets/web/icons/error";
 import PublicIcon from "@vector-im/compound-design-tokens/assets/web/icons/public";
+import  {  useRef, type ChangeEvent } from "react";
+import SearchIcon from "@vector-im/compound-design-tokens/assets/web/icons/search";
+import { Search, Form } from "@vector-im/compound-web";
+import classNames from "classnames";
+
+import { useDispatcher } from "../../../../hooks/useDispatcher";
+import { Action } from "../../../../dispatcher/actions";
+import { Key } from "../../../../Keyboard";
+
 
 import { JoinRule } from "matrix-js-sdk/src/matrix";
 import type { Room } from "matrix-js-sdk/src/matrix";
@@ -1204,11 +1213,17 @@ export async function logCall(payload: Record<string, any>) {
 export default function RoomHeader({
     room,
     oobData,
+    onSearchChange,    // ← NEW
+  onSearchCancel,    // ← NEW
+  focusRoomSearch,   // ← NEW
 }: {
     room: Room;
     additionalButtons?: ViewRoomOpts["buttons"];
     oobData?: IOOBData;
-}): JSX.Element {
+    onSearchChange?: (e: ChangeEvent) => void;
+    onSearchCancel?: () => void;
+    focusRoomSearch?: boolean;
+  }): JSX.Element {
     const client = useMatrixClientContext();
     const roomName = useRoomName(room);
     const joinRule = useRoomState(room, (state) => state.getJoinRule());
@@ -1222,7 +1237,24 @@ export default function RoomHeader({
     const [liveKitCallType, setLiveKitCallType] = useState<"video" | "voice">("video");
     const [toUserIds, setToUserIds] = useState<string[]>([]);
     const [groupName, setGroupName] = useState<string | null>(null);
+    const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+const searchInputRef = useRef<HTMLInputElement>(null);
 
+useDispatcher(defaultDispatcher, (payload) => {
+    if (payload.action === Action.FocusMessageSearch) {
+      setIsSearchOpen(true);
+      // wait for open animation then focus
+      setTimeout(() => searchInputRef.current?.focus(), 160);
+    }
+  });
+
+  // If parent requests autofocus
+useEffect(() => {
+    if (focusRoomSearch) {
+      setIsSearchOpen(true);
+      setTimeout(() => searchInputRef.current?.focus(), 160);
+    }
+  }, [focusRoomSearch]);
     // Active call state for when user accepts an incoming call
     const [activeCallData, setActiveCallData] = useState<any>(null);
 
@@ -1850,6 +1882,49 @@ export default function RoomHeader({
                             </BodyText>
                         </Box>
                     </button>
+
+{/* existing header layout ... */}
+
+{/** INSERT THIS RIGHT BEFORE THE CALL BUTTONS **/}
+<div className={classNames("mx_HeaderSearchWrap", { "mx_HeaderSearchWrap--open": isSearchOpen })}>
+  {isSearchOpen ? (
+    <Form.Root
+      className="mx_HeaderSearchForm"
+      onSubmit={(e) => e.preventDefault()}
+    >
+      <Search
+        placeholder={_t("room|search|placeholder")}
+        name="room_message_search"
+        className="mx_HeaderSearchInput mx_no_textinput"
+        ref={searchInputRef}
+        onChange={onSearchChange}
+        onBlur={() => {
+          // Collapse if empty on blur
+          if (!searchInputRef.current?.value) setIsSearchOpen(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === Key.ESCAPE && searchInputRef.current) {
+            searchInputRef.current.value = "";
+            onSearchCancel?.();
+            setIsSearchOpen(false);
+          }
+        }}
+      />
+    </Form.Root>
+  ) : (
+    <IconButton
+      aria-label={_t("room|search|open")}
+      onClick={() => {
+        setIsSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 160);
+      }}
+      className="mx_HeaderSearchButton"
+    >
+      <SearchIcon />
+    </IconButton>
+  )}
+</div>
+
 
                     {!showChatButton && (
                             <>

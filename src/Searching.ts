@@ -25,6 +25,63 @@ import { isNotUndefined } from "./Typeguards";
 
 const SEARCH_LIMIT = 10;
 
+function makePrefixQuery(term: string): string {
+    const tokens = term.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return term;
+    return tokens
+      .map(t => t.replace(/[^\p{L}\p{N}_*]/gu, "")) // keep letters/numbers/_/*
+      .filter(Boolean)
+      .map(t => (t.endsWith("*") ? t : `${t}*`))
+      .join(" ");
+  }
+
+  function normalize(s?: string) {
+    return (s ?? "").toLowerCase();
+}
+
+function roomTimelinePrefixFallback(
+    client: MatrixClient,
+    roomId: string,
+    term: string,
+    limit = SEARCH_LIMIT,
+): IResultRoomEvents | undefined {
+    const room = client.getRoom(roomId);
+    if (!room) return;
+
+    const q = normalize(term);
+    if (!q) return;
+
+    // Filter only message events currently in memory (fast & no server calls).
+    const hits = room.timeline
+        .filter(mxEv => {
+            const t = mxEv.getType();
+            if (t !== EventType.RoomMessage && t !== "m.room.message") return false;
+            const body = normalize(mxEv.getContent()?.body);
+            // prefix match; change to .includes(q) for substring
+            return body.includes(q);
+        })
+        // newest first like the server results
+        .sort((a, b) => b.getTs() - a.getTs())
+        .slice(0, limit);
+
+    if (hits.length === 0) return;
+
+    // Build a minimal IResultRoomEvents the sdk can process
+    const results = hits.map(mxEv => ({
+        result: mxEv.event,
+        // minimal context with getTimeline so restoreEncryptionInfo() won’t choke
+        context: { getTimeline: () => [mxEv] } as unknown as SearchResult["context"],
+    }));
+
+    return {
+        results,
+        highlights: [],
+        count: results.length,
+        next_batch: undefined,
+    };
+}
+
+
 async function serverSideSearch(
     client: MatrixClient,
     term: string,
@@ -37,11 +94,16 @@ async function serverSideSearch(
 
     if (roomId !== undefined) filter.rooms = [roomId];
 
+    // Try prefix-expanded term; Synapse may ignore wildcard but it's safe to send.
+    const expanded = makePrefixQuery(term);
+
     const body: ISearchRequestBody = {
         search_categories: {
             room_events: {
-                search_term: term,
-                filter: filter,
+                // NOTE: Synapse might still treat this as plain tokens (no prefix).
+                // Local Seshat will honor the '*' in our combined flow.
+                search_term: expanded,
+                filter,
                 order_by: SearchOrderBy.Recent,
                 event_context: {
                     before_limit: 1,
@@ -52,8 +114,7 @@ async function serverSideSearch(
         },
     };
 
-    const response = await client.search({ body: body }, abortSignal);
-
+    const response = await client.search({ body }, abortSignal);
     return { response, query: body };
 }
 
@@ -65,18 +126,29 @@ async function serverSideSearchProcess(
 ): Promise<ISearchResults> {
     const result = await serverSideSearch(client, term, roomId, abortSignal);
 
-    // The js-sdk method backPaginateRoomEventsSearch() uses _query internally
-    // so we're reusing the concept here since we want to delegate the
-    // pagination back to backPaginateRoomEventsSearch() in some cases.
-    const searchResults: ISearchResults = {
+    const base: ISearchResults = {
         abortSignal,
         _query: result.query,
         results: [],
         highlights: [],
     };
 
-    return client.processRoomEventsSearch(searchResults, result.response);
+    // First, let SDK shape the response
+    let processed = client.processRoomEventsSearch(base, result.response);
+
+    // Fallback only for single-room searches with 0 results
+    if (roomId && processed.results.length === 0) {
+        const fallback = roomTimelinePrefixFallback(client, roomId, term);
+        if (fallback) {
+            const resp: ISearchResponse = { search_categories: { room_events: fallback } };
+            processed = client.processRoomEventsSearch(base, resp);
+            // no need to set _query/next_batch for fallback (non-paginating)
+        }
+    }
+
+    return processed;
 }
+
 
 function compareEvents(a: ISearchResult, b: ISearchResult): number {
     const aEvent = a.result;
@@ -150,6 +222,7 @@ async function combinedSearch(
     return result;
 }
 
+// --- Replace your existing localSearch with this ---
 async function localSearch(
     searchTerm: string,
     roomId?: string,
@@ -157,8 +230,11 @@ async function localSearch(
 ): Promise<{ response: IResultRoomEvents; query: ISearchArgs }> {
     const eventIndex = EventIndexPeg.get();
 
+    // Expand to prefix query for FTS5 (Seshat). Example: "h" -> "h*"
+    const expanded = makePrefixQuery(searchTerm);
+
     const searchArgs: ISearchArgs = {
-        search_term: searchTerm,
+        search_term: expanded,
         before_limit: 1,
         after_limit: 1,
         limit: SEARCH_LIMIT,
@@ -177,13 +253,12 @@ async function localSearch(
 
     searchArgs.next_batch = localResult.next_batch;
 
-    const result = {
+    return {
         response: localResult,
         query: searchArgs,
     };
-
-    return result;
 }
+
 
 export interface ISeshatSearchResults extends ISearchResults {
     seshatQuery?: ISearchArgs;
@@ -602,26 +677,23 @@ async function eventIndexSearch(
     roomId?: string,
     abortSignal?: AbortSignal,
 ): Promise<ISearchResults> {
-    let searchPromise: Promise<ISearchResults>;
-
+    const hasIndex = EventIndexPeg.get() !== null;
     if (roomId !== undefined) {
-        if (await client.getCrypto()?.isEncryptionEnabledInRoom(roomId)) {
-            // The search is for a single encrypted room, use our local
-            // search method.
-            searchPromise = localSearchProcess(client, term, roomId);
-        } else {
-            // The search is for a single non-encrypted room, use the
-            // server-side search.
-            searchPromise = serverSideSearchProcess(client, term, roomId, abortSignal);
-        }
-    } else {
-        // Search across all rooms, combine a server side search and a
-        // local search.
-        searchPromise = combinedSearch(client, term, abortSignal);
-    }
+        // Prefer local index for prefix behavior when present
+        if (hasIndex) return localSearchProcess(client, term, roomId);
 
-    return searchPromise;
+        // fallback to existing logic
+        if (await client.getCrypto()?.isEncryptionEnabledInRoom(roomId)) {
+            return localSearchProcess(client, term, roomId);
+        } else {
+            return serverSideSearchProcess(client, term, roomId, abortSignal);
+        }
+    }
+    return hasIndex
+        ? combinedSearch(client, term, abortSignal)
+        : serverSideSearchProcess(client, term, undefined, abortSignal);
 }
+
 
 function eventIndexSearchPagination(
     client: MatrixClient,

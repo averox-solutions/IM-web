@@ -105,3 +105,28 @@ Please see LICENSE files in the repository root for full details.
 .mx_RoomHeader .mx_RoomHeader_toggled {
     color: var(--cpd-color-icon-accent-primary);
 }
+
+.mx_HeaderSearchWrap {
+  display: flex;
+  align-items: center;
+  width: 40px;            /* icon width */
+  overflow: hidden;
+  transition: width 160ms ease;
+  gap: var(--cpd-space-2x);
+}
+
+.mx_HeaderSearchWrap--open {
+  width: 280px;           /* expanded input width */
+}
+
+.mx_HeaderSearchButton {
+  /* Optional: align with your header height */
+}
+
+.mx_HeaderSearchForm {
+  width: 100%;
+}
+
+.mx_HeaderSearchInput {
+  width: 100%;
+}
