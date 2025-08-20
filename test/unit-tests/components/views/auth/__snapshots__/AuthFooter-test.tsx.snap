@@ -7,7 +7,7 @@ exports[`<AuthFooter /> should match snapshot 1`] = `
     role="contentinfo"
   >
     <a
-      href="https://element.io/blog"
+      href="https://im.beep.gov.pk/blog"
       rel="noreferrer noopener"
       target="_blank"
     >

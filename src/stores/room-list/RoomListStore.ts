@@ -87,7 +87,7 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
 
     public get orderedLists(): ITagMap {
         if (!this.algorithm) return {}; // No tags yet.
-        console.log('this is my order list algorithm', this.algorithm.getOrderedRooms());
+        // console.log('this is my order list algorithm', this.algorithm.getOrderedRooms());
         return this.algorithm.getOrderedRooms();
     }
   

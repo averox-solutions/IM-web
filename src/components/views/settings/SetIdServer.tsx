@@ -284,8 +284,8 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 import React from "react";
 import SettingsFieldset from "./SettingsFieldset";
 import AccessibleButton from "../elements/AccessibleButton";
-
-const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
+import { process } from "process";
+const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
 
 interface IState {
     toggle2faLoading: boolean;

@@ -33,7 +33,7 @@ describe("BasicMessageComposer", () => {
     it("should allow a user to paste a URL without it being mangled", async () => {
         const model = new EditorModel([], pc, renderer);
         render(<BasicMessageComposer model={model} room={room} />);
-        const testUrl = "https://element.io";
+        const testUrl = "https://im.beep.gov.pk";
         const mockDataTransfer = generateMockDataTransferForString(testUrl);
         await userEvent.paste(mockDataTransfer);
 

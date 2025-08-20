@@ -173,7 +173,7 @@ exports[`<MatrixChat /> Multi-tab lockout waits for other tab to stop during sta
       role="contentinfo"
     >
       <a
-        href="https://element.io/blog"
+        href="https://im.beep.gov.pk/blog"
         rel="noreferrer noopener"
         target="_blank"
       >
@@ -349,7 +349,7 @@ exports[`<MatrixChat /> with a soft-logged-out session should show the soft-logo
       role="contentinfo"
     >
       <a
-        href="https://element.io/blog"
+        href="https://im.beep.gov.pk/blog"
         rel="noreferrer noopener"
         target="_blank"
       >

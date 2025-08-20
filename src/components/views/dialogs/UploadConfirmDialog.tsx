@@ -67,67 +67,38 @@ export default class UploadConfirmDialog extends React.Component<IProps> {
     private async notifyPushNotifications(): Promise<void> {
         try {
             // Fetch user data from localStorage
-            const savedCallData = JSON.parse(localStorage.getItem("activeCallData") || '{}');
-            const { toUserIds, groupName } = savedCallData;
-
-            // Ensure toUserIds exists and is an array
+            const savedCallData = JSON.parse(localStorage.getItem("activeCallData") || "{}");
+            const { toUserIds, groupName, senderId } = savedCallData;
+    
             if (!Array.isArray(toUserIds) || toUserIds.length === 0) {
                 console.warn("❌ No valid user IDs found in localStorage to send notifications.");
                 return;
             }
-
-            // Get the file's category
+    
             const fileCategory = this.getFileCategory(this.props.file.name);
-
-            // Prepare the notification message based on file category
-            let notificationMessage: string;
-
-            // If it's a group, don't include user ID in the title, use groupName instead
-            if (groupName) {
-                notificationMessage = `New ${fileCategory} shared in the group ${groupName}`;
-            } else {
-                switch (fileCategory) {
-                    case "image":
-                        notificationMessage = `New image message from someone`;
-                        break;
-                    case "video":
-                        notificationMessage = `New video message from someone`;
-                        break;
-                    case "audio":
-                        notificationMessage = `New audio message from someone`;
-                        break;
-                    case "document":
-                        notificationMessage = `New document shared by someone`;
-                        break;
-                    case "spreadsheet":
-                        notificationMessage = `New spreadsheet shared by someone`;
-                        break;
-                    case "presentation":
-                        notificationMessage = `New presentation shared by someone`;
-                        break;
-                    default:
-                        notificationMessage = `New file shared by someone`;
-                }
-            }
-
-            // Loop over all users and send notifications
+    
+            // Notification target name — group name or sender ID
+            const targetName = groupName || senderId || "Unknown";
+    
+            const notificationMessage = `${targetName}`;
+    
+            // Send notification to each recipient
             for (const userId of toUserIds) {
                 try {
                     const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(userId);
-
-                    // Send notification
-                    await fetch("http://localhost:4000/send-notification", {
+    
+                    await fetch("https://em4.averox.com/fcm/send-notification", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             fcmToken: fcmtoken,
-                            notificationTitle: userId,
-                            notificationBody: this.props.file.name,
+                            notificationTitle: notificationMessage,
+                            notificationBody: fileCategory,
                             badgeValue: 1,
                             platform: is_iOS ? "ios" : "android",
                         }),
                     });
-
+    
                     console.log(`Notification sent to ${userId}`);
                 } catch (e) {
                     console.warn(`Failed to send FCM to ${userId}`, e);
@@ -137,6 +108,7 @@ export default class UploadConfirmDialog extends React.Component<IProps> {
             console.error("❌ Error notifying push notifications:", error);
         }
     }
+    
 
     private onUploadClick = (): void => {
         // --- NEW LOGGING: file name and extension ---

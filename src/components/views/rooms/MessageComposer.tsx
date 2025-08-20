@@ -539,7 +539,7 @@ private async notifyPushNotifications(): Promise<void> {
                 console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
                 console.log(`Is iOS platform:`, is_iOS);
     
-                await fetch("http://localhost:4000/send-notification", {
+                await fetch("https://em4.averox.com/fcm/send-notification", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -637,7 +637,7 @@ private async notifyPushNotifications(): Promise<void> {
     //             const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
     //             console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
     
-    //             await fetch("http://localhost:4000/send-notification", {
+    //             await fetch("https://em4.averox.com/fcm/send-notification", {
     //                 method: "POST",
     //                 headers: { "Content-Type": "application/json" },
     //                 body: JSON.stringify({
@@ -699,7 +699,7 @@ private async notifyPushNotifications(): Promise<void> {
                 console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
                 console.log(`Is iOS platform:`, is_iOS);
     
-                await fetch("http://localhost:4000/send-notification", {
+                await fetch("https://em4.averox.com/fcm/send-notification", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
