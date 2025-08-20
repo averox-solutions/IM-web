@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style type="text/css">
+    #custom_is, #is_url { display: none; }
+
+    html { height: 100%; }
+    body {
+      background: #f9fafb;
+      max-width: 680px;
+      margin: auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      color: #2e2f32;
+      padding: 0 16px 40px;
+    }
+
+    .mx_Button {
+      border: 0;
+      border-radius: 4px;
+      font-size: 16px;
+      margin: 6px 6px 0 0;
+      min-width: 120px;
+      background-color: #03b381;
+      color: #fff;
+      cursor: pointer;
+      padding: 12px 18px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .mx_Button--secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .mx_Center { justify-content: center; }
+    .mx_ClearDecoration { text-decoration: none !important; }
+
+    .mx_HomePage_header {
+      color: #2e2f32;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 24px;
+      gap: 12px;
+    }
+
+    .mx_HomePage h3 { margin-top: 30px; }
+
+    .mx_HomePage_col { display: flex; flex-direction: row; }
+    .mx_HomePage_row { flex: 1 1 0; display: flex; flex-direction: row; flex-wrap: wrap; }
+    .mx_HomePage_logo { margin-right: 20px; margin-top: -10px; }
+
+    .mx_HomePage_container { display: block !important; margin: 10px 20px; }
+
+    .mx_HomePage_container h1,
+    .mx_HomePage_container h2 { font-weight: 600; margin-bottom: 16px; }
+
+    .mx_Spacer { margin-top: 24px; }
+
+    .mx_FooterLink { color: #0dbd8b; text-decoration: none; }
+
+    .mx_Subtext { font-size: 14px; color: #4b5563; }
+    .mx_List { margin: 8px 0 0 18px; padding: 0; }
+    .mx_List li { margin: 2px 0; }
+
+    .mx_Status {
+      display: inline-block;
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #1e3a8a;
+      margin-left: 6px;
+    }
+    .mx_Warning {
+      background: #fff7ed;
+      color: #9a3412;
+    }
+
+    @media screen and (max-width: 1120px) {
+      body { font-size: 20px; }
+      h1 { font-size: 20px; }
+      h4 { font-size: 16px; }
+      .mx_Button { font-size: 18px; padding: 14px 28px; }
+      .mx_HomePage_header { justify-content: left; }
+      .mx_Spacer { margin-top: 24px; }
+    }
+  </style>
+
+  <meta name="apple-itunes-app" content="app-id=id1083446067" />
+  <title>Unsupported browser</title>
+</head>
+
+<body>
+  <div class="mx_HomePage_container">
+    <div class="mx_HomePage_header">
+      <span class="mx_HomePage_logo" aria-hidden="true">
+        <!-- your logo svg -->
+        <svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd"
+            d="M13.08 8.68C13.08 7.75216 13.8321 7 14.76 7C20.9456 7 25.96 12.0144 25.96 18.2C25.96 19.1278 25.2078 19.88 24.28 19.88C23.3521 19.88 22.6 19.1278 22.6 18.2C22.6 13.8701 19.0899 10.36 14.76 10.36C13.8321 10.36 13.08 9.60784 13.08 8.68Z"
+            fill="#0DBD8B"/>
+          <path fill-rule="evenodd" clip-rule="evenodd"
+            d="M20.92 33.32C20.92 34.2478 20.1679 35 19.24 35C13.0544 35 8.04001 29.9856 8.04001 23.8C8.04001 22.8722 8.79217 22.12 9.72001 22.12C10.6478 22.12 11.4 22.8722 11.4 23.8C11.4 28.1299 14.9101 31.64 19.24 31.64C20.1679 31.64 20.92 32.3922 20.92 33.32Z"
+            fill="#0DBD8B"/>
+          <path fill-rule="evenodd" clip-rule="evenodd"
+            d="M4.68 24.9199C3.75216 24.9199 3 24.1678 3 23.2399C3 17.0543 8.01441 12.0399 14.2 12.0399C15.1278 12.0399 15.88 12.7921 15.88 13.7199C15.88 14.6478 15.1278 15.3999 14.2 15.3999C9.87009 15.3999 6.36 18.91 6.36 23.2399C6.36 24.1678 5.60784 24.9199 4.68 24.9199Z"
+            fill="#0DBD8B"/>
+          <path fill-rule="evenodd" clip-rule="evenodd"
+            d="M29.32 17.0801C30.2478 17.0801 31 17.8322 31 18.7601C31 24.9457 25.9856 29.9601 19.8 29.9601C18.8722 29.9601 18.12 29.2079 18.12 28.2801C18.12 27.3522 18.8722 26.6001 19.8 26.6001C24.1299 26.6001 27.64 23.09 27.64 18.7601C27.64 17.8322 28.3922 17.0801 29.32 17.0801Z"
+            fill="#0DBD8B"/>
+        </svg>
+      </span>
+      <h1>Unsupported browser <span id="statusBadge" class="mx_Status mx_Warning" aria-live="polite">check required</span></h1>
+    </div>
+
+    <div class="mx_HomePage_col">
+      <div class="mx_HomePage_row">
+        <div>
+          <h2 id="step1_heading">Your browser can’t run Averox</h2>
+          <p>
+            Averox uses modern web features that may be missing or disabled in your current browser.
+            Please check and update your browser, or click continue.
+          </p>
+
+          <p class="mx_Subtext"><strong>Recommended browsers:</strong>
+            <a href="https://www.google.com/chrome" target="_blank" rel="noopener">Chrome</a>,
+            <a href="https://www.mozilla.org/firefox/new/" target="_blank" rel="noopener">Firefox</a>,
+            <a href="https://www.apple.com/safari/" target="_blank" rel="noopener">Safari</a>.
+          </p>
+
+          <div class="mx_Spacer">
+            <button id="btnCheck" class="mx_Button mx_Button--secondary" type="button">Check again</button>
+            <button id="btnOpen" class="mx_Button" type="button" style="display:none">Open Averox</button>
+            <button id="btnContinue" class="mx_Button mx_Button--secondary" type="button" title="Skip checks and try to continue">
+              Continue anyway
+            </button>
+          </div>
+
+          <div class="mx_Spacer mx_Subtext" id="capReport" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx_HomePage_col">
+      <div class="mx_HomePage_row">
+        <div>
+          <h2 id="step2_heading">Use Averox on mobile</h2>
+          <p><strong>iOS</strong> (iPhone or iPad)</p>
+          <!-- App Store badge -->
+          <a href="https://apps.apple.com/app/vector/id1083446067" target="_blank" class="mx_ClearDecoration" rel="noopener">
+            <!-- (badge SVG left as-is from your original) -->
+            <!-- ... App Store SVG ... -->
+          </a>
+
+          <p class="mx_Spacer"><strong>Android</strong></p>
+          <a href="https://play.google.com/store/apps/details?id=im.vector.app" target="_blank" class="mx_ClearDecoration" rel="noopener">
+            <!-- Google Play badge SVG (left as-is) -->
+            <!-- ... Play badge SVG ... -->
+          </a>
+          <a href="https://f-droid.org/repository/browse/?fdid=im.vector.app" target="_blank" class="mx_ClearDecoration" rel="noopener">
+            <!-- F-Droid badge SVG (left as-is) -->
+            <!-- ... F-Droid badge SVG ... -->
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx_HomePage_row mx_Center mx_Spacer">
+      <p class="mx_Spacer">
+        <a href="https://im.beep.gov.pk" target="_blank" class="mx_FooterLink" rel="noopener">Go to Averox.io</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // Where to send users if they pass checks or click "continue".
+      // Change this to your app entrypoint:
+      var APP_URL = (new URLSearchParams(location.search)).get('redirect') || (location.origin + '/');
+
+      var $status = document.getBeep PakistanById('statusBadge');
+      var $report = document.getBeep PakistanById('capReport');
+      var $btnCheck = document.getBeep PakistanById('btnCheck');
+      var $btnOpen = document.getBeep PakistanById('btnOpen');
+      var $btnContinue = document.getBeep PakistanById('btnContinue');
+
+      function supportsRequiredFeatures() {
+        try {
+          var hasSW = 'serviceWorker' in navigator;
+          var hasIDB = 'indexedDB' in window;
+          var hasWASM = typeof WebAssembly === 'object';
+          var hasSubtle = !!(window.crypto && window.crypto.subtle);
+
+          // Simple ES2020+ sanity checks (optional)
+          var hasOptional = (() => {
+            try { const x = globalThis ?? window; return !!x; } catch (e) { return false; }
+          })();
+
+          return {
+            hasSW, hasIDB, hasWASM, hasSubtle, hasOptional
+          };
+        } catch (e) {
+          return { hasSW:false, hasIDB:false, hasWASM:false, hasSubtle:false, hasOptional:false };
+        }
+      }
+
+      function renderReport(caps) {
+        var ok = caps.hasSW && caps.hasIDB && caps.hasWASM && caps.hasSubtle;
+        $status.textContent = ok ? 'looks compatible' : 'check required';
+        $status.className = 'mx_Status ' + (ok ? '' : 'mx_Warning');
+
+        var list = [
+          'Service Worker: ' + (caps.hasSW ? 'OK' : 'Missing'),
+          'IndexedDB: ' + (caps.hasIDB ? 'OK' : 'Missing'),
+          'WebAssembly: ' + (caps.hasWASM ? 'OK' : 'Missing'),
+          'Web Crypto (subtle): ' + (caps.hasSubtle ? 'OK' : 'Missing')
+        ];
+
+        $report.innerHTML = '<ul class="mx_List"><li>' + list.join('</li><li>') + '</li></ul>'
+          + '<p class="mx_Subtext mx_Spacer">If items are missing, update your browser or enable these features, then click <em>Check again</em>.</p>';
+
+        $btnOpen.style.display = ok ? 'inline-block' : 'none';
+      }
+
+      function runCheck() {
+        var caps = supportsRequiredFeatures();
+        renderReport(caps);
+      }
+
+      $btnCheck.addEventListener('click', runCheck);
+      $btnOpen.addEventListener('click', function () { location.assign(APP_URL); });
+      $btnContinue.addEventListener('click', function () { location.assign(APP_URL + (APP_URL.includes('?') ? '&' : '?') + 'skipBrowserCheck=1'); });
+
+      // Run once on load
+      runCheck();
+    })();
+  </script>
+</body>
+</html>

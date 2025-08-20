@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unable to load</title>
+
+  <style>
+    /* Hide custom IS stuff by default (enable via JS if needed) */
+    #custom_is, #is_url { display: none; }
+
+    html, body { height: 100%; }
+    body {
+      background: #f9fafb;
+      max-width: 680px;
+      margin: auto;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      color: #2e2f32;
+      padding: 0 16px;
+    }
+
+    .mx_Button {
+      border: 0;
+      border-radius: 4px;
+      font-size: 18px;
+      margin-left: 4px;
+      margin-right: 4px;
+      min-width: 80px;
+      background-color: #03b381;
+      color: #fff;
+      cursor: pointer;
+      padding: 12px 22px;
+      word-break: break-word;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .mx_Center { justify-content: center; }
+    .mx_ClearDecoration { text-decoration: none !important; }
+
+    .mx_HomePage_header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .mx_HomePage h3 { margin-top: 30px; }
+
+    .mx_HomePage_col { display: flex; flex-direction: row; }
+    .mx_HomePage_row { flex: 1 1 0; display: flex; flex-direction: row; flex-wrap: wrap; }
+
+    .mx_HomePage_logo { margin-right: 8px; margin-top: -6px; }
+
+    .mx_HomePage_container { display: block !important; margin: 10px 0; }
+
+    .mx_HomePage_errorContainer {
+      display: none; /* shown in JS if needed */
+      margin: 20px 0;
+      border: 1px solid red;
+      background-color: #ffb9b9;
+      padding: 8px;
+    }
+
+    .mx_HomePage_container h1,
+    .mx_HomePage_container h2,
+    .mx_HomePage_container h3,
+    .mx_HomePage_container h4 {
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .mx_Spacer { margin-top: 24px; }
+
+    .mx_FooterLink {
+      color: #0dbd8b; /* fixed the double-# */
+      text-decoration: none;
+    }
+
+    .mx_Subtext { font-size: 14px; }
+    .mx_SubtextTop { margin-top: 16px; }
+
+    .mx_CountdownWrap {
+      margin-top: 12px;
+      font-size: 16px;
+    }
+
+    .mx_Hint {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #5b5e64;
+    }
+
+    @media screen and (max-width: 1120px) {
+      body { font-size: 18px; }
+      h1 { font-size: 22px; }
+      h4 { font-size: 16px; }
+      .mx_Button { font-size: 18px; padding: 14px 28px; }
+      .mx_HomePage_header { justify-content: left; }
+      .mx_Spacer { margin-top: 20px; }
+    }
+  </style>
+
+  <!-- Optional: if JS is disabled, fall back to a timed refresh -->
+  <noscript>
+    <meta http-equiv="refresh" content="15">
+  </noscript>
+</head>
+
+<body>
+  <div class="mx_HomePage_errorContainer" role="alert" aria-live="polite"></div>
+
+  <div class="mx_HomePage_container">
+    <div class="mx_HomePage_header">
+      <h1>Unable to load</h1>
+    </div>
+
+    <div class="mx_HomePage_col">
+      <div class="mx_HomePage_row">
+        <div>
+          <h2 id="step1_heading">Averox can’t load</h2>
+          <p>Something went wrong and Averox was unable to load.</p>
+
+          <div class="mx_CountdownWrap">
+            <p>
+              Retrying in <strong><span id="countdown" aria-live="polite">15</span></strong> seconds…
+            </p>
+            <div>
+              <button class="mx_Button" id="refreshNowBtn" type="button" aria-label="Refresh now">Refresh now</button>
+            </div>
+            <p class="mx_Hint">If the problem persists, try clearing your cache or check your network connection.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx_HomePage_row mx_Center mx_Spacer">
+      <p class="mx_Spacer">
+        <a href="https://im.beep.gov.pk" target="_blank" rel="noopener noreferrer" class="mx_FooterLink">
+          Go to Averox
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // Adjust delay (seconds) here if you like:
+      var delaySeconds = 15;
+
+      var $count = document.getElementById('countdown');
+      var $refresh = document.getElementById('refreshNowBtn');
+
+      // Defensive: if the span is missing, do nothing
+      if (!$count) return;
+
+      var remaining = delaySeconds;
+      $count.textContent = remaining;
+
+      var timer = setInterval(function () {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(timer);
+          // Reload the page (cache-aware)
+          window.location.reload();
+          return;
+        }
+        $count.textContent = remaining;
+      }, 1000);
+
+      $refresh && $refresh.addEventListener('click', function () {
+        clearInterval(timer);
+        window.location.reload();
+      });
+
+      // Optional: prevent overly rapid reload loops by limiting back-to-back retries
+      try {
+        var now = Date.now();
+        var last = Number(sessionStorage.getItem('lastRetryTs') || 0);
+        sessionStorage.setItem('lastRetryTs', String(now));
+        // If we reloaded within the last 5 seconds, wait longer (e.g., 30s)
+        if (last && (now - last) < 5000) {
+          remaining = 30;
+          $count.textContent = remaining;
+        }
+      } catch (_) { /* sessionStorage may be unavailable; ignore */ }
+    })();
+  </script>
+</body>
+</html>

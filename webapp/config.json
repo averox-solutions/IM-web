@@ -1,0 +1,40 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://ms3.beep.gov.pk",
+      "server_name": "ms3.beep.gov.pk"
+    }
+  },
+  "disable_custom_urls": false,
+  "disable_guests": false,
+  "disable_login_language_selector": false,
+  "disable_3pid_login": false,
+  "force_verification": false,
+  "brand": "Averox",
+  "default_widget_container_height": 280,
+  "default_country_code": "PK",
+  "show_labs_settings": false,
+  "features": {
+    "feature_element_call_video_rooms": true,
+    "feature_video_rooms": true,
+    "feature_group_calls": true,
+    "feature_release_announcement": false,
+    "feature_department_beta": false
+  },
+  "default_federate": false,
+  "default_theme": "light",
+  "room_directory": {
+    "servers": ["ms131.averox.com"]
+  },
+  "setting_defaults": {
+    "breadcrumbs": true,
+    "feature_group_calls": true
+  },
+  "element_call": {
+    "participant_limit": 8,
+    "brand": "Element Call"
+  },
+  "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx",
+  "permalinkPrefix": "https://wa3.beep.gov.pk"
+
+}
