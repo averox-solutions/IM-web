@@ -2399,9 +2399,9 @@
         "reset_explainer": "If you do, please note that none of your messages will be deleted, but the search experience might be degraded for a few moments whilst the index is recreated",
         "reset_title": "Reset event store?",
         "warning_kind_files": "This version of %(brand)s does not support viewing some encrypted files",
-        "warning_kind_files_app": "Use the <a>Desktop app</a> to see all encrypted files",
+        "warning_kind_files_app": "Use the to see all encrypted files",
         "warning_kind_search": "This version of %(brand)s does not support searching encrypted messages",
-        "warning_kind_search_app": "Use the <a>Desktop app</a> to search encrypted messages"
+        "warning_kind_search_app": "search encrypted messages"
     },
     "setting": {
         "help_about": {

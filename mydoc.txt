@@ -1164,7 +1164,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
                             borderRadius: "6px",
 
-                            backgroundColor: "#488d41",
+                            backgroundColor: "#3f6be3",
 
                             color: "black",
 

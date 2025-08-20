@@ -863,7 +863,7 @@ useEffect(() => {
                                     disabled={isLiveKitCallActive || !!activeCallData}
                                     title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
                                     style={{
-                                        backgroundColor: "rgb(72, 141, 65)",
+                                        backgroundColor: "#3f6be3",
                                         border: "none",
                                         borderRadius: "50%",
                                         width: "40px",
@@ -885,7 +885,7 @@ useEffect(() => {
                                     disabled={isLiveKitCallActive || !!activeCallData}
                                     title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
                                     style={{
-                                        backgroundColor: "rgb(72, 141, 65)",
+                                        backgroundColor: "#3f6be3",
                                         border: "none",
                                         borderRadius: "50%",
                                         width: "40px",

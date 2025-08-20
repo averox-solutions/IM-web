@@ -7,6 +7,7 @@
  */
 
 
+import { target } from 'modernizr';
 import FrameIcon from '../../../../../res/img/element-icons/Frame (1).svg';
 export const ThreadsActivityCentreButton = () => {
 
@@ -21,26 +22,27 @@ export const ThreadsActivityCentreButton = () => {
           marginTop: '0',            // Remove any top margin
         }}
       >
-        <button
+      <button
+        style={{
+          border: 'none',
+          background: 'none',
+          display: 'none',
+          cursor: 'pointer',
+        }}
+        onClick={() => window.open("https://beep.gov.pk", "_blank")} // Opens in new tab
+        aria-label="Navigate to video call"
+      >
+        <img
+          src={FrameIcon}
+          alt="Video Call Icon"
           style={{
-            border: 'none',
-            background: 'none',
-            display: 'flex',
-            cursor: 'pointer',
+            height: '24px',
+            width: '24px',
+            marginRight: '5px',
           }}
-          onClick={() => window.location.href = "https://beep.gov.pk"} // Navigate to beep.gov.pk
-          aria-label="Navigate to video call"
-        >
-          <img
-            src={FrameIcon}
-            alt="Video Call Icon"
-            style={{
-              height: '24px', // Set the size of the icon
-              width: '24px',
-              marginRight: '5px',
-            }}
-          />
-        </button>
+        />
+      </button>
+
       </div>
     </>
 

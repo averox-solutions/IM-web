@@ -758,7 +758,7 @@ class GlobalSocketManager {
                 <button id="decline-call" style="background: #d32f2f; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
                     Decline
                 </button>
-                <button id="accept-call" style="background: #2e7d32; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                <button id="accept-call" style="background: #3f6be3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
                     Accept
                 </button>
             </div>

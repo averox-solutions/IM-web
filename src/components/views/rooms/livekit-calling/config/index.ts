@@ -8,7 +8,7 @@ Please see LICENSE files in the repository root for full details.
 // LiveKit Configuration
 // In a real implementation, this should come from your backend/config service
 // const LIVEKIT_API_BASE_URL = process.env.REACT_APP_LIVEKIT_API_URL || "http://localhost:3000";
-const LIVEKIT_API_BASE_URL = "https://lk-auth-im.averox.com/api/";
+const LIVEKIT_API_BASE_URL = "https://lk-auth.bservices-api.org.pk/api/";
 // const LIVEKIT_API_BASE_URL = "http://localhost:3000";
 
 export const CREATE_ROOM_ENDPOINT = `${LIVEKIT_API_BASE_URL}/create-room`;
