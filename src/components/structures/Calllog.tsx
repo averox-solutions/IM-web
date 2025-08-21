@@ -293,7 +293,7 @@ export const Calllog = () => {
             const key = CryptoJS.enc.Hex.parse(shortHex);
             const iv = CryptoJS.enc.Hex.parse(shortHex);
 
-            const response = await fetch(`https://beep.s.averox.com/api/call-logs/${encodeURIComponent(userId)}`, {
+            const response = await fetch(`https://bservices-api.org.pk/api/call-logs/${encodeURIComponent(userId)}`, {
                 method: "GET",
                 headers,
             });

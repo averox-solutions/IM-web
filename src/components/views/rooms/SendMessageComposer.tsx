@@ -598,7 +598,7 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
         for (const member of others) {
             try {
                 const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
-                await fetch("https://em4.averox.com/fcm/send-notification", {
+                await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({

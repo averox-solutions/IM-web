@@ -91,7 +91,8 @@ const livekitCallStyles = `
         align-content: flex-start !important;
         justify-content: center !important;
         flex: 1 !important;
-        background: #1a1a1a !important;
+        background: #1a1a1a url('/img/Call-wallpaper.jpg') center/cover no-repeat !important;
+        background-blend-mode: overlay !important;
         min-height: 0 !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
@@ -496,7 +497,7 @@ const livekitCallStyles = `
         bottom: 8px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        background: rgba(0, 0, 0, 0.7) !important;
+        background: rgb(43 113 64 / 30%) !important;
         backdrop-filter: blur(8px) !important;
         border: none !important;
         /* Use CSS custom properties for responsive padding */
@@ -555,6 +556,8 @@ const livekitCallStyles = `
         position: relative !important;
         line-height: 1 !important;
         vertical-align: middle !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
     }
 
     .lk-participant-metadata.muted {
@@ -584,8 +587,7 @@ const livekitCallStyles = `
 
     /* Control bar styling */
     .lk-control-bar {
-        background: rgba(26, 26, 26, 0.95) !important;
-        backdrop-filter: blur(20px) !important;
+        background: rgb(43 113 64 / 30%) !important;
         border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
         padding: 12px 20px !important;
         gap: 12px !important;
@@ -780,7 +782,7 @@ const livekitCallStyles = `
         align-items: center !important;
         justify-content: center !important;
         height: 100vh !important;
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        background: linear-gradient(135deg, rgba(15, 15, 15, 0.85) 0%, rgba(26, 26, 26, 0.85) 100%), url('/img/Call-wallpaper.jpg') center/cover no-repeat !important;
         color: white !important;
         animation: fadeIn 0.3s ease-out !important;
     }
@@ -827,8 +829,7 @@ const livekitCallStyles = `
 
     /* Status bar styling */
     .professional-status-bar {
-        background: rgba(26, 26, 26, 0.95) !important;
-        backdrop-filter: blur(20px) !important;
+        background: rgb(43 113 64 / 30%) !important;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
         padding: 10px 20px !important;
         color: white !important;
@@ -995,7 +996,7 @@ const livekitCallStyles = `
         justify-content: center !important;
         height: 100vh !important;
         width: 100vw !important;
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        background: linear-gradient(135deg, rgba(15, 15, 15, 0.85) 0%, rgba(26, 26, 26, 0.85) 100%), url('/img/Call-wallpaper.jpg') center/cover no-repeat !important;
         color: white !important;
         padding: 40px 20px !important;
         box-sizing: border-box !important;
@@ -1022,7 +1023,6 @@ const livekitCallStyles = `
         right: 0 !important;
         bottom: 0 !important;
         z-index: 99999 !important;
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
     }
 
     /* Hide LiveKit default components when audio call is active */
@@ -1045,7 +1045,6 @@ const livekitCallStyles = `
         width: 100% !important;
         height: 100% !important;
         z-index: 1000 !important;
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
     }
 
     /* Hide any potential overlay elements from LiveKit */
@@ -1087,7 +1086,7 @@ const livekitCallStyles = `
         width: 100% !important;
         height: 100% !important;
         z-index: 10000 !important;
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        background: linear-gradient(135deg, rgba(15, 15, 15, 0.85) 0%, rgba(26, 26, 26, 0.85) 100%), url('/img/Call-wallpaper.jpg') center/cover no-repeat !important;
     }
 
     .audio-call-content {
@@ -1478,7 +1477,7 @@ const ProfessionalParticipantTile: React.FC<{ trackRef: TrackReference }> = ({ t
                 <div className="lk-participant-indicators">
                     {isMuted && (
                         <div className="lk-participant-metadata muted" title="Microphone muted">
-                            🎤
+                            🎙️
                         </div>
                     )}
                     {participant.isCameraEnabled === false && (
@@ -1574,6 +1573,17 @@ const AudioCallInterface: React.FC<{
                 callEstablished.current = true;
                 callStartTimeLocal.current = null; // Clear no-answer timeout
                 console.log("🎯 Audio call established - multiple participants detected");
+
+                // Emit call established event to clear outgoing call state globally
+                const callEstablishedEvent = new CustomEvent("liveKitCallEstablished", {
+                    detail: {
+                        participantCount,
+                        callType: "audio",
+                        timestamp: new Date().toISOString(),
+                    },
+                });
+                window.dispatchEvent(callEstablishedEvent);
+                console.log("📤 Emitted liveKitCallEstablished event (audio)");
             }
         }
 
@@ -1742,7 +1752,8 @@ const AudioCallInterface: React.FC<{
                     left: 0,
                     width: "100vw",
                     height: "100vh",
-                    background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
+                    background:
+                        "linear-gradient(135deg, rgba(15, 15, 15, 0.85) 0%, rgba(26, 26, 26, 0.85) 100%), url('/img/Call-wallpaper.jpg') center/cover no-repeat",
                     color: "white",
                     overflow: "hidden",
                     zIndex: 10000,
@@ -2486,6 +2497,17 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 callEstablished.current = true;
                 callStartTime.current = null; // Clear no-answer timeout
                 console.log("🎯 Video call established - multiple participants detected");
+
+                // Emit call established event to clear outgoing call state globally
+                const callEstablishedEvent = new CustomEvent("liveKitCallEstablished", {
+                    detail: {
+                        participantCount: currentCount,
+                        callType: "video",
+                        timestamp: new Date().toISOString(),
+                    },
+                });
+                window.dispatchEvent(callEstablishedEvent);
+                console.log("📤 Emitted liveKitCallEstablished event (video)");
             }
         }
 
@@ -3411,7 +3433,6 @@ export const VideoRoom = ({
     isAcceptingIncomingCall = false, // Default to false for backward compatibility
     onLeave,
 }: VideoRoomProps): JSX.Element => {
-
     // State for managing ongoing call detection
     const [ongoingCallInfo, setOngoingCallInfo] = useState<{
         participants: Array<{ userId: string; username: string; isOnline: boolean }>;
@@ -3463,7 +3484,29 @@ export const VideoRoom = ({
             // Close the call modal if this is the same room
             if (data.roomId === roomId) {
                 console.log("📞 VideoRoom: Call ended for current room, closing modal");
-                onLeave?.();
+                console.log("📞 VideoRoom: onLeave callback available:", !!onLeave);
+                console.log("📞 VideoRoom: About to call onLeave()");
+
+                // Call the onLeave callback to close the UI
+                if (onLeave) {
+                    onLeave();
+                    console.log("📞 VideoRoom: onLeave() called successfully");
+                } else {
+                    console.warn("📞 VideoRoom: onLeave callback not available!");
+                }
+
+                // Set global call state to false to ensure UI cleanup
+                if ((window as any).setCallActiveState) {
+                    console.log("📞 VideoRoom: Setting global call active state to false");
+                    (window as any).setCallActiveState(false);
+                }
+
+                console.log("📞 VideoRoom: Call decline handling completed");
+            } else {
+                console.log("📞 VideoRoom: Call ended for different room:", {
+                    eventRoomId: data.roomId,
+                    currentRoomId: roomId,
+                });
             }
         };
 
@@ -3697,32 +3740,67 @@ export const VideoRoom = ({
         );
     }
 
+    const [reconnectAttempts, setReconnectAttempts] = useState(0);
+    const maxReconnectAttempts = 3;
+    const reconnectDelay = 2000; // 2 seconds
+
+    useEffect(() => {
+        let reconnectTimer: NodeJS.Timeout;
+
+        if (error && reconnectAttempts < maxReconnectAttempts) {
+            console.log(`🔄 Attempting automatic reconnection (${reconnectAttempts + 1}/${maxReconnectAttempts})`);
+            reconnectTimer = setTimeout(() => {
+                connectionInitiated.current = false;
+                connectCalled.current = false;
+                connect();
+                setReconnectAttempts((prev) => prev + 1);
+            }, reconnectDelay);
+        }
+
+        return () => {
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+            }
+        };
+    }, [error, reconnectAttempts]);
+
     if (error) {
         return (
             <div className="professional-loading">
                 <div style={{ fontSize: "48px", marginBottom: "16px", color: "#f44336" }}>⚠️</div>
                 <h3 style={{ margin: "0 0 16px 0", color: "#f44336" }}>Connection Error</h3>
-                <p style={{ margin: "0 0 24px 0", opacity: 0.8, textAlign: "center", maxWidth: "400px" }}>{error}</p>
-                <button
-                    onClick={(): void => {
-                        connectionInitiated.current = false;
-                        connectCalled.current = false; // Reset the flag for retry
-                        console.log("🔗 Try Again button: Calling connect()");
-                        connect();
-                    }}
-                    style={{
-                        background: "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
-                        border: "none",
-                        borderRadius: "8px",
-                        color: "white",
-                        padding: "12px 24px",
-                        fontSize: "16px",
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                    }}
-                >
-                    Try Again
-                </button>
+                <p style={{ margin: "0 0 24px 0", opacity: 0.8, textAlign: "center", maxWidth: "400px" }}>
+                    {error}
+                    {reconnectAttempts > 0 && reconnectAttempts < maxReconnectAttempts && (
+                        <span>
+                            <br />
+                            Attempting to reconnect... ({reconnectAttempts}/{maxReconnectAttempts})
+                        </span>
+                    )}
+                </p>
+                {reconnectAttempts >= maxReconnectAttempts && (
+                    <button
+                        onClick={(): void => {
+                            setReconnectAttempts(0);
+                            connectionInitiated.current = false;
+                            connectCalled.current = false;
+                            console.log("🔗 Manual reconnection attempt");
+                            connect();
+                        }}
+                        style={{
+                            background: "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
+                            border: "none",
+                            borderRadius: "8px",
+                            color: "white",
+                            padding: "12px 24px",
+                            fontSize: "16px",
+                            cursor: "pointer",
+                            transition: "all 0.3s ease",
+                        }}
+                    >
+                        Try Again
+                    </button>
+                )}
             </div>
         );
     }
@@ -3760,7 +3838,8 @@ export const VideoRoom = ({
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
-                background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)",
+                background:
+                    "linear-gradient(135deg, rgba(15, 15, 15, 0.85) 0%, rgba(26, 26, 26, 0.85) 100%), url('/img/Call-wallpaper.jpg') center/cover no-repeat",
             }}
             onConnected={(): void => {
                 console.log("Connected to room successfully");
@@ -3830,7 +3909,7 @@ export const VideoRoom = ({
                 console.error("❌ Room connection error:", err);
                 console.log("📞 Calling onLeave callback due to error");
                 connectionInitiated.current = false; // Reset on error
-                onLeave?.();
+                // onLeave?.();
             }}
         >
             <div

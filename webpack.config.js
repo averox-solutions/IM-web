@@ -108,7 +108,7 @@ module.exports = (env, argv) => {
 
     const development = {};
     if (!isProduction) {
-        development["devtool"] = false; 
+        development["devtool"] = false;
     } else {
         development["devtool"] = false; // ✅ disables source maps in production
     }
@@ -160,10 +160,10 @@ module.exports = (env, argv) => {
                     },
                 },
             },
-        
+
             // Use named module IDs for better debugging in development
             moduleIds: "named",
-        
+
             // Enable minification only in production builds (not in CI packaging or dev)
             minimize: enableMinification,
             minimizer: enableMinification
@@ -175,7 +175,7 @@ module.exports = (env, argv) => {
                       new CssMinimizerPlugin(),
                   ]
                 : [],
-        
+
             // ✅ Explicitly set NODE_ENV to 'production' or 'development' for libraries like React
             nodeEnv: isProduction ? "production" : "development",
         },
@@ -660,6 +660,7 @@ module.exports = (env, argv) => {
                     { from: "themes/**", context: path.resolve(__dirname, "res") },
                     { from: "vector-icons/**", context: path.resolve(__dirname, "res") },
                     { from: "decoder-ring/**", context: path.resolve(__dirname, "res") },
+                    { from: "img/**", context: path.resolve(__dirname, "res/") },
                     { from: "media/**", context: path.resolve(__dirname, "res/") },
                     { from: "config.json", noErrorOnMissing: true },
                     "contribute.json",
@@ -689,7 +690,7 @@ module.exports = (env, argv) => {
             }),
 
             // Add DefinePlugin to inject environment variables
-            new webpack.DefinePlugin(envKeys)
+            new webpack.DefinePlugin(envKeys),
         ].filter(Boolean),
 
         output: {

@@ -581,7 +581,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                         console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
                         console.log(`Is iOS platform:`, is_iOS);
     
-                        await fetch("https://em4.averox.com/fcm/send-notification", {
+                        await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",

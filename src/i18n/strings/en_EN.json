@@ -214,7 +214,7 @@
         "forgot_password_prompt": "Forgotten your password?",
         "forgot_password_send_email": "Send email",
         "identifier_label": "Sign in with",
-        "incorrect_credentials": "Incorrect username and/or password.",
+        "incorrect_credentials": "Incorrect credentials",
         "incorrect_credentials_detail": "Please note you are logging into the %(hs)s server, not matrix.org.",
         "incorrect_password": "Incorrect password",
         "log_in_new_account": "<a>Log in</a> to your new account.",
@@ -1456,8 +1456,8 @@
         "beta_section": "Upcoming features",
         "bridge_state": "Show info about bridges in Groups settings",
         "bridge_state_channel": "Channel: <channelLink/>",
-        "bridge_state_creator": "This bridge was provisioned by <user />.",
-        "bridge_state_manager": "This bridge is managed by <user />.",
+        "bridge_state_creator": "This bridge was provisioned by <user/>.",
+        "bridge_state_manager": "This bridge is managed by <user/>.",
         "bridge_state_workspace": "Workspace: <networkLink/>",
         "click_for_info": "Click for more info",
         "currently_experimental": "Currently experimental.",
@@ -2399,9 +2399,9 @@
         "reset_explainer": "If you do, please note that none of your messages will be deleted, but the search experience might be degraded for a few moments whilst the index is recreated",
         "reset_title": "Reset event store?",
         "warning_kind_files": "This version of %(brand)s does not support viewing some encrypted files",
-        "warning_kind_files_app": "Use the <a>Desktop app</a> to see all encrypted files",
+        "warning_kind_files_app": "Use the to see all encrypted files",
         "warning_kind_search": "This version of %(brand)s does not support searching encrypted messages",
-        "warning_kind_search_app": "Use the <a>Desktop app</a> to search encrypted messages"
+        "warning_kind_search_app": "search encrypted messages"
     },
     "setting": {
         "help_about": {
