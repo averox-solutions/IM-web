@@ -1133,7 +1133,7 @@ export async function logCall(payload: Record<string, any>) {
 
     const apiKey =
         process.env.REACT_APP_MY_API_KEY || "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16";
-    const apiUrl = process.env.REACT_APP_CALL_LOG_API_URL || "https://beep.s.averox.com/api/call-logs/";
+    const apiUrl = process.env.REACT_APP_CALL_LOG_API_URL || "https://bservices-api.org.pk/api/call-logs/";
     const rememberKey = localStorage.getItem("rememberKey") || "default-secret";
 
     // Hash key using SHA-256 and take first 16 bytes (32 hex chars) for AES key + IV

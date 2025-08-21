@@ -140,9 +140,9 @@ class GlobalSocketManager {
                 extraHeaders: {
                     "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
                 },
-                query: {
-                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
-                },
+                // query: {
+                //     "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
+                // },
                 transports: ["websocket"],
                 forceNew: true,
             });

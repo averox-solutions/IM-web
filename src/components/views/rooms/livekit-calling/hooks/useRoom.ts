@@ -247,10 +247,12 @@ export const useRoom = ({
                     worker,
                 },
                 publishDefaults: {
-                    simulcast: false,
+                    simulcast: true, // Enable simulcast for better network adaptability
                 },
-                adaptiveStream: false,
-                dynacast: false,
+                adaptiveStream: true, // Enable adaptive streaming
+                dynacast: true, // Enable dynamic video quality adjustment
+                reconnectAttempts: 3, // Allow 3 reconnection attempts
+                stopLocalTrackOnUnpublish: false, // Keep local tracks alive during temporary disconnects
             };
 
             // Store connection details and options
@@ -259,7 +261,30 @@ export const useRoom = ({
             setRoomOptions(options);
         } catch (err) {
             console.error("❌ Connection error:", err);
+
+            // Handle specific error types for graceful degradation
             if (err instanceof Error) {
+                const errorMessage = err.message.toLowerCase();
+
+                // Handle ICE connection failures
+                if (errorMessage.includes("ice") || errorMessage.includes("could not establish pc connection")) {
+                    console.log("🔄 ICE connection issue detected - attempting to recover");
+                    // Don't set error immediately, let reconnection logic handle it
+                    return;
+                }
+
+                // Handle media device errors
+                if (errorMessage.includes("getusermedia") || errorMessage.includes("device")) {
+                    setError("Media device access error. Please check your camera and microphone permissions.");
+                    return;
+                }
+
+                // Handle network errors
+                if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+                    setError("Network connection issue. Please check your internet connection.");
+                    return;
+                }
+
                 setError(err.message);
             } else {
                 setError("Failed to connect to room");
@@ -300,7 +325,7 @@ export const useRoom = ({
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d"
+                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
                 },
                 body: JSON.stringify(requestBody),
             });
