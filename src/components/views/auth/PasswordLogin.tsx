@@ -26,6 +26,7 @@ interface IProps {
     username: string; // also used for email address
     phoneCountry: string;
     phoneNumber: string;
+  
 
     serverConfig: ValidatedServerConfig;
     loginIncorrect: boolean;
@@ -39,12 +40,14 @@ interface IProps {
     onPhoneCountryChanged?(phoneCountry: string): void;
     onPhoneNumberChanged?(phoneNumber: string): void;
     onForgotPasswordClick?(): void;
+    showPassword: boolean;
 }
 
 interface IState {
     fieldValid: Partial<Record<LoginField, boolean>>;
     loginType: LoginField.Email | LoginField.MatrixId | LoginField.Phone;
     password: string;
+    showPassword: boolean;
 }
 
 const enum LoginField {
@@ -80,6 +83,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             fieldValid: {},
             loginType: LoginField.MatrixId,
             password: "",
+            showPassword: false
         };
     }
 
@@ -262,11 +266,17 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
         this.markFieldValid(LoginField.Password, result.valid);
         return result;
     };
+    private toggleShowPassword = () => {
+        this.setState((s) => ({ showPassword: !s.showPassword }));
+      };
 
     private renderLoginField(loginType: IState["loginType"], autoFocus: boolean): JSX.Element {
         const classes = {
             error: false,
         };
+
+  
+          
 
         switch (loginType) {
             case LoginField.Email:
@@ -362,29 +372,30 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
 
     public render(): React.ReactNode {
         let forgotPasswordJsx: JSX.Element | undefined;
-
+    
         if (this.props.onForgotPasswordClick) {
             forgotPasswordJsx = (
-                <AccessibleButton
-                    className="mx_Login_forgot"
-                    disabled={this.props.busy}
-                    kind="link"
-                    onClick={this.onForgotPasswordClick}
-                >
-                    {_t("auth|reset_password_button")}
-                </AccessibleButton>
+                // <AccessibleButton
+                //     className="mx_Login_forgot"
+                //     disabled={this.props.busy}
+                //     kind="link"
+                //     onClick={this.onForgotPasswordClick}
+                // >
+                //     {_t("auth|reset_password_button")}
+                // </AccessibleButton>
+                <></>
             );
         }
-
+    
         const pwFieldClass = classNames({
             error: this.props.loginIncorrect && !this.isLoginEmpty(), // only error password if error isn't top field
         });
-
+    
         // If login is empty, autoFocus login, otherwise autoFocus password.
         // this is for when auto server discovery remounts us when the user tries to tab from username to password
         const autoFocusPassword = !this.isLoginEmpty();
         const loginField = this.renderLoginField(this.state.loginType, !autoFocusPassword);
-
+    
         let loginType;
         if (!SdkConfig.get().disable_3pid_login) {
             loginType = (
@@ -409,7 +420,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                 </div>
             );
         }
-
+    
         return (
             <div>
                 <form onSubmit={this.onSubmitForm}>
@@ -419,7 +430,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                         id="mx_LoginForm_password"
                         className={pwFieldClass}
                         autoComplete="current-password"
-                        type="password"
+                        type={this.state.showPassword ? "text" : "password"}
                         name="password"
                         label={_t("common|password")}
                         value={this.state.password}
@@ -442,4 +453,5 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             </div>
         );
     }
+    
 }

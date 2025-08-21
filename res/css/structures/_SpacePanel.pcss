@@ -31,45 +31,11 @@ Please see LICENSE files in the repository root for full details.
     }
 
     .mx_SpacePanel_toggleCollapse {
-        position: absolute;
-        width: 18px;
         display:none;
-        height: 18px;
-        border-radius: 50%;
-        background-color: #cef6db;
-        top: 19px; /* v-align with avatar */
-        right: -8px;
-        display:none;
-        &::before {
-            content: "";
-            position: absolute;
-            display:none;
-            width: inherit;
-            height: inherit;
-            mask-position: center;
-            mask-size: contain;
-            mask-repeat: no-repeat;
-            background-color: $background;
-            mask-image: url("@vector-im/compound-design-tokens/icons/chevron-down.svg");
-            transform: rotate(270deg);
-        }
-
-        &:not(.expanded) {
-            opacity: 0;
-
-            &::before {
-                mask-position: center 1px;
-            }
-        }
-
-        &.expanded::before {
-            transform: rotate(90deg);
-        }
+    
     }
 
-    &:hover .mx_SpacePanel_toggleCollapse {
-        opacity: 1;
-    }
+   
 
     ul {
         margin: 0;

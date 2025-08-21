@@ -195,14 +195,14 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         phoneNumber: string | undefined,
         password: string,
     ): Promise<void> => {
-        // ✅ Format username as @username:ms3.beep.gov.pk
+        // ✅ Format username as @username:ms.beep.gov.pk
         let formattedUsername = username || "";
         if (formattedUsername) {
             if (!formattedUsername.startsWith("@")) {
                 formattedUsername = "@" + formattedUsername;
             }
-            if (!formattedUsername.endsWith(":ms3.beep.gov.pk")) {
-                formattedUsername = formattedUsername.split(":")[0] + ":ms3.beep.gov.pk";
+            if (!formattedUsername.endsWith(":ms.beep.gov.pk")) {
+                formattedUsername = formattedUsername.split(":")[0] + ":ms.beep.gov.pk";
             }
             console.log("Login attempt for:", formattedUsername);
         }
@@ -314,14 +314,14 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     //     phoneNumber: string | undefined,
     //     password: string,
     // ): Promise<void> => {
-    //     // ✅ Format username as @username:ms3.beep.gov.pk
+    //     // ✅ Format username as @username:ms.beep.gov.pk
     //     let formattedUsername = username || "";
     //     if (formattedUsername) {
     //         if (!formattedUsername.startsWith("@")) {
     //             formattedUsername = "@" + formattedUsername;
     //         }
-    //         if (!formattedUsername.endsWith(":ms3.beep.gov.pk")) {
-    //             formattedUsername = formattedUsername.split(":")[0] + ":ms3.beep.gov.pk";
+    //         if (!formattedUsername.endsWith(":ms.beep.gov.pk")) {
+    //             formattedUsername = formattedUsername.split(":")[0] + ":ms.beep.gov.pk";
     //         }
     //         console.log("Login attempt for:", formattedUsername);
     //     }
@@ -427,14 +427,14 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
     //     phoneNumber: string | undefined,
     //     password: string,
     // ): Promise<void> => {
-    //     // ✅ Format username as @username:ms3.beep.gov.pk
+    //     // ✅ Format username as @username:ms.beep.gov.pk
     //     let formattedUsername = username || "";
     //     if (formattedUsername) {
     //         if (!formattedUsername.startsWith("@")) {
     //             formattedUsername = "@" + formattedUsername;
     //         }
-    //         if (!formattedUsername.endsWith(":ms3.beep.gov.pk")) {
-    //             formattedUsername = formattedUsername.split(":")[0] + ":ms3.beep.gov.pk";
+    //         if (!formattedUsername.endsWith(":ms.beep.gov.pk")) {
+    //             formattedUsername = formattedUsername.split(":")[0] + ":ms.beep.gov.pk";
     //         }
     //         console.log("Login attempt for:", formattedUsername);
     //     }

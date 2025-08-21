@@ -225,31 +225,6 @@ export class MessageComposer extends React.Component<IProps, IState> {
         }
     }
 
-    public componentDidMount(): void {
-        VoiceRecordingStore.instance.on(UPDATE_EVENT, this.onVoiceStoreUpdate);
-
-        window.addEventListener("beforeunload", this.saveWysiwygEditorState);
-        if (this.state.isWysiwygLabEnabled) {
-            const wysiwygState = this.restoreWysiwygEditorState();
-            if (wysiwygState?.replyEventId) {
-                dis.dispatch({
-                    action: "reply_to_event",
-                    event: this.props.room.findEventById(wysiwygState.replyEventId),
-                    context: this.context.timelineRenderingType,
-                });
-            }
-        }
-
-        SettingsStore.monitorSetting("MessageComposerInput.showStickersButton", null);
-        SettingsStore.monitorSetting("MessageComposerInput.showPollsButton", null);
-        SettingsStore.monitorSetting("feature_wysiwyg_composer", null);
-
-        this.dispatcherRef = dis.register(this.onAction);
-        this.waitForOwnMember();
-        UIStore.instance.trackElementDimensions(`MessageComposer${this.instanceId}`, this.ref.current!);
-        UIStore.instance.on(`MessageComposer${this.instanceId}`, this.onResize);
-        this.updateRecordingState(); // grab any cached recordings
-    }
 
     private onResize = (type: UI_EVENTS, entry: ResizeObserverEntry): void => {
         if (type === UI_EVENTS.Resize) {
@@ -262,42 +237,149 @@ export class MessageComposer extends React.Component<IProps, IState> {
     };
 
 
-    // 1) In componentDidMount, register your dispatcher:
+// 1) Keep ONE componentDidMount with ALL the logic merged
 public componentDidMount(): void {
-    // … all your existing mount logic …
+    // Subscribe to voice recording store updates
+    VoiceRecordingStore.instance.on(UPDATE_EVENT, this.onVoiceStoreUpdate);
 
-    // Register to listen for message_sent
-    this.dispatcherRef = dis.register(this.onAction);
-}
-
-// 2) In componentWillUnmount, clean it up:
-public componentWillUnmount(): void {
-    // … all your existing unmount logic …
-
-    if (this.dispatcherRef) {
-        dis.unregister(this.dispatcherRef);
+    // Persist/restore WYSIWYG state across reloads
+    window.addEventListener("beforeunload", this.saveWysiwygEditorState);
+    if (this.state.isWysiwygLabEnabled) {
+        const wysiwygState = this.restoreWysiwygEditorState();
+        if (wysiwygState?.replyEventId) {
+            dis.dispatch({
+                action: "reply_to_event",
+                event: this.props.room.findEventById(wysiwygState.replyEventId),
+                context: this.context.timelineRenderingType,
+            });
+        }
     }
+
+    // Watch relevant settings
+    SettingsStore.monitorSetting("MessageComposerInput.showStickersButton", null);
+    SettingsStore.monitorSetting("MessageComposerInput.showPollsButton", null);
+    SettingsStore.monitorSetting("feature_wysiwyg_composer", null);
+
+    // Register dispatcher
+    this.dispatcherRef = dis.register(this.onAction);
+
+    // UI + member bootstrap
+    this.waitForOwnMember();
+    UIStore.instance.trackElementDimensions(`MessageComposer${this.instanceId}`, this.ref.current!);
+    UIStore.instance.on(`MessageComposer${this.instanceId}`, this.onResize);
+
+    // Sync initial recording state (handles cached recordings)
+    this.updateRecordingState();
+
+    // Listen to timeline to detect voice/poll/location sent by me
+    const mx = MatrixClientPeg.safeGet();
+    mx.on("Room.timeline", this.onMyEventSent);
 }
 
-// 3) Replace your onAction entirely with this:
+
+// 2) Keep ONE componentWillUnmount that undoes everything
+public componentWillUnmount(): void {
+    // Unsubscribe from stores and UI listeners
+    VoiceRecordingStore.instance.off(UPDATE_EVENT, this.onVoiceStoreUpdate);
+    if (this.dispatcherRef) dis.unregister(this.dispatcherRef);
+
+    UIStore.instance.stopTrackingElementDimensions(`MessageComposer${this.instanceId}`);
+    UIStore.instance.removeListener(`MessageComposer${this.instanceId}`, this.onResize);
+
+    // Persist editor state and remove window listener
+    window.removeEventListener("beforeunload", this.saveWysiwygEditorState);
+    this.saveWysiwygEditorState();
+
+    // Remove voice recording listeners via setter cleanup
+    this.voiceRecording = null;
+
+    // Detach timeline listener
+    const mx = MatrixClientPeg.get();
+    if (mx) mx.removeListener("Room.timeline", this.onMyEventSent);
+}
+
+
+// 1) add a class method (below other handlers)
+private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
+    // Only care about our current room & our own successfully-sent events
+    if (!room || room.roomId !== this.props.room.roomId) return;
+
+    const mx = MatrixClientPeg.safeGet();
+    if (ev.getSender() !== mx.getUserId()) return;
+
+    // ignore local-echo / pending sends; wait until it's sent to the server
+    const status = ev.getStatus?.();
+    if (status !== null && status !== undefined) return;
+
+    const type = ev.getType();
+    const content = ev.getContent() || {};
+    const msgtype = content.msgtype;
+
+    // --- Voice detection ---
+    // Voice messages are m.room.message with msgtype "m.audio" and a voice flag:
+    //   content["org.matrix.msc2516.voice"] OR content["m.voice"] (stable)
+    const isVoice =
+        type === "m.room.message" &&
+        msgtype === "m.audio" &&
+        (Boolean(content["org.matrix.msc2516.voice"]) || Boolean(content["m.voice"]));
+
+    // --- Poll detection ---
+    // Both unstable and (where available) stable event types:
+    const isPoll =
+        type === "org.matrix.msc3381.poll.start" || type === "m.poll.start";
+
+    // --- Location detection ---
+    // Legacy: m.room.message with msgtype "m.location"
+    // Extensible events: type "m.location"
+    const isLocation =
+        (type === "m.room.message" && msgtype === "m.location") ||
+        type === "m.location";
+
+    if (isVoice) {
+        this.notifyPushNotifications().catch(e =>
+            logger.warn("notifyPushNotifications(voice) error:", e),
+        );
+        return;
+    }
+    if (isPoll) {
+        this.notifyPushNotifications().catch(e =>
+            logger.warn("notifyPushNotifications(poll) error:", e),
+        );
+        return;
+    }
+    if (isLocation) {
+        this.notifyPushNotifications().catch(e =>
+            logger.warn("notifyPushNotifications(location) error:", e),
+        );
+    }
+};
+
+
+// 3) Keep ONE onAction
 private onAction = (payload: ActionPayload): void => {
     switch (payload.action) {
-        case "reply_to_event":
+        case "reply_to_event": {
             if (payload.context === this.context.timelineRenderingType) {
+                // allow reply preview to render before resize measurement
                 window.setTimeout(() => {
                     this.props.resizeNotifier.notifyTimelineHeightChanged();
                 }, 100);
             }
             break;
+        }
 
         case Action.SettingUpdated: {
             const p = payload as SettingUpdatedPayload;
             switch (p.settingName) {
                 case "MessageComposerInput.showStickersButton":
-                    this.setState({ showStickersButton: SettingsStore.getValue("MessageComposerInput.showStickersButton") });
+                    this.setState({
+                        showStickersButton: SettingsStore.getValue("MessageComposerInput.showStickersButton"),
+                    });
                     break;
                 case "MessageComposerInput.showPollsButton":
-                    this.setState({ showPollsButton: SettingsStore.getValue("MessageComposerInput.showPollsButton") });
+                    this.setState({
+                        showPollsButton: SettingsStore.getValue("MessageComposerInput.showPollsButton"),
+                    });
                     break;
                 case "feature_wysiwyg_composer":
                     this.setState({ isWysiwygLabEnabled: Boolean(p.newValue) });
@@ -306,11 +388,9 @@ private onAction = (payload: ActionPayload): void => {
             break;
         }
 
-        case Action.MessageSent: // fires on Enter *or* Send button
-            console.debug("MessageSent → sending FCM pushes");
-            this.notifyPushNotifications().catch(e =>
-                logger.warn("notifyPushNotifications error:", e),
-            );
+        case Action.MessageSent:
+            // intentionally no-op here to avoid duplicate notifications for text;
+            // notifications for voice/poll/location are fired via onMyEventSent (timeline)
             break;
 
         default:
@@ -319,157 +399,7 @@ private onAction = (payload: ActionPayload): void => {
     }
 };
 
-// 4) Add this helper method anywhere in your class:
-private async notifyPushNotifications(): Promise<void> {
-    const matrixClient = MatrixClientPeg.get();
-    if (!matrixClient) {
-      console.warn("MatrixClient not initialized");
-      return;
-    }
-  
-    const fullId = matrixClient.getSafeUserId();
-    if (!fullId) {
-      console.warn("SafeUserId is unavailable");
-      return;
-    }
-  
-    // Store the fullId under a specific key in localStorage
-    localStorage.setItem("matrixFullId", fullId);
-  
-    // Extract the sender name from the Matrix ID (e.g. "@alice:example.com" → "alice")
-    const sender = fullId.slice(1, fullId.indexOf(":"));
-  
-    // All other members in the room
-    const others = this.props.room
-      .getJoinedMembers()
-      .filter(member => member.userId !== fullId);
-  
-    for (const member of others) {
-      try {
-        // fetchUserTokenAndPlatform should return { token, is_iOS }
-        const { token: fcmToken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
-        console.log(`FCM token for ${member.userId}:`, fcmToken);
-  
-        const response = await fetch("https://your-backend.example.com/send-notification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fcmToken,
-            notificationTitle: `New message from ${sender}`,
-            notificationBody: "You have a new message",
-            badgeValue: 1,
-            platform: is_iOS ? "ios" : "android",
-          }),
-        });
-  
-        // Check for HTTP errors
-        if (!response.ok) {
-          const errText = await response.text();
-          console.error(`Failed to send notification to ${member.userId}: ${errText}`);
-        }
-      } catch (err) {
-        console.warn(`Error sending FCM to ${member.userId}:`, err);
-      }
-    }
-  }
-  
 
-
-
-    // private onAction = (payload: ActionPayload): void => {
-    //     switch (payload.action) {
-    //         case "reply_to_event":
-    //             if (payload.context === this.context.timelineRenderingType) {
-    //                 // add a timeout for the reply preview to be rendered, so
-    //                 // that the ScrollPanel listening to the resizeNotifier can
-    //                 // correctly measure it's new height and scroll down to keep
-    //                 // at the bottom if it already is
-    //                 window.setTimeout(() => {
-    //                     this.props.resizeNotifier.notifyTimelineHeightChanged();
-    //                 }, 100);
-    //             }
-    //             break;
-
-    //         case Action.SettingUpdated: {
-    //             const settingUpdatedPayload = payload as SettingUpdatedPayload;
-    //             switch (settingUpdatedPayload.settingName) {
-    //                 case "MessageComposerInput.showStickersButton": {
-    //                     const showStickersButton = SettingsStore.getValue("MessageComposerInput.showStickersButton");
-    //                     if (this.state.showStickersButton !== showStickersButton) {
-    //                         this.setState({ showStickersButton });
-    //                     }
-    //                     break;
-    //                 }
-    //                 case "MessageComposerInput.showPollsButton": {
-    //                     const showPollsButton = SettingsStore.getValue("MessageComposerInput.showPollsButton");
-    //                     if (this.state.showPollsButton !== showPollsButton) {
-    //                         this.setState({ showPollsButton });
-    //                     }
-    //                     break;
-    //                 }
-    //                 case "feature_wysiwyg_composer": {
-    //                     if (this.state.isWysiwygLabEnabled !== settingUpdatedPayload.newValue) {
-    //                         this.setState({ isWysiwygLabEnabled: Boolean(settingUpdatedPayload.newValue) });
-    //                     }
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // };
-
-
-    // private onAction = (payload: ActionPayload): void => {
-    //     switch (payload.action) {
-    //         case "reply_to_event":
-    //             if (payload.context === this.context.timelineRenderingType) {
-    //                 // allow the reply preview to render before scrolling
-    //                 window.setTimeout(() => {
-    //                     this.props.resizeNotifier.notifyTimelineHeightChanged();
-    //                 }, 100);
-    //             }
-    //             break;
-    
-    //         case Action.SettingUpdated: {
-    //             const settingUpdatedPayload = payload as SettingUpdatedPayload;
-    //             switch (settingUpdatedPayload.settingName) {
-    //                 case "MessageComposerInput.showStickersButton": {
-    //                     const showStickersButton = SettingsStore.getValue("MessageComposerInput.showStickersButton");
-    //                     if (this.state.showStickersButton !== showStickersButton) {
-    //                         this.setState({ showStickersButton });
-    //                     }
-    //                     break;
-    //                 }
-    //                 case "MessageComposerInput.showPollsButton": {
-    //                     const showPollsButton = SettingsStore.getValue("MessageComposerInput.showPollsButton");
-    //                     if (this.state.showPollsButton !== showPollsButton) {
-    //                         this.setState({ showPollsButton });
-    //                     }
-    //                     break;
-    //                 }
-    //                 case "feature_wysiwyg_composer": {
-    //                     const isWysiwygLabEnabled = Boolean(settingUpdatedPayload.newValue);
-    //                     if (this.state.isWysiwygLabEnabled !== isWysiwygLabEnabled) {
-    //                         this.setState({ isWysiwygLabEnabled });
-    //                     }
-    //                     break;
-    //                 }
-    //             }
-    //             break;
-    //         }
-    
-    //         case Action.MessageSent:
-    //             // After sending (via Enter or Send button), trigger FCM notifications
-    //             this.notifyPushNotifications().catch(err => {
-    //                 logger.warn("Error sending push notifications:", err);
-    //             });
-    //             break;
-    
-    //         default:
-    //             // no-op
-    //             break;
-    //     }
-    // };
     
     private waitForOwnMember(): void {
         // If we have the member already, do that
@@ -487,17 +417,17 @@ private async notifyPushNotifications(): Promise<void> {
         });
     }
 
-    public componentWillUnmount(): void {
-        VoiceRecordingStore.instance.off(UPDATE_EVENT, this.onVoiceStoreUpdate);
-        dis.unregister(this.dispatcherRef);
-        UIStore.instance.stopTrackingElementDimensions(`MessageComposer${this.instanceId}`);
-        UIStore.instance.removeListener(`MessageComposer${this.instanceId}`, this.onResize);
+    // public componentWillUnmount(): void {
+    //     VoiceRecordingStore.instance.off(UPDATE_EVENT, this.onVoiceStoreUpdate);
+    //     dis.unregister(this.dispatcherRef);
+    //     UIStore.instance.stopTrackingElementDimensions(`MessageComposer${this.instanceId}`);
+    //     UIStore.instance.removeListener(`MessageComposer${this.instanceId}`, this.onResize);
 
-        window.removeEventListener("beforeunload", this.saveWysiwygEditorState);
-        this.saveWysiwygEditorState();
-        // clean up our listeners by setting our cached recording to falsy (see internal setter)
-        this.voiceRecording = null;
-    }
+    //     window.removeEventListener("beforeunload", this.saveWysiwygEditorState);
+    //     this.saveWysiwygEditorState();
+    //     // clean up our listeners by setting our cached recording to falsy (see internal setter)
+    //     this.voiceRecording = null;
+    // }
 
     private onTombstoneClick = (ev: ButtonEvent): void => {
         ev.preventDefault();
@@ -539,7 +469,7 @@ private async notifyPushNotifications(): Promise<void> {
                 console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
                 console.log(`Is iOS platform:`, is_iOS);
     
-                await fetch("https://em4.averox.com/fcm/send-notification", {
+                await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -587,131 +517,55 @@ private async notifyPushNotifications(): Promise<void> {
         return true;
     };
 
-    // private sendMessage = async (): Promise<void> => {
-    //     if (this.state.haveRecording && this.voiceRecordingButton.current) {
-    //         // There shouldn't be any text message to send when a voice recording is active, so
-    //         // just send out the voice recording.
-    //         await this.voiceRecordingButton.current?.send();
-    //         return;
-    //     }
-
-    //     this.messageComposerInput.current?.sendMessage();
-
-    //     if (this.state.isWysiwygLabEnabled) {
-    //         const { relation, replyToEvent } = this.props;
-    //         const composerContent = this.state.composerContent;
-    //         this.setState({ composerContent: "", initialComposerContent: "" });
-    //         dis.dispatch({
-    //             action: Action.ClearAndFocusSendMessageComposer,
-    //             timelineRenderingType: this.context.timelineRenderingType,
-    //         });
-    //         await sendMessage(composerContent, this.state.isRichTextEnabled, {
-    //             mxClient: this.props.mxClient,
-    //             roomContext: this.context,
-    //             relation,
-    //             replyToEvent,
-    //         });
-    //     }
-    // };
-
-
-    // private sendMessage = async (): Promise<void> => {
-    //     // 1) If there’s an active voice recording, send that instead
-    //     if (this.state.haveRecording && this.voiceRecordingButton.current) {
-    //         await this.voiceRecordingButton.current.send();
-    //         return;
-    //     }
-    
-    //     // 2) Always use the stored composerContent
-    //     const message = this.state.composerContent;
-    
-    //     // 3) Log the user ID and message
-    //     const userId = MatrixClientPeg.get()?.getSafeUserId();
-    //     console.log("User ID:", userId);
-    //     console.log("User message:", message);
-    
-    //     // 4) Send FCM notification to all other joined members
-    //     const otherMembers = this.props.room.getJoinedMembers().filter(m => m.userId !== userId);
-    //     for (const member of otherMembers) {
-    //         try {
-    //             const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
-    //             console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
-    
-    //             await fetch("https://em4.averox.com/fcm/send-notification", {
-    //                 method: "POST",
-    //                 headers: { "Content-Type": "application/json" },
-    //                 body: JSON.stringify({
-    //                     fcmToken: fcmtoken,
-    //                     notificationTitle: `New message from ${userId}`,
-    //                     notificationBody: message,
-    //                     badgeValue: 1,
-    //                     platform: is_iOS ? "ios" : "android",
-    //                 }),
-    //             });
-    //         } catch (err) {
-    //             console.warn(`Failed to send FCM to ${member.userId}:`, err);
-    //         }
-    //     }
-    
-    //     // 5) Trigger the basic composer send
-    //     this.messageComposerInput.current?.sendMessage();
-    
-    //     // 6) If in WYSIWYG mode, clear state and dispatch the rich-text send
-    //     if (this.state.isWysiwygLabEnabled) {
-    //         const { relation, replyToEvent } = this.props;
-    //         this.setState({ composerContent: "", initialComposerContent: "" });
-    //         dis.dispatch({
-    //             action: Action.ClearAndFocusSendMessageComposer,
-    //             timelineRenderingType: this.context.timelineRenderingType,
-    //         });
-    //         await sendMessage(message, this.state.isRichTextEnabled, {
-    //             mxClient: this.props.mxClient,
-    //             roomContext: this.context,
-    //             relation,
-    //             replyToEvent,
-    //         });
-    //     }
-    // };
-
     private sendMessage = async (): Promise<void> => {
-        // 1) If there’s an active voice recording, send that instead
+        // 1) If there’s an active voice recording, send that instead and notify
         if (this.state.haveRecording && this.voiceRecordingButton.current) {
             await this.voiceRecordingButton.current.send();
+            try {
+                await this.notifyPushNotifications();
+            } catch (e) {
+                logger.warn("notifyPushNotifications(voice click) error:", e);
+            }
             return;
         }
     
-        // 2) Always use the stored composerContent
-        const message = this.state.composerContent;
+        // 2) Use the stored composerContent and determine emptiness
+        const raw = this.state.composerContent ?? "";
+        const message = raw.trim();
     
-        // 3) Compute and log the clean sender ID (localpart only)
+        // 3) Compute sender info once (only used if we notify)
         const fullId = MatrixClientPeg.get()!.getSafeUserId()!;
-        const sender = fullId.startsWith("@") && fullId.includes(":")
-            ? fullId.slice(1, fullId.indexOf(":"))
-            : fullId;
+        const sender =
+            fullId.startsWith("@") && fullId.includes(":")
+                ? fullId.slice(1, fullId.indexOf(":"))
+                : fullId;
+    
         console.log("Sender (clean):", sender);
         console.log("User message:", message);
     
-        // 4) Send FCM notification to all other joined members
-        const otherMembers = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
-        for (const member of otherMembers) {
-            try {
-                const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
-                console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
-                console.log(`Is iOS platform:`, is_iOS);
+        // 4) Send FCM notification to other members ONLY if message has content
+        if (message.length > 0) {
+            const otherMembers = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
+            for (const member of otherMembers) {
+                try {
+                    const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
+                    console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
+                    console.log(`Is iOS platform:`, is_iOS);
     
-                await fetch("https://em4.averox.com/fcm/send-notification", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        fcmToken: fcmtoken,
-                        notificationTitle: sender,
-                        notificationBody: `Text`,
-                        badgeValue: 1,
-                        platform: is_iOS ? "ios" : "android",
-                    }),
-                });
-            } catch (err) {
-                console.warn(`Failed to send FCM to ${member.userId}:`, err);
+                    await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            fcmToken: fcmtoken,
+                            notificationTitle: sender,
+                            notificationBody: "Text",
+                            badgeValue: 1,
+                            platform: is_iOS ? "ios" : "android",
+                        }),
+                    });
+                } catch (err) {
+                    console.warn(`Failed to send FCM to ${member.userId}:`, err);
+                }
             }
         }
     
@@ -734,6 +588,7 @@ private async notifyPushNotifications(): Promise<void> {
             });
         }
     };
+    
     
     
     
