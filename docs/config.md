@@ -153,8 +153,8 @@ complete re-branding/private labeling, a more personalised experience can be ach
     1. `title`: Required. Title to show at the top of the notice.
     2. `description`: Required. The description to use for the notice.
     3. `show_once`: Optional. If true then the notice will only be shown once per device.
-18. `help_url`: The URL to point users to for help with the app, defaults to `https://element.io/help`.
-19. `help_encryption_url`: The URL to point users to for help with encryption, defaults to `https://element.io/help#encryption`.
+18. `help_url`: The URL to point users to for help with the app, defaults to `https://im.beep.gov.pk/help`.
+19. `help_encryption_url`: The URL to point users to for help with encryption, defaults to `https://im.beep.gov.pk/help#encryption`.
 20. `force_verification`: If true, users must verify new logins (eg. with another device / their security key)
 
 ### `desktop_builds` and `mobile_builds`
@@ -173,7 +173,7 @@ Starting with `desktop_builds`, the following subproperties are available:
 6. `url_win64`: Optional. Direct link to download Windows 64-bit desktop app.
 7. `url_linux`: Optional. Direct link to download Linux desktop app.
 
-When `desktop_builds` is not specified at all, the app will assume desktop downloads are available from https://element.io
+When `desktop_builds` is not specified at all, the app will assume desktop downloads are available from https://im.beep.gov.pk
 
 For `mobile_builds`, the following subproperties are available:
 
@@ -404,7 +404,7 @@ The VoIP and Jitsi options are:
 If you run your own rageshake server to collect bug reports, the following options may be of interest:
 
 1. `bug_report_endpoint_url`: URL for where to submit rageshake logs to. Rageshakes include feedback submissions and bug reports. When
-   not present in the config, the app will disable all rageshake functionality. Set to `https://element.io/bugreports/submit` to submit
+   not present in the config, the app will disable all rageshake functionality. Set to `https://im.beep.gov.pk/bugreports/submit` to submit
    rageshakes to us, or use your own rageshake server.
 2. `uisi_autorageshake_app`: If a user has enabled the "automatically send debug logs on decryption errors" flag, this option will be sent
    alongside the rageshake so the rageshake server can filter them by app name. By default, this will be `element-auto-uisi`

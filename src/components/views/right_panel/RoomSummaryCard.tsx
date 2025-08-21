@@ -17,8 +17,8 @@ import {
     Heading,
     IconButton,
     Link,
-    Search,
-    Form,
+    // Search,
+    // Form,
 } from "@vector-im/compound-web";
 import FavouriteIcon from "@vector-im/compound-design-tokens/assets/web/icons/favourite";
 import UserAddIcon from "@vector-im/compound-design-tokens/assets/web/icons/user-add";
@@ -298,10 +298,7 @@ const RoomSummaryCard: React.FC<IProps> = ({
 
             <Flex as="section" justify="center" gap="var(--cpd-space-2x)" className="mx_RoomSummaryCard_badges">
                 {!isDirectMessage && roomState.getJoinRule() === JoinRule.Public && (
-                    <Badge kind="grey">
-                        <PublicIcon width="1em" />
-                        {_t("common|public_room")}
-                    </Badge>
+                  <></>
                 )}
 
                 {isRoomEncrypted && e2eStatus !== E2EStatus.Warning && (
@@ -314,15 +311,15 @@ const RoomSummaryCard: React.FC<IProps> = ({
                 {!e2eStatus && (
                     <Badge kind="grey">
                         <LockOffIcon width="1em" />
-                        {_t("common|unencrypted")}
+                        {_t("common|encrypted")}
                     </Badge>
                 )}
 
                 {e2eStatus === E2EStatus.Warning && (
-                    <Badge kind="red">
-                        <ErrorIcon width="1em" />
-                        {_t("common|not_trusted")}
-                    </Badge>
+                    <Badge kind="green">
+                         <LockIcon width="1em" />
+                              {_t("common|encrypted")}
+                                  </Badge>
                 )}
             </Flex>
 
@@ -338,24 +335,24 @@ const RoomSummaryCard: React.FC<IProps> = ({
     const canInviteToState = useEventEmitterState(room, RoomStateEvent.Update, () => canInviteTo(room));
     const isFavorite = roomTags.includes(DefaultTagID.Favourite);
 
-    const header = onSearchChange && (
-        <Form.Root className="mx_RoomSummaryCard_search" onSubmit={(e) => e.preventDefault()}>
-            <Search
-                placeholder={_t("room|search|placeholder")}
-                name="room_message_search"
-                onChange={onSearchChange}
-                className="mx_no_textinput"
-                ref={searchInputRef}
-                autoFocus={focusRoomSearch}
-                onKeyDown={(e) => {
-                    if (searchInputRef.current && e.key === Key.ESCAPE) {
-                        searchInputRef.current.value = "";
-                        onSearchCancel?.();
-                    }
-                }}
-            />
-        </Form.Root>
-    );
+    // const header = onSearchChange && (
+    //     <Form.Root className="mx_RoomSummaryCard_search" onSubmit={(e) => e.preventDefault()}>
+    //         <Search
+    //             placeholder={_t("room|search|placeholder")}
+    //             name="room_message_search"
+    //             onChange={onSearchChange}
+    //             className="mx_no_textinput"
+    //             ref={searchInputRef}
+    //             autoFocus={focusRoomSearch}
+    //             onKeyDown={(e) => {
+    //                 if (searchInputRef.current && e.key === Key.ESCAPE) {
+    //                     searchInputRef.current.value = "";
+    //                     onSearchCancel?.();
+    //                 }
+    //             }}
+    //         />
+    //     </Form.Root>
+    // );
 
     return (
         <BaseCard
@@ -363,7 +360,7 @@ const RoomSummaryCard: React.FC<IProps> = ({
             className="mx_RoomSummaryCard"
             ariaLabelledBy="room-summary-panel-tab"
             role="tabpanel"
-            header={header}
+            // header={header}
         >
             {roomInfo}
 

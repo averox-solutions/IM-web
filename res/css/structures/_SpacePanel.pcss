@@ -31,43 +31,11 @@ Please see LICENSE files in the repository root for full details.
     }
 
     .mx_SpacePanel_toggleCollapse {
-        position: absolute;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background-color: #cef6db;
-        top: 19px; /* v-align with avatar */
-        right: -8px;
-        
-        &::before {
-            content: "";
-            position: absolute;
-            width: inherit;
-            height: inherit;
-            mask-position: center;
-            mask-size: contain;
-            mask-repeat: no-repeat;
-            background-color: $background;
-            mask-image: url("@vector-im/compound-design-tokens/icons/chevron-down.svg");
-            transform: rotate(270deg);
-        }
-
-        &:not(.expanded) {
-            opacity: 0;
-
-            &::before {
-                mask-position: center 1px;
-            }
-        }
-
-        &.expanded::before {
-            transform: rotate(90deg);
-        }
+        display:none;
+    
     }
 
-    &:hover .mx_SpacePanel_toggleCollapse {
-        opacity: 1;
-    }
+   
 
     ul {
         margin: 0;
@@ -91,6 +59,7 @@ Please see LICENSE files in the repository root for full details.
 
         &.mx_SpaceItem_narrow {
             align-self: baseline;
+            width: -webkit-fill-available;
         }
     }
 
@@ -110,10 +79,7 @@ Please see LICENSE files in the repository root for full details.
         position: relative;
     }
 
-    .mx_SpaceItem:not(.hasSubSpaces) > .mx_SpaceButton {
-        margin-left: var(--gutterSize);
-        min-width: 40px;
-    }
+
 
     .mx_SpaceButton {
         border-radius: 8px;
@@ -122,7 +88,7 @@ Please see LICENSE files in the repository root for full details.
         padding: 4px 4px 4px 0;
         width: 100%;
         cursor: pointer;
-
+        justify-content:center;
         &.mx_SpaceButton_active {
             &:not(.mx_SpaceButton_narrow) .mx_SpaceButton_selectionWrapper {
                 background-color: var(--activeBackground-color);

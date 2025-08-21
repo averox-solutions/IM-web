@@ -23,13 +23,37 @@ Please see LICENSE files in the repository root for full details.
 
 .mx_ContextualMenu {
     border-radius: 12px;
-    box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.1);
-    background-color: var(--cpd-color-bg-canvas-default);
     border: var(--cpd-border-width-1) solid var(--cpd-color-border-interactive-secondary);
     color: $primary-content;
     position: absolute;
     z-index: 5001;
     width: max-content;
+    box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.12);
+
+    /* 🌟 Semi-transparent gradient background: green → white */
+    background: linear-gradient(
+        135deg,
+#bee8ba 0%, /* green with opacity */
+        rgba(255, 255, 255, 0.92) 100% /* white with opacity */
+    );
+    backdrop-filter: blur(8px) saturate(1.1);
+    -webkit-backdrop-filter: blur(8px) saturate(1.1);
+
+    /* 🎬 Opening: small delay + fade/slide */
+    opacity: 0;
+    transform-origin: bottom right;
+    animation: menu-fade-in 0.34s ease-out 0.18s forwards;
+}
+
+@keyframes menu-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .mx_ContextualMenu_right {
@@ -47,7 +71,7 @@ Please see LICENSE files in the repository root for full details.
     width: 0;
     height: 0;
     border-top: 8px solid transparent;
-    border-left: 8px solid $menu-bg-color;
+    border-left: 8px solid rgba(255, 255, 255, 0.92); /* match white end */
     border-bottom: 8px solid transparent;
 }
 
@@ -66,12 +90,13 @@ Please see LICENSE files in the repository root for full details.
     width: 0;
     height: 0;
     border-top: 8px solid transparent;
-    border-right: 8px solid $menu-bg-color;
+    border-right: 8px solid rgba(255, 255, 255, 0.92);
     border-bottom: 8px solid transparent;
 }
 
+/* ✅ Open above the Chat button */
 .mx_ContextualMenu_top {
-    top: 0;
+    top: -11px;
 }
 
 .mx_ContextualMenu.mx_ContextualMenu_withChevron_top {
@@ -85,7 +110,7 @@ Please see LICENSE files in the repository root for full details.
     width: 0;
     height: 0;
     border-left: 8px solid transparent;
-    border-bottom: 8px solid $menu-bg-color;
+    border-bottom: 8px solid rgba(255, 255, 255, 0.92);
     border-right: 8px solid transparent;
 }
 
@@ -104,7 +129,7 @@ Please see LICENSE files in the repository root for full details.
     width: 0;
     height: 0;
     border-left: 8px solid transparent;
-    border-top: 8px solid $menu-bg-color;
+    border-top: 8px solid rgba(255, 255, 255, 0.92);
     border-right: 8px solid transparent;
 }
 
@@ -114,4 +139,61 @@ Please see LICENSE files in the repository root for full details.
 
 .mx_ContextualMenu_bottomAligned {
     transform: translateY(-100%);
+}
+
+/* ---- Context menu content & options ---- */
+
+.mx_IconizedContextMenu {
+    padding: 6px;
+    border-radius: 12px;
+    backdrop-filter: blur(2px) saturate(1.05);
+    -webkit-backdrop-filter: blur(2px) saturate(1.05);
+}
+
+/* Staggered reveal for each option (4 buttons) */
+.mx_IconizedContextMenuOptionList .mx_IconizedContextMenuOption {
+    opacity: 0;
+    transform: translateY(6px);
+    animation: option-fade 0.22s cubic-bezier(.2,.8,.2,1) forwards;
+}
+
+.mx_IconizedContextMenuOptionList .mx_IconizedContextMenuOption:nth-child(1) { animation-delay: .12s; }
+.mx_IconizedContextMenuOptionList .mx_IconizedContextMenuOption:nth-child(2) { animation-delay: .16s; }
+.mx_IconizedContextMenuOptionList .mx_IconizedContextMenuOption:nth-child(3) { animation-delay: .20s; }
+.mx_IconizedContextMenuOptionList .mx_IconizedContextMenuOption:nth-child(4) { animation-delay: .24s; }
+
+@keyframes option-fade {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Subtle green hover */
+.mx_IconizedContextMenuOption {
+    border-radius: 10px;
+    transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+}
+.mx_IconizedContextMenuOption:hover,
+.mx_IconizedContextMenuOption:focus-visible {
+    background: linear-gradient(
+        135deg,
+        rgba(72, 141, 65, 0.25) 0%,
+        rgba(255, 255, 255, 0.5) 100%
+    );
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    outline: none;
+}
+.mx_IconizedContextMenuOption:active {
+    background: rgba(22, 163, 74, 0.18);
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0,0,0,.10);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .mx_ContextualMenu,
+    .mx_IconizedContextMenuOptionList .mx_IconizedContextMenuOption {
+        animation: none !important;
+        transform: none !important;
+        transition: none !important;
+    }
 }

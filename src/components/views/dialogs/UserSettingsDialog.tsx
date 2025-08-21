@@ -112,7 +112,7 @@ export default function UserSettingsDialog(props: IProps): JSX.Element {
             new Tab(
                 UserTab.SessionManager,
                 _td("settings|sessions|title"),
-                <DevicesIcon />,
+                <DevicesIcon/>,
                 <SessionManagerTab showMsc4108QrCode={showMsc4108QrCode} />,
                 undefined,
             ),

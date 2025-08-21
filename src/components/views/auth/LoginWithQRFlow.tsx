@@ -295,7 +295,7 @@ export default class LoginWithQRFlow extends React.Component<Props> {
                             <ChevronLeftIcon />
                         </AccessibleButton>
                         <div className="mx_LoginWithQR_breadcrumbs">
-                            {_t("settings|sessions|title")} / {_t("settings|sessions|sign_in_with_qr")}
+                            {_t("settings|sessions|title")}
                         </div>
                     </div>
                 ) : null}

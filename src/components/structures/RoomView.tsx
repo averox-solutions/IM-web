@@ -319,7 +319,8 @@ function LocalRoomView(props: LocalRoomViewProps): ReactElement {
     return (
         <div className="mx_RoomView mx_RoomView--local">
             <ErrorBoundary>
-                <RoomHeader room={room} />
+            <RoomHeader room={room} />
+
                 <main className="mx_RoomView_body" ref={props.roomView}>
                     <FileDropTarget parent={props.roomView.current} onFileDrop={props.onFileDrop} />
                     <div className="mx_RoomView_timeline">
@@ -1815,10 +1816,10 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
         defaultDispatcher.fire(Action.ViewRoomDirectory);
     };
 
-    private onSearchChange = debounce((e: ChangeEvent): void => {
-        const term = (e.target as HTMLInputElement).value;
+    private onSearchChange = debounce((e: ChangeEvent<HTMLInputElement>): void => {
+        const term = e.target.value;
         this.onSearch(term);
-    }, 300);
+      }, 300);
 
     private onCancelSearchClick = (): Promise<void> => {
         return new Promise<void>((resolve) => {
@@ -2604,9 +2605,12 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
                                 data-layout={this.state.layout}
                             >
                                 <RoomHeader
-                                    room={this.state.room}
-                                    additionalButtons={this.state.viewRoomOpts.buttons}
-                                />
+  room={this.state.room}
+  additionalButtons={this.state.viewRoomOpts.buttons}
+  onSearchChange={this.onSearchChange}
+  onSearchCancel={this.onCancelSearchClick}
+  focusRoomSearch={this.state.timelineRenderingType === TimelineRenderingType.Search}
+/>
                                 {mainSplitBody}
                             </div>
                         </MainSplit>

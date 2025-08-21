@@ -262,7 +262,7 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                         disabled={!canAddSubRooms}
                         title={!canAddSubRooms ? _t("spaces|error_no_permission_add_room") : undefined}
                     />
-                    {canCreateSpaces && (
+                    {/* {canCreateSpaces && (
                         <IconizedContextMenuOption
                             label={_t("room_list|add_space_label")}
                             iconClassName="mx_RoomListHeader_iconPlus"
@@ -277,7 +277,7 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                         >
                             <BetaPill />
                         </IconizedContextMenuOption>
-                    )}
+                    )} */}
                 </IconizedContextMenuOptionList>
             </IconizedContextMenu>
         );
@@ -297,6 +297,7 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                             defaultDispatcher.dispatch({ action: "view_create_chat" });
                             PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuCreateChatItem", e);
                             closePlusMenu();
+
                         }}
                     />
                     <IconizedContextMenuOption
@@ -424,11 +425,11 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                     }} className="plus-icon" /> 
                     <h1 style={{
                         margin: "0",
-                        fontSize: "17px",
-                        fontWeight: "600",
+                        fontSize: "18px",
+                        fontWeight: "700",
                         zIndex: "9999",
                         fontFamily: "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                    }}>chat</h1>
+                    }}>Chat</h1>
                     </ContextMenuTooltipButton>
             )}
             

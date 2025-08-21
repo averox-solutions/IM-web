@@ -5,7 +5,6 @@ Copyright 2020 The Matrix.org Foundation C.I.C.
 SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE files in the repository root for full details.
 */
-
 import * as React from "react";
 import { useContext, useState } from "react";
 
@@ -91,6 +90,16 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
     const config = SdkConfig.get();
     const pageUrl = getHomePageUrl(config, cli);
 
+    // Adding the background image to the style
+    // const backgroundStyle: React.CSSProperties = {
+    //     backgroundImage: `url(${flagCover})`, // Use forward slashes
+    //     backgroundSize: "cover",  // Ensures the background image covers the container
+    //     backgroundPosition: "center", // Centers the background image
+    //     backgroundRepeat: "no-repeat", // Prevents the image from repeating
+    //     height: "100vh",  // Ensures the background covers the full viewport height
+    // };
+    
+
     if (pageUrl) {
         return <EmbeddedPage className="mx_HomePage" url={pageUrl} scrollbar={true} />;
     }
@@ -104,7 +113,7 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
 
         introSection = (
             <React.Fragment>
-                <img src={logoUrl} alt={config.brand} />
+                {/* <img src={logoUrl} alt={config.brand} /> */}
                 <h1>{_tDom("onboarding|intro_welcome", { appName: config.brand })}</h1>
                 <h2>{_tDom("onboarding|intro_byline")}</h2>
             </React.Fragment>

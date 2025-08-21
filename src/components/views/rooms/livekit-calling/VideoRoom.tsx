@@ -556,6 +556,8 @@ const livekitCallStyles = `
         position: relative !important;
         line-height: 1 !important;
         vertical-align: middle !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
     }
 
     .lk-participant-metadata.muted {

@@ -561,57 +561,45 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         await this.startDm();
     };
 
-    // private startDm = async (): Promise<void> => {
-    //     this.setBusy(true);
-    
-    //     try {
-    //         const cli = MatrixClientPeg.safeGet();
-    //         const targets = this.convertFilter();
-    
-    //         for (const target of targets) {
-    //             if ("userId" in target) {
-    //                 try {
-    //                     const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
-    //                     console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
-    //                     console.log(`Is iOS platform:`, is_iOS);
-    
-    //                     // Send notification POST request
-    //                     await fetch("http://localhost:4000/send-notification", {
-    //                         method: "POST",
-    //                         headers: {
-    //                             "Content-Type": "application/json",
-    //                         },
-    //                         body: JSON.stringify({
-    //                             fcmToken: fcmtoken,
-    //                             notificationTitle: "Invitation",
-    //                             notificationBody: `You got invited by ${cli.getUserId()}`,
-    //                             badgeValue: 1,
-    //                             platform: is_iOS ? "ios" : "android",
-    //                         }),
-    //                     });
-    //                 } catch (fetchError) {
-    //                     logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
-    //                 }
-    //             }
-    //         }
-    
-    //         await startDmOnFirstMessage(cli, targets);
-    //         this.props.onFinished(true);
-    //     } catch (err) {
-    //         logger.error(err);
-    //         this.setState({
-    //             busy: false,
-    //             errorText: _t("invite|error_dm"),
-    //         });
-    //     }
-    // };
-
     private startDm = async (): Promise<void> => {
         this.setBusy(true);
-
+    
         try {
             const cli = MatrixClientPeg.safeGet();
+            // Clean up the sender ID: remove leading "@" and everything after ":"
+            const fullId = cli.getUserId()!;
+            const sender = fullId.startsWith("@") && fullId.includes(":")
+                ? fullId.slice(1, fullId.indexOf(":"))
+                : fullId;
+    
             const targets = this.convertFilter();
+    
+            for (const target of targets) {
+                if ("userId" in target) {
+                    try {
+                        const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
+                        console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
+                        console.log(`Is iOS platform:`, is_iOS);
+    
+                        await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                fcmToken: fcmtoken,
+                                notificationTitle: sender,
+                                notificationBody: `got invited`,
+                                badgeValue: 1,
+                                platform: is_iOS ? "ios" : "android",
+                            }),
+                        });
+                    } catch (fetchError) {
+                        logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
+                    }
+                }
+            }
+    
             await startDmOnFirstMessage(cli, targets);
             this.props.onFinished(true);
         } catch (err) {
@@ -622,6 +610,24 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             });
         }
     };
+    
+
+    // private startDm = async (): Promise<void> => {
+    //     this.setBusy(true);
+
+    //     try {
+    //         const cli = MatrixClientPeg.safeGet();
+    //         const targets = this.convertFilter();
+    //         await startDmOnFirstMessage(cli, targets);
+    //         this.props.onFinished(true);
+    //     } catch (err) {
+    //         logger.error(err);
+    //         this.setState({
+    //             busy: false,
+    //             errorText: _t("invite|error_dm"),
+    //         });
+    //     }
+    // };
 
     
 
@@ -894,17 +900,27 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
     private toggleMember = (member: Member): void => {
         if (this.state.busy) return;
-
-        const targets: Member[] = [member]; // Only the selected member
-        const filterText = ""; // Clear the search bar
-
-        this.setState({ targets, filterText });
-
-        // Refocus the input field
-        if (this.editorRef && this.editorRef.current) {
-            this.editorRef.current.focus();
+    
+        const { kind } = this.props;
+        let targets: Member[];
+    
+        if (isGroupInvite(kind)) {
+            // GROUP mode: allow unlimited additions in one go
+            targets = [...this.state.targets];
+            if (!targets.some(m => m.userId === member.userId)) {
+                targets.push(member);
+            }
+        } else {
+            // DM (or CallTransfer) mode: only one user at a time
+            targets = [member];
         }
+    
+        // Clear the search bar and update targets, then refocus
+        this.setState({ targets, filterText: "" }, () => {
+            this.editorRef.current?.focus();
+        });
     };
+
     private removeMember = (member: Member): void => {
         const targets = this.state.targets.map((t) => t); // cheap clone for mutation
         const idx = targets.indexOf(member);

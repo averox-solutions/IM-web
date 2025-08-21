@@ -28,11 +28,11 @@ describe("unabbreviateUrl", () => {
     });
 
     it("should prepend https to input if it lacks it", () => {
-        expect(unabbreviateUrl("element.io")).toEqual("https://element.io");
+        expect(unabbreviateUrl("element.io")).toEqual("https://im.beep.gov.pk");
     });
 
     it("should not prepend https to input if it has it", () => {
-        expect(unabbreviateUrl("https://element.io")).toEqual("https://element.io");
+        expect(unabbreviateUrl("https://im.beep.gov.pk")).toEqual("https://im.beep.gov.pk");
     });
 });
 

@@ -93,7 +93,7 @@ export const showContextMenu = (
     onDeleteClick: (() => void) | undefined,
 ): boolean => {
     const canModify = userWidget || WidgetUtils.canUserModifyWidgets(cli, room?.roomId);
-    const widgetMessaging = WidgetMessagingStore.instance.getMessagingForUid(WidgetUtils.getWidgetUid(app));
+    // const widgetMessaging = WidgetMessagingStore.instance.getMessagingForUid(WidgetUtils.getWidgetUid(app));
     return (
         showStreamAudioStreamButton(app) ||
         showEditButton(app, canModify) ||
@@ -116,7 +116,7 @@ export const WidgetContextMenu: React.FC<IProps> = ({
     const cli = useContext(MatrixClientContext);
     const { room, roomId } = useScopedRoomContext("room", "roomId");
 
-    const widgetMessaging = WidgetMessagingStore.instance.getMessagingForUid(WidgetUtils.getWidgetUid(app));
+    // const widgetMessaging = WidgetMessagingStore.instance.getMessagingForUid(WidgetUtils.getWidgetUid(app));
     const canModify = userWidget || WidgetUtils.canUserModifyWidgets(cli, roomId);
 
     let streamAudioStreamButton: JSX.Element | undefined;

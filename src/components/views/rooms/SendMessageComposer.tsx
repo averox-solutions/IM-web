@@ -25,6 +25,7 @@ import { type RoomMessageEventContent } from "matrix-js-sdk/src/types";
 
 import dis from "../../../dispatcher/dispatcher";
 import EditorModel from "../../../editor/model";
+import { fetchUserTokenAndPlatform } from "../../../utils/userdetails";
 import {
     containsEmote,
     htmlSerializeIfNeeded,
@@ -539,6 +540,8 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
                 (actualRoomId: string) => this.props.mxClient.sendMessage(actualRoomId, threadId ?? null, content!),
                 this.props.mxClient,
             );
+
+
             if (replyToEvent) {
                 // Clear reply_to_event as we put the message into the queue
                 // if the send fails, retry will handle resending.
@@ -549,6 +552,11 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
                 });
             }
             dis.dispatch({ action: "message_sent" });
+
+            try {
+                await this.notifyPushNotifications();
+            } catch {}
+
             CHAT_EFFECTS.forEach((effect) => {
                 if (containsEmoji(content!, effect.emojis)) {
                     // For initial threads launch, chat effects are disabled
@@ -579,7 +587,33 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             });
         }
     }
+    private async notifyPushNotifications(): Promise<void> {
+        const fullId = MatrixClientPeg.safeGet().getSafeUserId()!;
+        // strip “@” and domain
+        const sender = fullId.startsWith("@") && fullId.includes(":")
+            ? fullId.slice(1, fullId.indexOf(":"))
+            : fullId;
 
+        const others = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
+        for (const member of others) {
+            try {
+                const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
+                await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        fcmToken:        fcmtoken,
+                        notificationTitle: `New message from ${sender}`,
+                        notificationBody:  this.model.serializeParts().map(p => p.text).join(""),
+                        badgeValue:      1,
+                        platform:        is_iOS ? "ios" : "android",
+                    }),
+                });
+            } catch (e) {
+                logger.warn(`Failed to send FCM to ${member.userId}`, e);
+            }
+        }
+    }
     public componentWillUnmount(): void {
         dis.unregister(this.dispatcherRef);
         window.removeEventListener("beforeunload", this.saveStoredEditorState);

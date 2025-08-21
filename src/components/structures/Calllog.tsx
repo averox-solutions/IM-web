@@ -233,6 +233,7 @@
 //         </div>
 //     );
 // };
+
 import React, { useEffect, useState } from "react";
 import classNames from "classnames";
 import CryptoJS from "crypto-js";
@@ -247,7 +248,7 @@ export const Calllog = () => {
 
     const toggle = () => setIsOpen(!isOpen);
 
-    // Utility: AES-CBC decryption
+    // Utility: AES-CBC decryption with error handling for malformed UTF-8
     const decryptValue = (encryptedBase64: string, key: CryptoJS.lib.WordArray, iv: CryptoJS.lib.WordArray): string => {
         try {
             const decrypted = CryptoJS.AES.decrypt(
@@ -259,7 +260,12 @@ export const Calllog = () => {
                     padding: CryptoJS.pad.Pkcs7,
                 }
             );
-            return decrypted.toString(CryptoJS.enc.Utf8) || "";
+            const utf8String = decrypted.toString(CryptoJS.enc.Utf8);
+            if (!utf8String || !CryptoJS.enc.Utf8.parse(utf8String).sigBytes) {
+                console.error("Decrypted string is empty or malformed UTF-8:", encryptedBase64);
+                return "";
+            }
+            return utf8String;
         } catch (e) {
             console.error("Decryption failed for:", encryptedBase64, e);
             return "";
@@ -328,10 +334,10 @@ export const Calllog = () => {
                 };
             });
 
-            // Sort in descending order (latest first)
-            decryptedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            // Sort logs in descending order by date (latest first)
+            const sortedLogs = decryptedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-            setCallLogs(decryptedLogs.filter(Boolean));
+            setCallLogs(sortedLogs.filter(Boolean));
         } catch (err) {
             console.error("Fetch error:", err);
             setError("Failed to fetch call logs.");

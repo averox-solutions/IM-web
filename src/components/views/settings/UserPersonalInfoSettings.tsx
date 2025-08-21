@@ -80,48 +80,50 @@ export const UserPersonalInfoSettings: React.FC<UserPersonalInfoSettingsProps> =
 
     if (!SettingsStore.getValue(UIFeature.ThirdPartyID)) return null;
 
-    return (
-        <div>
-            <h2>{_t("settings|general|personal_info")}</h2>
-            <SettingsSubsection
-                heading={_t("settings|general|emails_heading")}
-                stretchContent
-                data-testid="mx_AccountEmailAddresses"
-            >
-                <ThreepidSectionWrapper
-                    error={_t("settings|general|unable_to_load_emails")}
-                    loadingState={loadingState}
-                >
-                    <AddRemoveThreepids
-                        mode="hs"
-                        medium={ThreepidMedium.Email}
-                        threepids={emails!}
-                        onChange={onEmailsChange}
-                        disabled={!canMake3pidChanges}
-                        isLoading={loadingState === "loading"}
-                    />
-                </ThreepidSectionWrapper>
-            </SettingsSubsection>
+    // return (
+    //     <div>
+    //         <h2>{_t("settings|general|personal_info")}</h2>
+    //         <SettingsSubsection
+    //             heading={_t("settings|general|emails_heading")}
+    //             stretchContent
+    //             data-testid="mx_AccountEmailAddresses"
+    //         >
+    //             <ThreepidSectionWrapper
+    //                 error={_t("settings|general|unable_to_load_emails")}
+    //                 loadingState={loadingState}
+    //             >
+    //                 <AddRemoveThreepids
+    //                     mode="hs"
+    //                     medium={ThreepidMedium.Email}
+    //                     threepids={emails!}
+    //                     onChange={onEmailsChange}
+    //                     disabled={!canMake3pidChanges}
+    //                     isLoading={loadingState === "loading"}
+    //                 />
+    //             </ThreepidSectionWrapper>
+    //         </SettingsSubsection>
 
-            <SettingsSubsection
-                heading={_t("settings|general|msisdns_heading")}
-                stretchContent
-                data-testid="mx_AccountPhoneNumbers"
-            >
-                <ThreepidSectionWrapper
-                    error={_t("settings|general|unable_to_load_msisdns")}
-                    loadingState={loadingState}
-                >
-                    <AddRemoveThreepids
-                        mode="hs"
-                        medium={ThreepidMedium.Phone}
-                        threepids={phoneNumbers!}
-                        onChange={onMsisdnsChange}
-                        disabled={!canMake3pidChanges}
-                        isLoading={loadingState === "loading"}
-                    />
-                </ThreepidSectionWrapper>
-            </SettingsSubsection>
-        </div>
-    );
+    //         <SettingsSubsection
+    //             heading={_t("settings|general|msisdns_heading")}
+    //             stretchContent
+    //             data-testid="mx_AccountPhoneNumbers"
+    //         >
+    //             <ThreepidSectionWrapper
+    //                 error={_t("settings|general|unable_to_load_msisdns")}
+    //                 loadingState={loadingState}
+    //             >
+    //                 <AddRemoveThreepids
+    //                     mode="hs"
+    //                     medium={ThreepidMedium.Phone}
+    //                     threepids={phoneNumbers!}
+    //                     onChange={onMsisdnsChange}
+    //                     disabled={!canMake3pidChanges}
+    //                     isLoading={loadingState === "loading"}
+    //                 />
+    //             </ThreepidSectionWrapper>
+    //         </SettingsSubsection>
+    //     </div>
+    // );
+
+    return null;
 };

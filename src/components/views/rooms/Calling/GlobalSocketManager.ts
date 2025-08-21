@@ -647,20 +647,20 @@ class GlobalSocketManager {
      */
     private handleVisibilityChange = (): void => {
         if (!document.hidden) {
-            console.log("🔍 Page became visible - user switched back to tab");
+            // console.log("🔍 Page became visible - user switched back to tab");
             // Add a small delay before closing desktop notifications to give user time to see them
             // This prevents the notification from closing immediately when testing by switching tabs
             setTimeout(() => {
                 if (!document.hidden) {
                     // Double-check user is still on the tab
-                    console.log("🔍 User still on tab after delay, closing desktop notifications");
+                    // console.log("🔍 User still on tab after delay, closing desktop notifications");
                     this.closeIncomingCallDesktopNotifications();
                 } else {
-                    console.log("🔍 User switched away again, keeping desktop notifications");
+                    // console.log("🔍 User switched away again, keeping desktop notifications");
                 }
             }, 2000); // 2 second delay
         } else {
-            console.log("🔍 Page became hidden - user switched away from tab");
+            // console.log("🔍 Page became hidden - user switched away from tab");
         }
     };
 
@@ -670,14 +670,14 @@ class GlobalSocketManager {
     private closeIncomingCallDesktopNotifications(): void {
         try {
             if (this.currentDesktopNotification) {
-                console.log("🔔 Closing current incoming call desktop notification");
+                // console.log("🔔 Closing current incoming call desktop notification");
                 this.currentDesktopNotification.close();
                 this.currentDesktopNotification = null;
             } else {
-                console.log("🔔 No desktop notification to close");
+                // console.log("🔔 No desktop notification to close");
             }
         } catch (error) {
-            console.warn("Failed to close desktop notifications:", error);
+            // console.warn("Failed to close desktop notifications:", error);
         }
     }
 
@@ -687,11 +687,11 @@ class GlobalSocketManager {
     private setupSocketListeners(): void {
         if (!this.socket) return;
 
-        console.log("📞 GlobalSocketManager: Setting up backend socket event listeners");
+        // console.log("📞 GlobalSocketManager: Setting up backend socket event listeners");
 
         // Listen for incoming LiveKit calls from backend
         this.socket.on("incoming_call", async (callData: any) => {
-            console.log("📞 GlobalSocketManager: Received incoming_call from backend", callData);
+            // console.log("📞 GlobalSocketManager: Received incoming_call from backend", callData);
 
             const {
                 roomId,

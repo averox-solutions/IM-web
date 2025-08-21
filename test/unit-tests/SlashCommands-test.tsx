@@ -299,13 +299,13 @@ describe("SlashCommands", () => {
             jest.spyOn(WidgetUtils, "canUserModifyWidgets").mockReturnValue(true);
             const spy = jest.spyOn(WidgetUtils, "setRoomWidget");
             const command = findCommand("addwidget")!;
-            await command.run(client, roomId, null, '<iframe src="https://element.io"></iframe>');
+            await command.run(client, roomId, null, '<iframe src="https://im.beep.gov.pk"></iframe>');
             expect(spy).toHaveBeenCalledWith(
                 client,
                 roomId,
                 expect.any(String),
                 WidgetType.CUSTOM,
-                "https://element.io",
+                "https://im.beep.gov.pk",
                 "Custom",
                 {},
             );
