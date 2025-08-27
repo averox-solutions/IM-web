@@ -611,6 +611,12 @@ class GlobalSocketManager {
             delete (window as any).__globalActiveCallData;
         }
 
+        // Clear incoming call data
+        if ((window as any).__incomingCallData) {
+            delete (window as any).__incomingCallData;
+            console.log("🧹 Cleared incoming call data");
+        }
+
         // Clear outgoing call state since call has ended
         this.setOutgoingCallState(false);
 
@@ -707,6 +713,26 @@ class GlobalSocketManager {
                 serverUrl,
                 e2eeKey,
             } = callData;
+
+            // Store complete incoming call data globally for access during auto-leave
+            // This ensures both initiators and participants have the necessary data for CALL_ENDED events
+            (window as any).__incomingCallData = {
+                roomId,
+                fromUserId,
+                fromUsername,
+                isVideo,
+                participants,
+                isGroup,
+                groupName,
+                callLogId,
+                token,
+                serverUrl,
+                e2eeKey,
+                // Convert participants array to toUserIds for compatibility with CALL_ENDED event
+                toUserIds: participants ? participants.map((p: any) => p.userId || p.id) : [fromUserId],
+                toUsernames: participants ? participants.map((p: any) => p.username || p.name) : [fromUsername],
+            };
+            console.log("📦 Stored incoming call data globally:", (window as any).__incomingCallData);
 
             // Debug logging
             console.log("🔍 Call data details:", {
