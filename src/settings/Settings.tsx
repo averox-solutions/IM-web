@@ -847,7 +847,7 @@ export const SETTINGS: Settings = {
         displayName: IS_MAC
             ? _td("settings|use_command_enter_send_message")
             : _td("settings|use_control_enter_send_message"),
-        default: true,
+        default: false,
     },
     "MessageComposerInput.surroundWith": {
         supportedLevels: LEVELS_ACCOUNT_SETTINGS,

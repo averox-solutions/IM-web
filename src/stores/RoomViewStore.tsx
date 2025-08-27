@@ -539,6 +539,31 @@ export class RoomViewStore extends EventEmitter {
             }
         }
     }
+    /**
+ * If a join attempt failed with 401 and we're currently invited to the room,
+ * auto-reject the invite by leaving the room so it disappears from the invite list.
+ */
+    private async cleanupInviteOn401(roomId: string | null | undefined, err: MatrixError): Promise<void> {
+        try {
+            if (!roomId) return;
+            // Only act on explicit HTTP 401
+            if (err?.httpStatus !== 401) return;
+
+            const cli = MatrixClientPeg.safeGet();
+            const room = cli.getRoom(roomId);
+            if (!room) return;
+
+            // Only reject if our membership is still "invite"
+            const myMembership = room.getMyMembership();
+            if (myMembership === KnownMembership.Invite) {
+                await cli.leave(roomId);
+                logger.info(`Auto-rejected stale invite for ${roomId} after 401 join failure`);
+            }
+        } catch (e) {
+            logger.warn("Failed to auto-reject invite after 401 join error", e);
+        }
+    }
+
 
     private getInvitingUserId(roomId: string): string | undefined {
         const cli = MatrixClientPeg.safeGet();
@@ -595,16 +620,42 @@ export class RoomViewStore extends EventEmitter {
             description,
         });
     }
-
+  
     private joinRoomError(payload: JoinRoomErrorPayload): void {
         this.setState({
             joining: false,
             joinError: payload.err,
         });
+    
+        // Save error to localStorage for debugging/inspection
+        try {
+            if (payload.err) {
+                const errorRecord = {
+                    roomId: payload.roomId,
+                    httpStatus: (payload.err as MatrixError).httpStatus,
+                    errcode: (payload.err as MatrixError).errcode,
+                    message: (payload.err as MatrixError).message,
+                    time: new Date().toISOString(),
+                };
+                localStorage.setItem("lastJoinError", JSON.stringify(errorRecord));
+            }
+        } catch (e) {
+            // If localStorage is not available (e.g. Safari private mode), log instead
+            console.warn("Failed to save join error to localStorage", e);
+        }
+    
+        // Cleanup invite if 401
+        if (payload?.err instanceof MatrixError) {
+            void this.cleanupInviteOn401(payload.roomId, payload.err);
+        }
+    
         if (payload.err && !payload.canAskToJoin) {
             this.showJoinRoomError(payload.err, payload.roomId);
         }
     }
+    
+    
+
 
     public reset(): void {
         this.state = Object.assign({}, INITIAL_STATE);

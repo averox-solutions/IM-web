@@ -77,7 +77,7 @@ export default class UploadConfirmDialog extends React.Component<IProps, IState>
         if (UploadConfirmDialog.DISALLOWED_EXTENSIONS.has(ext)) {
             return {
                 blocked: true,
-                reason: `This file type is not allowed (.${ext}). Allowed files exclude .apk, .dmg, and .exe.`,
+                reason: `This file type is not allowed`,
             };
         }
 
@@ -259,7 +259,7 @@ export default class UploadConfirmDialog extends React.Component<IProps, IState>
                     onPrimaryButtonClick={this.onUploadClick}
                     focus={true}
                 >
-                    {uploadAllButton}
+                    
                 </DialogButtons>
             </BaseDialog>
         );

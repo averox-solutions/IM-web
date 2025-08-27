@@ -153,10 +153,10 @@ class DMUserTile extends React.PureComponent<IDMUserTileProps> {
 const toMember = (member: RoomMember | Member): Member => {
     return member instanceof RoomMember
         ? new DirectoryMember({
-            user_id: member.userId,
-            display_name: member.name,
-            avatar_url: member.getMxcAvatarUrl(),
-        })
+              user_id: member.userId,
+              display_name: member.name,
+              avatar_url: member.getMxcAvatarUrl(),
+          })
         : member;
 };
 
@@ -232,8 +232,8 @@ class DMRoomTile extends React.PureComponent<IDMRoomTileProps> {
                 url={
                     this.props.member.getMxcAvatarUrl()
                         ? mediaFromMxc(this.props.member.getMxcAvatarUrl()!).getSquareThumbnailHttp(
-                            parseInt(avatarSize, 10),
-                        )
+                              parseInt(avatarSize, 10),
+                          )
                         : null
                 }
                 name={this.props.member.name}
@@ -563,24 +563,23 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
     private startDm = async (): Promise<void> => {
         this.setBusy(true);
-    
+
         try {
             const cli = MatrixClientPeg.safeGet();
             // Clean up the sender ID: remove leading "@" and everything after ":"
             const fullId = cli.getUserId()!;
-            const sender = fullId.startsWith("@") && fullId.includes(":")
-                ? fullId.slice(1, fullId.indexOf(":"))
-                : fullId;
-    
+            const sender =
+                fullId.startsWith("@") && fullId.includes(":") ? fullId.slice(1, fullId.indexOf(":")) : fullId;
+
             const targets = this.convertFilter();
-    
+
             for (const target of targets) {
                 if ("userId" in target) {
                     try {
                         const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
                         console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
                         console.log(`Is iOS platform:`, is_iOS);
-    
+
                         await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
                             method: "POST",
                             headers: {
@@ -599,7 +598,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                     }
                 }
             }
-    
+
             await startDmOnFirstMessage(cli, targets);
             this.props.onFinished(true);
         } catch (err) {
@@ -610,26 +609,6 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             });
         }
     };
-    
-
-    // private startDm = async (): Promise<void> => {
-    //     this.setBusy(true);
-
-    //     try {
-    //         const cli = MatrixClientPeg.safeGet();
-    //         const targets = this.convertFilter();
-    //         await startDmOnFirstMessage(cli, targets);
-    //         this.props.onFinished(true);
-    //     } catch (err) {
-    //         logger.error(err);
-    //         this.setState({
-    //             busy: false,
-    //             errorText: _t("invite|error_dm"),
-    //         });
-    //     }
-    // };
-
-    
 
     private setBusy(busy: boolean): void {
         this.setState({
@@ -707,8 +686,31 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         this.props.onFinished(true);
     };
 
+    // ========= CHANGE: Disallow '@' across typing, paste, drop =========
+
+    // Remove all '@' characters from a string
+    private sanitizeNoAt = (s: string): string => s.replace(/@/g, "");
+
+    // Runs before any text mutation (typing, paste, drop, IME). Cancel if incoming text contains '@'
+    private onBeforeInput = (e: React.FormEvent<HTMLInputElement>): void => {
+        const native = e.nativeEvent as unknown as InputEvent;
+        const incoming =
+            (typeof (native as any).data === "string" ? (native as any).data : "") ||
+            (native as any).dataTransfer?.getData?.("text") ||
+            "";
+        if (incoming.includes("@")) {
+            e.preventDefault();
+        }
+    };
+
     private onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
         if (this.state.busy) return;
+
+        // Hard block direct '@' keystroke
+        if (e.key === "@") {
+            e.preventDefault();
+            return;
+        }
 
         let handled = false;
         const value = e.currentTarget.value.trim();
@@ -853,8 +855,9 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         }
     };
 
+    // ========= CHANGE: sanitize '@' from any typed value =========
     private updateFilter = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        const term = e.target.value;
+        const term = this.sanitizeNoAt(e.target.value);
         this.setState({ filterText: term });
 
         // Debounce server lookups to reduce spam. We don't clear the existing server
@@ -876,45 +879,23 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         this.setState({ numSuggestionsShown: this.state.numSuggestionsShown + INCREMENT_ROOMS_SHOWN });
     };
 
-    // private toggleMember = (member: Member): void => {
-    //     if (!this.state.busy) {
-    //         let filterText = this.state.filterText;
-    //         let targets = this.state.targets.map((t) => t); // cheap clone for mutation
-    //         const idx = targets.findIndex((m) => m.userId === member.userId);
-    //         if (idx >= 0) {
-    //             targets.splice(idx, 1);
-    //         } else {
-    //             if (this.props.kind === InviteKind.CallTransfer && targets.length > 0) {
-    //                 targets = [];
-    //             }
-    //             targets.push(member);
-    //             filterText = ""; // clear the filter when the user accepts a suggestion
-    //         }
-    //         this.setState({ targets, filterText });
-
-    //         if (this.editorRef && this.editorRef.current) {
-    //             this.editorRef.current.focus();
-    //         }
-    //     }
-    // };
-
     private toggleMember = (member: Member): void => {
         if (this.state.busy) return;
-    
+
         const { kind } = this.props;
         let targets: Member[];
-    
+
         if (isGroupInvite(kind)) {
             // GROUP mode: allow unlimited additions in one go
             targets = [...this.state.targets];
-            if (!targets.some(m => m.userId === member.userId)) {
+            if (!targets.some((m) => m.userId === member.userId)) {
                 targets.push(member);
             }
         } else {
             // DM (or CallTransfer) mode: only one user at a time
             targets = [member];
         }
-    
+
         // Clear the search bar and update targets, then refocus
         this.setState({ targets, filterText: "" }, () => {
             this.editorRef.current?.focus();
@@ -941,14 +922,24 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             .filter((p) => !!p); // filter empty strings
     }
 
+    // ========= CHANGE: sanitize pasted text and block '@' =========
     private onPaste = async (e: React.ClipboardEvent): Promise<void> => {
-        if (this.state.filterText) {
-            // if the user has already typed something, just let them
-            // paste normally.
+        const raw = e.clipboardData.getData("text");
+
+        // If the paste includes '@', prevent default and append the sanitized version, then stop.
+        if (raw.includes("@")) {
+            e.preventDefault();
+            const sanitized = this.sanitizeNoAt(raw);
+            this.setState({ filterText: this.state.filterText + sanitized });
             return;
         }
 
-        const text = e.clipboardData.getData("text");
+        if (this.state.filterText) {
+            // if the user has already typed something and no '@' present, just let them paste normally.
+            return;
+        }
+
+        const text = raw;
         const potentialAddresses = this.parseFilter(text);
         // one search term which is not a mxid or email address
         if (potentialAddresses.length === 1 && !potentialAddresses[0].includes("@")) {
@@ -1179,6 +1170,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                 value={this.state.filterText}
                 ref={this.editorRef}
                 onPaste={this.onPaste}
+                onBeforeInput={this.onBeforeInput} // CHANGE: block '@' before mutation
                 autoFocus={true}
                 disabled={
                     this.state.busy || (this.props.kind == InviteKind.CallTransfer && this.state.targets.length > 0)
@@ -1283,7 +1275,6 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
     private onTabChange = (tabId: TabId): void => {
         this.setState({ currentTabId: tabId });
     };
-
 
     private get screenName(): ScreenName | undefined {
         switch (this.props.kind) {
@@ -1393,20 +1384,18 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                 </div>
             );
             const link = makeUserPermalink(MatrixClientPeg.safeGet().getSafeUserId());
-            footer = (
-              <></>
-            );
+            footer = <></>;
         } else if (this.props.kind && isGroupInvite(this.props.kind)) {
             const roomId = this.props.roomId;
             const room = MatrixClientPeg.get()?.getRoom(roomId);
             const isSpace = room?.isSpaceRoom();
             title = isSpace
                 ? _t("invite|to_space", {
-                    spaceName: room?.name || _t("common|unnamed_space"),
-                })
+                      spaceName: room?.name || _t("common|unnamed_space"),
+                  })
                 : _t("invite|to_room", {
-                    roomName: room?.name || _t("common|unnamed_room"),
-                });
+                      roomName: room?.name || _t("common|unnamed_room"),
+                  });
 
             let helpTextUntranslated;
             if (isSpace) {

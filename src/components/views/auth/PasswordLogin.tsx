@@ -8,6 +8,7 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { type SyntheticEvent } from "react";
 import classNames from "classnames";
+import { RiEyeFill, RiEyeCloseFill } from "react-icons/ri";
 
 import { _t } from "../../../languageHandler";
 import SdkConfig from "../../../SdkConfig";
@@ -26,7 +27,6 @@ interface IProps {
     username: string; // also used for email address
     phoneCountry: string;
     phoneNumber: string;
-  
 
     serverConfig: ValidatedServerConfig;
     loginIncorrect: boolean;
@@ -83,7 +83,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             fieldValid: {},
             loginType: LoginField.MatrixId,
             password: "",
-            showPassword: false
+            showPassword: false,
         };
     }
 
@@ -268,15 +268,12 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
     };
     private toggleShowPassword = () => {
         this.setState((s) => ({ showPassword: !s.showPassword }));
-      };
+    };
 
     private renderLoginField(loginType: IState["loginType"], autoFocus: boolean): JSX.Element {
         const classes = {
             error: false,
         };
-
-  
-          
 
         switch (loginType) {
             case LoginField.Email:
@@ -372,7 +369,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
 
     public render(): React.ReactNode {
         let forgotPasswordJsx: JSX.Element | undefined;
-    
+
         if (this.props.onForgotPasswordClick) {
             forgotPasswordJsx = (
                 // <AccessibleButton
@@ -386,16 +383,16 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                 <></>
             );
         }
-    
+
         const pwFieldClass = classNames({
             error: this.props.loginIncorrect && !this.isLoginEmpty(), // only error password if error isn't top field
         });
-    
+
         // If login is empty, autoFocus login, otherwise autoFocus password.
         // this is for when auto server discovery remounts us when the user tries to tab from username to password
         const autoFocusPassword = !this.isLoginEmpty();
         const loginField = this.renderLoginField(this.state.loginType, !autoFocusPassword);
-    
+
         let loginType;
         if (!SdkConfig.get().disable_3pid_login) {
             loginType = (
@@ -420,7 +417,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                 </div>
             );
         }
-    
+
         return (
             <div>
                 <form onSubmit={this.onSubmitForm}>
@@ -439,7 +436,20 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                         autoFocus={autoFocusPassword}
                         onValidate={this.onPasswordValidate}
                         ref={(field) => (this[LoginField.Password] = field)}
+                        postfixComponent={
+                            <AccessibleButton
+                                className="mx_Password_toggle"
+                                onClick={this.toggleShowPassword}
+                                aria-label={
+                                    this.state.showPassword ? "hide" : "show"
+                                }
+                                title={this.state.showPassword ? "hide" : "show"}
+                            >
+                                {this.state.showPassword ? <RiEyeCloseFill size={20} /> : <RiEyeFill size={20} />}
+                            </AccessibleButton>
+                        }
                     />
+
                     {forgotPasswordJsx}
                     {!this.props.busy && (
                         <input
@@ -453,5 +463,4 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             </div>
         );
     }
-    
 }

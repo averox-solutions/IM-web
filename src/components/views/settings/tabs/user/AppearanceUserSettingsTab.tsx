@@ -107,14 +107,7 @@ export default class AppearanceUserSettingsTab extends React.Component<EmptyObje
 
     public render(): React.ReactNode {
         return (
-            <SettingsTab data-testid="mx_AppearanceUserSettingsTab">
-                <SettingsSection>
-                    <LayoutSwitcher />
-                    <FontScalingPanel />
-                    {this.renderAdvancedSection()}
-                    <ImageSizePanel />
-                </SettingsSection>
-            </SettingsTab>
+             <></>
         );
     }
 }
