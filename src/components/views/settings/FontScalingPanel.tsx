@@ -102,35 +102,36 @@ export default class FontScalingPanel extends React.Component<EmptyObject, IStat
 
     public render(): React.ReactNode {
         return (
-            <SettingsSubsection
-                heading={_t("settings|appearance|font_size")}
-                stretchContent
-                data-testid="mx_FontScalingPanel"
-            >
-                <Field
-                    element="select"
-                    className="mx_FontScalingPanel_Dropdown"
-                    label={_t("settings|appearance|font_size")}
-                    value={this.state.fontSizeDelta.toString()}
-                    onChange={(e) => this.onFontSizeChanged(e.target.value)}
-                >
-                    {this.sizes.map((size) => (
-                        <option key={size} value={this.computeDeltaFontSize(size)}>
-                            {size === this.state.browserFontSize
-                                ? _t("settings|appearance|font_size_default", { fontSize: size })
-                                : size}
-                        </option>
-                    ))}
-                </Field>
-                <EventTilePreview
-                    className="mx_FontScalingPanel_preview"
-                    message={this.MESSAGE_PREVIEW_TEXT}
-                    layout={this.state.layout}
-                    userId={this.state.userId}
-                    displayName={this.state.displayName}
-                    avatarUrl={this.state.avatarUrl}
-                />
-            </SettingsSubsection>
+            // <SettingsSubsection
+            //     heading={_t("settings|appearance|font_size")}
+            //     stretchContent
+            //     data-testid="mx_FontScalingPanel"
+            // >
+            //     <Field
+            //         element="select"
+            //         className="mx_FontScalingPanel_Dropdown"
+            //         label={_t("settings|appearance|font_size")}
+            //         value={this.state.fontSizeDelta.toString()}
+            //         onChange={(e) => this.onFontSizeChanged(e.target.value)}
+            //     >
+            //         {this.sizes.map((size) => (
+            //             <option key={size} value={this.computeDeltaFontSize(size)}>
+            //                 {size === this.state.browserFontSize
+            //                     ? _t("settings|appearance|font_size_default", { fontSize: size })
+            //                     : size}
+            //             </option>
+            //         ))}
+            //     </Field>
+            //     <EventTilePreview
+            //         className="mx_FontScalingPanel_preview"
+            //         message={this.MESSAGE_PREVIEW_TEXT}
+            //         layout={this.state.layout}
+            //         userId={this.state.userId}
+            //         displayName={this.state.displayName}
+            //         avatarUrl={this.state.avatarUrl}
+            //     />
+            // </SettingsSubsection>
+            <></>
         );
     }
 }

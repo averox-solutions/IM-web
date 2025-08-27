@@ -8,7 +8,7 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { createRef, type ReactNode } from "react";
 import { type Room } from "matrix-js-sdk/src/matrix";
-
+import SetupEncryptionBody from "../structures/auth/SetupEncryptionBody";
 import { MatrixClientPeg } from "../../MatrixClientPeg";
 import defaultDispatcher from "../../dispatcher/dispatcher";
 import { type ActionPayload } from "../../dispatcher/payloads";
@@ -258,6 +258,18 @@ export default class UserMenu extends React.Component<IProps, IState> {
         this.setState({ contextMenuPosition: null }); // also close the menu
     };
 
+    private onOpenVerifyUsingKeyOrPhrase = (ev: ButtonEvent): void => {
+        ev.preventDefault();
+        ev.stopPropagation();
+    
+        Modal.createDialog(SetupEncryptionBody, {
+            onFinished: () => {
+                this.setState({ contextMenuPosition: null });
+            },
+        });
+    };
+    
+
     private renderContextMenu = (): React.ReactNode => {
         if (!this.state.contextMenuPosition) return null;
 
@@ -316,11 +328,12 @@ export default class UserMenu extends React.Component<IProps, IState> {
         }
 
         const linkNewDeviceButton = (
-            <IconizedContextMenuOption
-                iconClassName="mx_UserMenu_iconQr"
-                label={_t("user_menu|link_new_device")}
-                onClick={(e) => this.onSettingsOpen(e, UserTab.SessionManager )}
-            />
+            // <IconizedContextMenuOption
+            //     iconClassName="mx_UserMenu_iconQr"
+            //     label={_t("user_menu|link_new_device")}
+            //     onClick={(e) => this.onSettingsOpen(e, UserTab.SessionManager )}
+            // />
+            <></>
         );
 
         let primaryOptionList = (
@@ -337,6 +350,12 @@ export default class UserMenu extends React.Component<IProps, IState> {
                     label={_t("room_settings|security|title")}
                     onClick={(e) => this.onSettingsOpen(e, UserTab.Security)}
                 />
+                {/* <IconizedContextMenuOption
+                    iconClassName="mx_UserMenu_iconLock" // you can swap for a better key/phrase icon if available
+                    label={_t("encryption|verification|verify_using_key_or_phrase")}
+                    onClick={this.onOpenVerifyUsingKeyOrPhrase}
+                /> */}
+
                 <IconizedContextMenuOption
                     iconClassName="mx_UserMenu_iconSettings"
                     label={_t("user_menu|settings")}

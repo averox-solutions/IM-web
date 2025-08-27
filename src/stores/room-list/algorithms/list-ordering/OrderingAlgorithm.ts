@@ -35,6 +35,7 @@ export abstract class OrderingAlgorithm {
      */
     public get orderedRooms(): Room[] {
         return this.cachedOrderedRooms;
+        
     }
 
     public get isMutedToBottom(): boolean {
@@ -49,7 +50,7 @@ export abstract class OrderingAlgorithm {
     public setSortAlgorithm(newAlgorithm: SortAlgorithm): void {
         if (!newAlgorithm) throw new Error("A sorting algorithm must be defined");
         this.sortingAlgorithm = newAlgorithm;
-
+         
         // Force regeneration of the rooms
         this.setRooms(this.orderedRooms);
     }

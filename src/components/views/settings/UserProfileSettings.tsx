@@ -79,10 +79,11 @@ const SignOutButton: React.FC = () => {
         }
     }, [client]);
     return (
-        <AccessibleButton onClick={onClick} kind="danger_outline">
-            <SignOutIcon className="mx_UserProfileSettings_accountmanageIcon" width="24" height="24" />
-            {_t("action|sign_out")}
-        </AccessibleButton>
+        // <AccessibleButton onClick={onClick} kind="danger_outline">
+        //     <SignOutIcon className="mx_UserProfileSettings_accountmanageIcon" width="24" height="24" />
+        //     {_t("action|sign_out")}
+        // </AccessibleButton>
+        <></>
     );
 };
 

@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import React, { type FC, useContext, useState } from "react";
+import React, { type FC, useContext, useMemo, useState } from "react";
 import { type Room, JoinRule } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 
@@ -36,21 +36,29 @@ interface IProps {
     onRejectButtonClicked: () => void;
 }
 
-// XXX This component is currently only used for spaces and video rooms, though
-// surely we should expand its use to all rooms for consistency? This already
-// handles the text room case, though we would need to add support for ignoring
-// and viewing invite reasons to achieve parity with the default invite screen.
+/* Shared black button style */
+const blackBtn: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 140,
+    height: 36,
+    padding: "0 14px",
+    fontWeight: 600,
+    borderRadius: 8,
+    border: "1px solid #000",
+    background: "#000",
+    color: "#fff",
+    cursor: "pointer",
+};
+
 const RoomPreviewCard: FC<IProps> = ({ room, onJoinButtonClicked, onRejectButtonClicked }) => {
     const cli = useContext(MatrixClientContext);
     const isVideoRoom = calcIsVideoRoom(room);
     const myMembership = useMyRoomMembership(room);
-    useDispatcher(defaultDispatcher, (payload) => {
-        if (payload.action === Action.JoinRoomError && payload.roomId === room.roomId) {
-            setBusy(false); // stop the spinner, join failed
-        }
-    });
 
     const [busy, setBusy] = useState(false);
+    const [autoRejected, setAutoRejected] = useState<null | { when: number; reason: string }>(null);
 
     const joinRule = useRoomState(room, (state) => state.getJoinRule());
     const cannotJoin =
@@ -62,40 +70,83 @@ const RoomPreviewCard: FC<IProps> = ({ room, onJoinButtonClicked, onRejectButton
             initialTabId: UserTab.Labs,
         });
 
+    // Heuristic matcher for the “no known servers in room” remote-join failure
+    const looksLikeNoKnownServersError = useMemo(() => {
+        return (payloadError: any): boolean => {
+            const httpStatus =
+                payloadError?.httpStatus ?? payloadError?.status ?? payloadError?.http_code ?? payloadError?.response?.status;
+            const errcode = payloadError?.errcode ?? payloadError?.data?.errcode;
+            const message = String(
+                payloadError?.message ??
+                    payloadError?.error ??
+                    payloadError?.data?.error ??
+                    payloadError?.response?.data?.error ??
+                    "",
+            ).toLowerCase();
+
+            const phraseHit =
+                message.includes("can't join remote room") &&
+                message.includes("no servers") &&
+                message.includes("have been provided");
+
+            // The Matrix spec notes that when errcode = M_UNKNOWN, clients should lean on the HTTP status
+            // to classify the error; the cases we care about surface as 404. We also key off the message phrase.
+            return httpStatus === 404 && phraseHit && (!errcode || errcode === "M_UNKNOWN");
+        };
+    }, []);
+
+    // Listen for Element’s join error and auto-reject this invite on the specific failure.
+    useDispatcher(defaultDispatcher, (payload) => {
+        if (payload.action === Action.JoinRoomError && payload.roomId === room.roomId) {
+            const errLike = (payload as any).error ?? payload; // tolerate payload shapes
+            if (looksLikeNoKnownServersError(errLike)) {
+                // Automatically reject the invite
+                setBusy(true);
+                try {
+                    onRejectButtonClicked();
+                } finally {
+                    setAutoRejected({
+                        when: Date.now(),
+                        reason:
+                            _t("room|auto_rejected_no_known_servers") ||
+                            "Invite auto-rejected: no known servers in room (remote join failed).",
+                    });
+                    setBusy(false);
+                }
+            } else {
+                // On any other join error, just stop the spinner
+                setBusy(false);
+            }
+        }
+    });
+
     let inviterSection: JSX.Element | null = null;
     let joinButtons: JSX.Element;
+
     if (myMembership === KnownMembership.Join) {
         joinButtons = (
             <AccessibleButton
-                kind="danger_outline"
                 onClick={() => {
                     defaultDispatcher.dispatch({
                         action: "leave_room",
                         room_id: room.roomId,
                     });
                 }}
+                style={blackBtn}
             >
                 {_t("action|leave")}
             </AccessibleButton>
         );
     } else if (myMembership === KnownMembership.Invite) {
         const inviteSender = room.getMember(cli.getUserId()!)?.events.member?.getSender();
-
         if (inviteSender) {
             const inviter = room.getMember(inviteSender);
-
             inviterSection = (
                 <div className="mx_RoomPreviewCard_inviter">
                     <MemberAvatar member={inviter} fallbackUserId={inviteSender} size="32px" />
                     <div>
                         <div className="mx_RoomPreviewCard_inviter_name">
-                            {_t(
-                                "room|invites_you_text",
-                                {},
-                                {
-                                    inviter: () => <strong>{inviter?.name || inviteSender}</strong>,
-                                },
-                            )}
+                            {_t("room|invites_you_text", {}, { inviter: () => <strong>{inviter?.name || inviteSender}</strong> })}
                         </div>
                         {inviter ? <div className="mx_RoomPreviewCard_inviter_mxid">{inviteSender}</div> : null}
                     </div>
@@ -104,39 +155,36 @@ const RoomPreviewCard: FC<IProps> = ({ room, onJoinButtonClicked, onRejectButton
         }
 
         joinButtons = (
-            <>
+            <div style={{ display: "flex", gap: 8 }}>
                 <AccessibleButton
-                    kind="primary_outline"
                     onClick={() => {
                         setBusy(true);
                         onRejectButtonClicked();
                     }}
+                    style={blackBtn}
                 >
                     {_t("action|reject")}
                 </AccessibleButton>
                 <AccessibleButton
-                    kind="primary"
                     onClick={() => {
                         setBusy(true);
                         onJoinButtonClicked();
                     }}
+                    style={blackBtn}
                 >
                     {_t("action|accept")}
                 </AccessibleButton>
-            </>
+            </div>
         );
     } else {
         joinButtons = (
             <AccessibleButton
-                kind="primary"
                 onClick={() => {
                     onJoinButtonClicked();
-                    if (!cli.isGuest()) {
-                        // user will be shown a modal that won't fire a room join error
-                        setBusy(true);
-                    }
+                    if (!cli.isGuest()) setBusy(true);
                 }}
                 disabled={cannotJoin}
+                style={blackBtn}
             >
                 {_t("action|join")}
             </AccessibleButton>
@@ -172,12 +220,19 @@ const RoomPreviewCard: FC<IProps> = ({ room, onJoinButtonClicked, onRejectButton
             <RoomInfoLine room={room} />
             <RoomTopic room={room} className="mx_RoomPreviewCard_topic" />
             {room.getJoinRule() === "public" && <RoomFacePile room={room} />}
-            {cannotJoin ? (
+            {cannotJoin && (
                 <div className="mx_RoomPreviewCard_notice">
                     {_t("room|join_failed_needs_invite", { roomName: room.name })}
                 </div>
-            ) : null}
-            <div className="mx_RoomPreviewCard_joinButtons">{joinButtons}</div>
+            )}
+            {autoRejected && (
+                <div className="mx_RoomPreviewCard_notice" role="status" aria-live="polite" style={{ marginTop: 8 }}>
+                    {autoRejected.reason}
+                </div>
+            )}
+            <div className="mx_RoomPreviewCard_joinButtons" style={{ marginTop: 12 }}>
+                {joinButtons}
+            </div>
         </div>
     );
 };

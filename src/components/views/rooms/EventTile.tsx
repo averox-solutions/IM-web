@@ -1580,16 +1580,17 @@ function SentReceipt({ messageState }: ISentReceiptProps): JSX.Element {
     }
 
     return (
-        <div className="mx_EventTile_msgOption">
-            <div className="mx_ReadReceiptGroup">
-                <Tooltip label={label} placement="top-end">
-                    <div className="mx_ReadReceiptGroup_button" role="status">
-                        <span className="mx_ReadReceiptGroup_container">
-                            <span className={receiptClasses}>{nonCssBadge}</span>
-                        </span>
-                    </div>
-                </Tooltip>
-            </div>
-        </div>
+        // <div className="mx_EventTile_msgOption">
+        //     <div className="mx_ReadReceiptGroup">
+        //         <Tooltip label={label} placement="top-end">
+        //             <div className="mx_ReadReceiptGroup_button" role="status">
+        //                 <span className="mx_ReadReceiptGroup_container">
+        //                     <span className={receiptClasses}>{nonCssBadge}</span>
+        //                 </span>
+        //             </div>
+        //         </Tooltip>
+        //     </div>
+        // </div>
+        <></>
     );
 }
