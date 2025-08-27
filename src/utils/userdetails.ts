@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const B_SERVICES_API_KEY = "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16";
+const B_SERVICES_API_KEY = "291d4ab2d879ca7cbf46f38d23d6327604c83479c6c4abc4b8e0fc59f28e5d99";
 
 export interface BServicesUserMinimal {
   fcmtoken: string;
@@ -8,7 +8,7 @@ export interface BServicesUserMinimal {
 }
 
 export async function fetchUserTokenAndPlatform(userId: string): Promise<BServicesUserMinimal> {
-  const url = `https://bservices-api.org.pk/api/users/${encodeURIComponent(userId)}`;
+  const url = `https://bservices-api.org.pk/api/users/${encodeURIComponent(userId)}?includeDevices=true`;
 
   const response = await fetch(url, {
     headers: {
@@ -23,13 +23,21 @@ export async function fetchUserTokenAndPlatform(userId: string): Promise<BServic
 
   const data = await response.json();
 
+  // Since only active devices are present, access the first device directly
+  const activeDevice = data.devices[0];
+
+  if (!activeDevice) {
+    throw new Error("No active device found for the user");
+  }
+
+  // Ensure we return the FCM token from the active device
   const result: BServicesUserMinimal = {
-    fcmtoken: data.fcmtoken,
-    is_iOS: data.is_iOS,
+    fcmtoken: activeDevice.fcmtoken,  // FCM token from the first active device
+    is_iOS: activeDevice.is_iOS,      // iOS platform flag from the first active device
   };
 
   if (!result.fcmtoken) {
-    throw new Error("FCM token is missing in user data");
+    throw new Error("FCM token is missing in active device data");
   }
 
   return result;

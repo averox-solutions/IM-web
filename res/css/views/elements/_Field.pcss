@@ -1,12 +1,12 @@
 /*
 Copyright 2019-2024 New Vector Ltd.
-
+ 
 SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE files in the repository root for full details.
 */
-
+ 
 /* TODO: Consider unifying with general input styles in _light.pcss */
-
+ 
 .mx_Field {
     display: flex;
     flex: 1;
@@ -17,15 +17,12 @@ Please see LICENSE files in the repository root for full details.
     transition: border-color 0.25s;
     border: 1px solid var(--cpd-color-border-interactive-secondary);
 }
-
+ 
 .mx_Field_prefix {
     border-right: 1px solid var(--cpd-color-border-interactive-secondary);
 }
-
-.mx_Field_postfix {
-    border-left: 1px solid var(--cpd-color-border-interactive-secondary);
-}
-
+ 
+ 
 .mx_Field input,
 .mx_Field select,
 .mx_Field textarea {
@@ -33,7 +30,7 @@ Please see LICENSE files in the repository root for full details.
     border: none;
     /* Even without a border here, we still need this avoid overlapping the rounded */
     /* corners on the field above. */
-    border-radius: 0px;
+    border-radius: 8px;
     padding: 8px 9px;
     color: $primary-content;
     background-color: $background;
@@ -41,13 +38,13 @@ Please see LICENSE files in the repository root for full details.
     min-width: 0;
     border-radius:7px
 }
-
+ 
 .mx_Field select {
     -moz-appearance: none;
     -webkit-appearance: none;
     text-overflow: ellipsis;
 }
-
+ 
 /* Can't add pseudo-elements to a select directly, so we use its parent. */
 .mx_Field_select::before {
     content: "";
@@ -65,30 +62,30 @@ Please see LICENSE files in the repository root for full details.
     z-index: 1;
     pointer-events: none;
 }
-
+ 
 .mx_Field:focus-within {
     border-color: $accent-alt;
 }
-
+ 
 .mx_Field input:focus,
 .mx_Field select:focus,
 .mx_Field textarea:focus {
     outline: 0;
 }
-
+ 
 .mx_Field input::placeholder,
 .mx_Field textarea::placeholder {
     transition: color 0.25s ease-in 0s;
     color: transparent;
 }
-
+ 
 .mx_Field input:placeholder-shown:focus::placeholder,
 .mx_Field textarea:placeholder-shown:focus::placeholder,
 .mx_Field.mx_Field_placeholderIsHint input::placeholder {
     transition: color 0.25s ease-in 0.1s;
     color: $info-plinth-fg-color;
 }
-
+ 
 .mx_Field label {
     transition:
         font-size 0.25s ease-out 0.1s,
@@ -109,7 +106,7 @@ Please see LICENSE files in the repository root for full details.
     text-overflow: ellipsis;
     max-width: calc(100% - 20px); /* 100% of parent minus margin and padding */
 }
-
+ 
 .mx_Field_labelAlwaysTopLeft label,
 .mx_Field select + label /* Always show a select's label on top to not collide with the value */,
 .mx_Field input:focus + label,
@@ -127,13 +124,13 @@ Please see LICENSE files in the repository root for full details.
     background-color: $background;
     pointer-events: initial;
 }
-
+ 
 .mx_Field input:focus + label,
 .mx_Field select:focus + label,
 .mx_Field textarea:focus + label {
     color: $accent-alt;
 }
-
+ 
 .mx_Field select:disabled,
 .mx_Field select:disabled + label,
 .mx_Field input:disabled,
@@ -143,38 +140,38 @@ Please see LICENSE files in the repository root for full details.
     background-color: $background;
     color: $info-plinth-fg-color;
 }
-
+ 
 .mx_Field_valid {
-    &.mx_Field,
-    &.mx_Field:focus-within {
+&.mx_Field,
+&.mx_Field:focus-within {
         border-color: $accent;
     }
-
+ 
     &.mx_Field label,
-    &.mx_Field:focus-within label {
+&.mx_Field:focus-within label {
         color: $accent;
     }
 }
-
+ 
 .mx_Field_invalid {
-    &.mx_Field,
-    &.mx_Field:focus-within {
+&.mx_Field,
+&.mx_Field:focus-within {
         border-color: $alert;
     }
-
+ 
     &.mx_Field label,
-    &.mx_Field:focus-within label {
+&.mx_Field:focus-within label {
         color: $alert;
     }
 }
-
+ 
 /* Customise other components when placed inside a Field */
-
+ 
 .mx_Field .mx_Dropdown_input {
     border: initial;
     border-radius: initial;
 }
-
+ 
 .mx_Field .mx_CountryDropdown {
     width: fit-content;
 }

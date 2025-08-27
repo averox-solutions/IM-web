@@ -12,7 +12,7 @@ import React from "react";
 import FocusLock from "react-focus-lock";
 import classNames from "classnames";
 import { type MatrixClient } from "matrix-js-sdk/src/matrix";
-
+import Modal from "../../../Modal";
 import AccessibleButton from "../elements/AccessibleButton";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import { _t } from "../../../languageHandler";
@@ -108,8 +108,18 @@ export default class BaseDialog extends React.Component<IProps> {
         }
     };
 
-    private onCancelClick = (): void => {
+    private onCancelClick = (e: React.MouseEvent | KeyboardEvent): void => {
+        // make sure nothing else intercepts the click
+        // and that it doesn't submit any containing form
+        e.preventDefault?.();
+        // @ts-ignore – KeyboardEvent may not have stopPropagation
+        e.stopPropagation?.();
+        this.props.onFinished(); // optional: notify parent
+            
+        Modal.closeCurrentModal();
+                // This informs the Modal manager; it will close the dialog.
         this.props.onFinished();
+    
     };
 
     public render(): React.ReactNode {

@@ -9,6 +9,7 @@ import { useState, useCallback, useRef } from "react";
 import { ExternalE2EEKeyProvider } from "livekit-client";
 
 import { CREATE_ROOM_ENDPOINT } from "../config";
+import { showToast } from "../../Calling/notificationUtils";
 
 interface UseRoomProps {
     roomName?: string; // For backward compatibility
@@ -190,6 +191,18 @@ export const useRoom = ({
             });
 
             if (!response.ok) {
+                // Handle specific error codes from the backend
+                if (response.status === 409) {
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.code === "ALREADY_IN_CALL") {
+                            throw new Error(`ALREADY_IN_CALL:${JSON.stringify(errorData)}`);
+                        }
+                    } catch (parseError) {
+                        // If we can't parse the error, fall back to generic error
+                        console.warn("Failed to parse 409 error response:", parseError);
+                    }
+                }
                 throw new Error(`Failed to create room: ${response.statusText}`);
             }
 
@@ -264,23 +277,59 @@ export const useRoom = ({
 
             // Handle specific error types for graceful degradation
             if (err instanceof Error) {
-                const errorMessage = err.message.toLowerCase();
+                const errorMessage = err.message;
+
+                // Handle "Already in Call" error
+                if (errorMessage.startsWith("ALREADY_IN_CALL:")) {
+                    try {
+                        const errorDataStr = errorMessage.substring("ALREADY_IN_CALL:".length);
+                        const errorData = JSON.parse(errorDataStr);
+
+                        // Show a nice toast notification to the user
+                        showToast(
+                            "You are already in an active call. Please end your current call before starting a new one.",
+                            "warning",
+                            5000,
+                        );
+
+                        // Set a more user-friendly error message
+                        setError(
+                            "You are already in an active call on another device. Please end your current call first.",
+                        );
+
+                        console.log("❌ User attempted to start a new call while already in an active call:", {
+                            activeCallRoomId: errorData.activeCallRoomId,
+                            activeCallStartTime: errorData.activeCallStartTime,
+                            userMessage: errorData.error,
+                        });
+
+                        return;
+                    } catch (parseError) {
+                        console.warn("Failed to parse ALREADY_IN_CALL error data:", parseError);
+                        // Fall back to generic handling
+                    }
+                }
+
+                const errorMessageLower = errorMessage.toLowerCase();
 
                 // Handle ICE connection failures
-                if (errorMessage.includes("ice") || errorMessage.includes("could not establish pc connection")) {
+                if (
+                    errorMessageLower.includes("ice") ||
+                    errorMessageLower.includes("could not establish pc connection")
+                ) {
                     console.log("🔄 ICE connection issue detected - attempting to recover");
                     // Don't set error immediately, let reconnection logic handle it
                     return;
                 }
 
                 // Handle media device errors
-                if (errorMessage.includes("getusermedia") || errorMessage.includes("device")) {
+                if (errorMessageLower.includes("getusermedia") || errorMessageLower.includes("device")) {
                     setError("Media device access error. Please check your camera and microphone permissions.");
                     return;
                 }
 
                 // Handle network errors
-                if (errorMessage.includes("network") || errorMessage.includes("connection")) {
+                if (errorMessageLower.includes("network") || errorMessageLower.includes("connection")) {
                     setError("Network connection issue. Please check your internet connection.");
                     return;
                 }

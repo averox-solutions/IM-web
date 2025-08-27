@@ -151,7 +151,7 @@ export class PasswordAuthEntry extends React.Component<IAuthEntryProps, IPasswor
         if (this.props.errorText) {
             errorSection = (
                 <div className="error" role="alert">
-                    {this.props.errorText}
+                    {"wrong password"}
                 </div>
             );
         }
