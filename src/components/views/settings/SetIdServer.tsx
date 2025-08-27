@@ -455,7 +455,7 @@ export default class SetIdServer extends React.Component<{}, IState> {
                 </div>
 
                 {/* Reset 2FA */}
-                <div style={{ marginBottom: 16 }}>
+                {/* <div style={{ marginBottom: 16 }}>
                     <AccessibleButton
                         kind="danger_sm"
                         onClick={() => this.reset2FA()}
@@ -463,7 +463,7 @@ export default class SetIdServer extends React.Component<{}, IState> {
                     >
                         {reset2faLoading ? "Resetting..." : "Reset 2FA"}
                     </AccessibleButton>
-                </div>
+                </div> */}
                 {reset2faError && <div style={{ color: "red", marginBottom: 12 }}>{reset2faError}</div>}
 
                 {/* Switch CSS */}

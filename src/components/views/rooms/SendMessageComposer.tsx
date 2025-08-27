@@ -604,7 +604,7 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
                     body: JSON.stringify({
                         fcmToken:        fcmtoken,
                         notificationTitle: `New message from ${sender}`,
-                        notificationBody:  this.model.serializeParts().map(p => p.text).join(""),
+                        notificationBody:  "text",
                         badgeValue:      1,
                         platform:        is_iOS ? "ios" : "android",
                     }),
