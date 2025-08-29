@@ -100,7 +100,6 @@ export default class AppearanceUserSettingsTab extends React.Component<EmptyObje
         return (
             <SettingsSubsection>
                 {toggle}
-                {advanced}
             </SettingsSubsection>
         );
     }
@@ -108,13 +107,13 @@ export default class AppearanceUserSettingsTab extends React.Component<EmptyObje
     public render(): React.ReactNode {
         return (
             <SettingsTab data-testid="mx_AppearanceUserSettingsTab">
-                <SettingsSection>
-                    <LayoutSwitcher />
-                    <FontScalingPanel />
-                    {this.renderAdvancedSection()}
-                    <ImageSizePanel />
-                </SettingsSection>
-            </SettingsTab>
+            <SettingsSection>
+                <LayoutSwitcher />
+                <FontScalingPanel />
+                {this.renderAdvancedSection()}
+                <ImageSizePanel />
+            </SettingsSection>
+        </SettingsTab>
         );
     }
 }

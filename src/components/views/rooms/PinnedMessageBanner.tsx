@@ -270,3 +270,4 @@ function BannerButton({ room }: BannerButtonProps): JSX.Element {
         </Button>
     );
 }
+

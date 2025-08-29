@@ -47,7 +47,7 @@ const RoomSearchAuxPanel: React.FC<Props> = ({ searchInfo, isRoomEncrypted, onSe
                     </div>
                 </div>
                 <div className="mx_RoomSearchAuxPanel_buttons">
-                    <Link
+                    {/* <Link
                         onClick={() =>
                             onSearchScopeChange(scope === SearchScope.Room ? SearchScope.All : SearchScope.Room)
                         }
@@ -56,7 +56,7 @@ const RoomSearchAuxPanel: React.FC<Props> = ({ searchInfo, isRoomEncrypted, onSe
                         {scope === SearchScope.All
                             ? _t("room|search|this_room_button")
                             : _t("room|search|all_rooms_button")}
-                    </Link>
+                    </Link> */}
                     <IconButton
                         onClick={onCancelClick}
                         destructive

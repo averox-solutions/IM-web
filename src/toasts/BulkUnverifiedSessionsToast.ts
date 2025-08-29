@@ -42,7 +42,7 @@ export const showToast = (deviceIds: Set<string>): void => {
             onSecondaryClick: onReject,
         },
         component: GenericToast,
-        priority: 50,
+        priority: 0,
     });
 };
 

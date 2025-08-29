@@ -74,6 +74,40 @@ describe("<PinnedMessageBanner />", () => {
         event_id: "$eventId4",
         content: { body: "Fourth pinned message" },
     });
+    // state
+const [idx, setIdx] = useState(0); // 0 = last item if we display "latest" first
+
+// get stable references
+const ids = usePinnedEvents();                    // string[]
+const events = useSortedFetchedPinnedEvents();    // MatrixEvent[]
+const total = events.length;
+
+// whenever the pin set changes, rebase the index to show the newest
+useEffect(() => {
+  // show newest (last) item
+  if (total > 0) setIdx(total - 1);
+}, [total]);
+
+// click handler: always compute from the latest state (functional update),
+// and always modulus by the current total to avoid out-of-range.
+const onBannerClick = useCallback(() => {
+  if (total === 0) return;
+
+  // move to previous (rotate)
+  setIdx(i => {
+    const next = (i - 1 + total) % total;
+    const currentEvent = events[next];
+    // dispatch using the event we're going to show
+    dis.dispatch({
+      action: Action.ViewRoom,
+      room_id: room.roomId,
+      event_id: currentEvent.getId(),
+      highlighted: true,
+      metricsTrigger: undefined,
+    });
+    return next;
+  });
+}, [room.roomId, total, events]); // depend on total & events
 
     /**
      * Render the banner

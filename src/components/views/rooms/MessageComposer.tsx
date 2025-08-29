@@ -474,8 +474,8 @@ private onAction = (payload: ActionPayload): void => {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         fcmToken: fcmtoken,
-                        notificationTitle: `New message from ${sender}`,
-                        notificationBody: `You have a new message`,
+                        notificationTitle: `${sender}`,
+                        notificationBody: `text`,
                         badgeValue: 1,
                         platform: is_iOS ? "ios" : "android",
                     }),

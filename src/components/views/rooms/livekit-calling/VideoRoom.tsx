@@ -21,7 +21,7 @@ import "@livekit/components-styles";
 import { useRoom } from "./hooks/useRoom";
 import GlobalSocketManager from "../Calling/GlobalSocketManager";
 import { getCurrentMatrixUserId } from "../Calling/MatrixUtils";
-import { CALL_ENDED } from "../Calling/socketEvents";
+import { CALL_ENDED, USER_LEFT_CALL } from "../Calling/socketEvents";
 
 // Utility function to emit call ended event to backend
 const emitCallEndedEvent = (roomId: string, toUserIds: string[]): void => {
@@ -56,6 +56,41 @@ const emitCallEndedEvent = (roomId: string, toUserIds: string[]): void => {
         console.log("✅ CALL_ENDED event emitted successfully via global socket");
     } catch (error) {
         console.error("💥 Failed to emit call ended event:", error);
+    }
+};
+
+// Utility function to emit user left call event to backend
+const emitUserLeftCallEvent = (roomId: string): void => {
+    try {
+        console.log("🚀 emitUserLeftCallEvent called with:", { roomId });
+        const socket = GlobalSocketManager.getGlobalSocket();
+        const userId = getCurrentMatrixUserId();
+
+        console.log("🔌 Global socket and user check:", {
+            hasSocket: !!socket,
+            isSocketConnected: socket?.connected,
+            userId,
+        });
+
+        if (!socket || !userId) {
+            console.warn("❌ Cannot emit user left call event: global socket or user ID not available", {
+                hasSocket: !!socket,
+                isSocketConnected: socket?.connected,
+                userId,
+            });
+            return;
+        }
+
+        const userLeftData = {
+            roomId,
+            userId,
+        };
+
+        console.log("📤 Emitting USER_LEFT_CALL event to backend via global socket:", userLeftData);
+        socket.emit(USER_LEFT_CALL, userLeftData);
+        console.log("✅ USER_LEFT_CALL event emitted successfully via global socket");
+    } catch (error) {
+        console.error("💥 Failed to emit user left call event:", error);
     }
 };
 
@@ -1436,6 +1471,7 @@ interface VideoRoomProps {
     };
     // Call state flags
     isAcceptingIncomingCall?: boolean; // True when user accepts an incoming call
+    isJoiningOngoingCall?: boolean; // True when user is joining an existing ongoing call
     // Callback to close the modal when leave is clicked
     onLeave?: () => void;
 }
@@ -1594,15 +1630,18 @@ const AudioCallInterface: React.FC<{
 
             if (remainingTime > 0) {
                 console.log(`🎯 Audio call no-answer timeout: ${Math.ceil(remainingTime / 1000)}s remaining`);
+                // Capture roomData for timeout scenario, with fallback to incoming call data
+                const currentRoomData = (window as any).__currentLiveKitRoomData;
+                const incomingCallData = (window as any).__incomingCallData;
+                const roomDataForTimeout = currentRoomData || incomingCallData;
                 autoLeaveTimeout.current = setTimeout(() => {
                     if (room && room.state === "connected" && participantCount === 1 && !callEstablished.current) {
                         console.log("🎯 Auto-leaving audio call - no one answered within 30 seconds");
 
-                        // Emit call ended event for no-answer timeout
-                        const roomData = (window as any).__currentLiveKitRoomData;
-                        if (roomData?.roomId && roomData?.toUserIds) {
-                            console.log("📞 No-answer timeout - emitting CALL_ENDED event");
-                            emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                        // Emit call ended event for no-answer timeout using captured roomData
+                        if (roomDataForTimeout?.roomId && roomDataForTimeout?.toUserIds) {
+                            console.log("📞 No-answer timeout - emitting CALL_ENDED event with captured data");
+                            emitCallEndedEvent(roomDataForTimeout.roomId, roomDataForTimeout.toUserIds);
                         }
 
                         isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
@@ -1616,8 +1655,10 @@ const AudioCallInterface: React.FC<{
                 // Time already exceeded, leave immediately
                 console.log("🎯 Auto-leaving audio call - 30s no-answer timeout exceeded");
 
-                // Emit call ended event for immediate timeout
-                const roomData = (window as any).__currentLiveKitRoomData;
+                // Emit call ended event for immediate timeout, with fallback to incoming call data
+                const currentRoomData = (window as any).__currentLiveKitRoomData;
+                const incomingCallData = (window as any).__incomingCallData;
+                const roomData = currentRoomData || incomingCallData;
                 if (roomData?.roomId && roomData?.toUserIds) {
                     console.log("📞 Immediate timeout - emitting CALL_ENDED event");
                     emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
@@ -1637,9 +1678,42 @@ const AudioCallInterface: React.FC<{
             console.log(
                 `🎯 Only one participant left after audio call was established - scheduling auto-leave in ${graceTime}ms`,
             );
+
+            // Capture roomData now while it's still available, before component might unmount
+            // For incoming calls, use __incomingCallData as fallback if __currentLiveKitRoomData is not available
+            const currentRoomData = (window as any).__currentLiveKitRoomData;
+            const incomingCallData = (window as any).__incomingCallData;
+
+            const roomData = currentRoomData || incomingCallData;
+            console.log("roomData captured for auto leave", {
+                currentRoomData,
+                incomingCallData,
+                finalRoomData: roomData,
+                source: currentRoomData ? "currentLiveKitRoomData" : incomingCallData ? "incomingCallData" : "none",
+            });
+            console.log("isGroupCall", isGroupCall);
+
             autoLeaveTimeout.current = setTimeout(() => {
                 if (room && room.state === "connected" && participantCount === 1) {
                     console.log("🎯 Auto-leaving audio call - only one participant remaining");
+
+                    // Emit call ended event before disconnecting for group calls using captured roomData
+                    if (roomData?.roomId && roomData?.toUserIds) {
+                        console.log(
+                            "📞 Auto-leave audio call - emitting CALL_ENDED event for group call with captured data",
+                        );
+                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                    } else {
+                        console.warn("📞 Auto-leave audio call - cannot emit CALL_ENDED event", {
+                            hasRoomData: !!roomData,
+                            hasRoomId: !!roomData?.roomId,
+                            hasToUserIds: !!roomData?.toUserIds,
+                            isGroupCall,
+                        });
+                    }
+
+                    isAutoEndingRef.current = true; // Mark as auto-ending due to everyone leaving
+                    isAutoEndingCall = true; // Set global flag
                     room.disconnect().catch((err: any) => {
                         console.warn("Error during everyone-left auto-leave:", err);
                     });
@@ -1701,13 +1775,26 @@ const AudioCallInterface: React.FC<{
 
         console.log("📞 Ending audio call");
 
-        // Emit call ended event if user is the only participant (no one answered)
-        if (participantCount === 1) {
-            // Get room data from VideoRoom props to emit call ended event
-            const roomData = (window as any).__currentLiveKitRoomData;
-            if (roomData?.roomId && roomData?.toUserIds) {
-                console.log("📞 User ending call as only participant - emitting CALL_ENDED event");
-                emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+        // Get room data for event emission, with fallback to incoming call data
+        const currentRoomData = (window as any).__currentLiveKitRoomData;
+        const incomingCallData = (window as any).__incomingCallData;
+        const roomData = currentRoomData || incomingCallData;
+
+        if (roomData?.roomId) {
+            if (participantCount === 1) {
+                // Last participant leaving - emit CALL_ENDED
+                if (roomData?.toUserIds) {
+                    console.log("📞 User ending call as only participant - emitting CALL_ENDED event");
+                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                }
+            } else {
+                // Not the last participant - emit USER_LEFT_CALL to clean up backend state
+                console.log("📞 User ending call but not last participant - emitting USER_LEFT_CALL event");
+                console.log("📞 USER_LEFT_CALL event data:", {
+                    roomId: roomData.roomId,
+                    participantCount: participantCount,
+                });
+                emitUserLeftCallEvent(roomData.roomId);
             }
         }
 
@@ -2518,16 +2605,21 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
 
             if (remainingTime > 0) {
                 console.log(`🎯 Video call no-answer timeout: ${Math.ceil(remainingTime / 1000)}s remaining`);
+                // Capture roomData for video timeout scenario, with fallback to incoming call data
+                const currentRoomData = (window as any).__currentLiveKitRoomData;
+                const incomingCallData = (window as any).__incomingCallData;
+                const roomDataForVideoTimeout = currentRoomData || incomingCallData;
                 autoLeaveTimeout.current = setTimeout(() => {
                     if (room && room.state === "connected" && currentCount === 1 && !callEstablished.current) {
                         console.log("🎯 Auto-leaving video call - no one answered within 30 seconds");
 
-                        // Emit call ended event for video call no-answer timeout
-                        const roomData = (window as any).__currentLiveKitRoomData;
-                        console.log("roomData", roomData);
-                        if (roomData?.roomId && roomData?.toUserIds) {
-                            console.log("📞 Video call no-answer timeout - emitting CALL_ENDED event");
-                            emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                        // Emit call ended event for video call no-answer timeout using captured roomData
+                        console.log("roomDataForVideoTimeout", roomDataForVideoTimeout);
+                        if (roomDataForVideoTimeout?.roomId && roomDataForVideoTimeout?.toUserIds) {
+                            console.log(
+                                "📞 Video call no-answer timeout - emitting CALL_ENDED event with captured data",
+                            );
+                            emitCallEndedEvent(roomDataForVideoTimeout.roomId, roomDataForVideoTimeout.toUserIds);
                         }
 
                         isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
@@ -2541,9 +2633,15 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 // Time already exceeded, leave immediately
                 console.log("🎯 Auto-leaving video call - 30s no-answer timeout exceeded");
 
-                // Emit call ended event for video call immediate timeout
-                const roomData = (window as any).__currentLiveKitRoomData;
-                console.log("roomData", roomData);
+                // Emit call ended event for video call immediate timeout, with fallback to incoming call data
+                const currentRoomData = (window as any).__currentLiveKitRoomData;
+                const incomingCallData = (window as any).__incomingCallData;
+                const roomData = currentRoomData || incomingCallData;
+                console.log("roomData for video immediate timeout", {
+                    currentRoomData,
+                    incomingCallData,
+                    finalRoomData: roomData,
+                });
                 if (roomData?.roomId && roomData?.toUserIds) {
                     console.log("📞 Video call immediate timeout - emitting CALL_ENDED event");
                     emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
@@ -2560,9 +2658,44 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
         // Scenario 2: Everyone left after call was established (3 second grace period)
         else if (callEstablished.current && currentCount === 1) {
             console.log("🎯 Only one participant left after video call was established - scheduling auto-leave");
+
+            // Capture roomData now while it's still available, before component might unmount
+            // For incoming calls, use __incomingCallData as fallback if __currentLiveKitRoomData is not available
+            const currentRoomData = (window as any).__currentLiveKitRoomData;
+            const incomingCallData = (window as any).__incomingCallData;
+
+            const roomData = currentRoomData || incomingCallData;
+            // For video calls, determine if it's a group call based on toUserIds length
+            const isGroupVideoCall = roomData?.toUserIds && roomData.toUserIds.length > 1;
+            console.log("roomData captured for video auto leave", {
+                currentRoomData,
+                incomingCallData,
+                finalRoomData: roomData,
+                source: currentRoomData ? "currentLiveKitRoomData" : incomingCallData ? "incomingCallData" : "none",
+            });
+            console.log("isGroupVideoCall", isGroupVideoCall);
+
             autoLeaveTimeout.current = setTimeout(() => {
                 if (room && room.state === "connected" && currentCount === 1) {
                     console.log("🎯 Auto-leaving video call - only one participant remaining");
+
+                    // Emit call ended event before disconnecting for group calls using captured roomData
+                    if (roomData?.roomId && roomData?.toUserIds) {
+                        console.log(
+                            "📞 Auto-leave video call - emitting CALL_ENDED event for group call with captured data",
+                        );
+                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                    } else {
+                        console.warn("📞 Auto-leave video call - cannot emit CALL_ENDED event", {
+                            hasRoomData: !!roomData,
+                            hasRoomId: !!roomData?.roomId,
+                            hasToUserIds: !!roomData?.toUserIds,
+                            isGroupVideoCall,
+                        });
+                    }
+
+                    isAutoEndingRef.current = true; // Mark as auto-ending due to everyone leaving
+                    isAutoEndingCall = true; // Set global flag
                     room.disconnect().catch((err: any) => {
                         console.warn("Error during everyone-left auto-leave:", err);
                     });
@@ -3431,6 +3564,7 @@ export const VideoRoom = ({
     groupName,
     testMode,
     isAcceptingIncomingCall = false, // Default to false for backward compatibility
+    isJoiningOngoingCall = false, // Default to false for backward compatibility
     onLeave,
 }: VideoRoomProps): JSX.Element => {
     // State for managing ongoing call detection
@@ -3572,7 +3706,19 @@ export const VideoRoom = ({
                 return;
             }
 
-            // Only check for ongoing calls if user is initiating a new call (not accepting)
+            // SKIP room check if user is joining an ongoing call (already checked by RoomHeader)
+            if (isJoiningOngoingCall) {
+                console.log("📞 User is joining an ongoing call - skipping room check (already done by RoomHeader)");
+                setConnectionApproved(true);
+                if (!connectCalled.current) {
+                    connectCalled.current = true;
+                    console.log("🔗 First useEffect: Calling connect() - joining ongoing call");
+                    connect();
+                }
+                return;
+            }
+
+            // Only check for ongoing calls if user is initiating a new call (not accepting or joining)
             checkRoom()
                 .then((roomInfo: any) => {
                     if (roomInfo && roomInfo.participants && roomInfo.participants.length > 0) {
@@ -3610,7 +3756,7 @@ export const VideoRoom = ({
                     }
                 });
         }
-    }, [checkRoom, connect, isAcceptingIncomingCall]);
+    }, [checkRoom, connect, isAcceptingIncomingCall, isJoiningOngoingCall]);
 
     // Connect after user approves joining ongoing call
     useEffect(() => {
@@ -3858,7 +4004,9 @@ export const VideoRoom = ({
                     console.log("📞 Manual disconnect, handling normally");
 
                     // Check if user was the only participant and emit CALL_ENDED if needed
-                    const roomData = (window as any).__currentLiveKitRoomData;
+                    const currentRoomData = (window as any).__currentLiveKitRoomData;
+                    const incomingCallData = (window as any).__incomingCallData;
+                    const roomData = currentRoomData || incomingCallData;
                     const currentParticipantCount = (window as any).__currentParticipantCount || 0;
                     console.log("📞 Room data for disconnect check:", {
                         roomData,
@@ -3869,28 +4017,42 @@ export const VideoRoom = ({
                         participantCount: currentParticipantCount,
                     });
 
-                    // Only emit CALL_ENDED if initiator is leaving and is the last participant
-                    if (
-                        roomData?.roomId &&
-                        roomData?.toUserIds &&
-                        !isAcceptingIncomingCall &&
-                        currentParticipantCount <= 1
-                    ) {
-                        console.log("📞 Manual disconnect as last participant - emitting CALL_ENDED event");
-                        console.log("📞 CALL_ENDED event data:", {
-                            roomId: roomData.roomId,
-                            toUserIds: roomData.toUserIds,
-                            fromUsername: roomData.fromUsername,
-                            participantCount: currentParticipantCount,
-                        });
+                    // Handle different disconnect scenarios based on participant count
+                    if (roomData?.roomId) {
+                        if (currentParticipantCount <= 1) {
+                            // Last participant leaving - emit CALL_ENDED (only if not accepting incoming call)
+                            if (roomData?.toUserIds && !isAcceptingIncomingCall) {
+                                console.log("📞 Manual disconnect as last participant - emitting CALL_ENDED event");
+                                console.log("📞 CALL_ENDED event data:", {
+                                    roomId: roomData.roomId,
+                                    toUserIds: roomData.toUserIds,
+                                    fromUsername: roomData.fromUsername,
+                                    participantCount: currentParticipantCount,
+                                });
 
-                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                                emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                            } else {
+                                console.log("📞 No CALL_ENDED emission - accepting incoming call", {
+                                    isAcceptingIncomingCall,
+                                    participantCount: currentParticipantCount,
+                                });
+                            }
+                        } else {
+                            // Not the last participant - emit USER_LEFT_CALL to clean up backend state
+                            console.log(
+                                "📞 Manual disconnect but not last participant - emitting USER_LEFT_CALL event",
+                            );
+                            console.log("📞 USER_LEFT_CALL event data:", {
+                                roomId: roomData.roomId,
+                                participantCount: currentParticipantCount,
+                            });
+
+                            emitUserLeftCallEvent(roomData.roomId);
+                        }
                     } else {
-                        console.log("📞 No CALL_ENDED emission - either not last participant or incoming call", {
+                        console.log("📞 No events emitted - missing room data", {
                             hasRoomData: !!roomData,
                             hasRoomId: !!roomData?.roomId,
-                            hasToUserIds: !!roomData?.toUserIds,
-                            isAcceptingIncomingCall,
                             participantCount: currentParticipantCount,
                         });
                     }
