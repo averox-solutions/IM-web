@@ -19,6 +19,17 @@ import PublicIcon from "@vector-im/compound-design-tokens/assets/web/icons/publi
 import { useRef, type ChangeEvent } from "react";
 import SearchIcon from "@vector-im/compound-design-tokens/assets/web/icons/search";
 import { Search, Form } from "@vector-im/compound-web";
+
+import {
+    ChevronFace,
+    ContextMenuTooltipButton,
+    useContextMenu,
+    type MenuProps,
+    ContextMenuButton,
+} from "../../../structures/ContextMenu";
+
+import { BsPlus } from "react-icons/bs";
+
 import classNames from "classnames";
 
 import { useDispatcher } from "../../../../hooks/useDispatcher";
@@ -64,14 +75,13 @@ import { VideoRoomChatButton } from "./VideoRoomChatButton.tsx";
 import { isVideoRoom as calcIsVideoRoom } from "../../../../utils/video-rooms.ts";
 import { MainSplitContentType } from "../../../structures/RoomView.tsx";
 import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
-import { CREATE_ROOM_ENDPOINT } from "../livekit-calling/config";
 
 // --- LOG CALL FUNCTION (AES-CBC, API POST) ---
 export async function logCall(payload: Record<string, any>) {
     console.log("📞 logCall payload (before encryption):", payload);
 
     const apiKey =
-        process.env.REACT_APP_MY_API_KEY || "291d4ab2d879ca7cbf46f38d23d6327604c83479c6c4abc4b8e0fc59f28e5d99";
+        process.env.REACT_APP_MY_API_KEY || "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16";
     const apiUrl = process.env.REACT_APP_CALL_LOG_API_URL || "https://bservices-api.org.pk/api/call-logs/";
     const rememberKey = localStorage.getItem("rememberKey") || "default-secret";
 
@@ -161,7 +171,6 @@ export default function RoomHeader({
     const globalNotificationState = useGlobalNotificationState();
 
     // LiveKit call state
-
     const [isLiveKitCallActive, setIsLiveKitCallActive] = useState(false);
     const [liveKitCallData, setLiveKitCallData] = useState<any>(null);
     const [liveKitCallType, setLiveKitCallType] = useState<"video" | "voice">("video");
@@ -432,7 +441,7 @@ export default function RoomHeader({
             }
 
             // Show toast notification that no one answered
-            showToast("Call ended", "info", 3000);
+            showToast("No answer - call ended", "info", 3000);
             console.log("📞 Call timeout handled successfully");
 
             // Log missed call
@@ -510,32 +519,6 @@ export default function RoomHeader({
             return;
         }
 
-        // FIRST: Check for ongoing calls before setting any state
-        console.log("🔍 Checking for ongoing calls before starting video call...");
-        try {
-            const ongoingCallInfo = await checkForOngoingCall(participantData, true); // isVideo = true
-
-            if (ongoingCallInfo) {
-                // Handle "Already in Call" error
-                if (ongoingCallInfo.error === "ALREADY_IN_CALL") {
-                    showToast(
-                        "You are already in an active call. Please end your current call before starting a new one.",
-                        "warning",
-                        5000,
-                    );
-                    return;
-                }
-
-                console.log("🎯 Ongoing call detected, showing join confirmation UI");
-                // Don't set call states yet - let user decide to join
-                return;
-            }
-
-            console.log("✅ No ongoing call detected, proceeding with new video call");
-        } catch (error) {
-            console.warn("⚠️ Failed to check for ongoing calls, proceeding anyway:", error);
-        }
-
         // Show our professional notification for outgoing call
         const participantCount = participantData.toUserIds.length;
         const targetName =
@@ -585,32 +568,6 @@ export default function RoomHeader({
             return;
         }
 
-        // FIRST: Check for ongoing calls before setting any state
-        console.log("🔍 Checking for ongoing calls before starting voice call...");
-        try {
-            const ongoingCallInfo = await checkForOngoingCall(participantData, false); // isVideo = false
-
-            if (ongoingCallInfo) {
-                // Handle "Already in Call" error
-                if (ongoingCallInfo.error === "ALREADY_IN_CALL") {
-                    showToast(
-                        "You are already in an active call. Please end your current call before starting a new one.",
-                        "warning",
-                        5000,
-                    );
-                    return;
-                }
-
-                console.log("🎯 Ongoing call detected, showing join confirmation UI");
-                // Don't set call states yet - let user decide to join
-                return;
-            }
-
-            console.log("✅ No ongoing call detected, proceeding with new voice call");
-        } catch (error) {
-            console.warn("⚠️ Failed to check for ongoing calls, proceeding anyway:", error);
-        }
-
         // Show our professional notification for outgoing call
         const participantCount = participantData.toUserIds.length;
         const targetName =
@@ -641,200 +598,6 @@ export default function RoomHeader({
             GlobalSocketManager.isGlobalUserMakingCall(),
         );
     }
-
-    // State for ongoing call detection and confirmation UI
-    const [ongoingCallInfo, setOngoingCallInfo] = useState<{
-        participants: Array<{ userId: string; username: string; isOnline: boolean }>;
-        participantCount: number;
-        isVideo: boolean;
-        participantData: any;
-    } | null>(null);
-    const [showJoinConfirmation, setShowJoinConfirmation] = useState(false);
-    const [isJoiningOngoingCall, setIsJoiningOngoingCall] = useState(false);
-
-    // Function to check for ongoing calls using checkRoom logic
-    const checkForOngoingCall = async (participantData: any, isVideo: boolean): Promise<any> => {
-        try {
-            console.log("🔍 Making checkOnly API call to detect ongoing calls...");
-
-            // // const CREATE_ROOM_ENDPOINT = "https://bservices-api.org.pk/api/create-room/";
-            // const CREATE_ROOM_ENDPOINT = "https://bservices-api.org.pk/api/create-room/";
-
-            const requestBody = {
-                roomId: participantData.roomId,
-                toUserIds: participantData.toUserIds,
-                toUsernames: participantData.toUsernames || {},
-                isVideo: isVideo,
-                fromUsername: participantData.fromUsername,
-                groupName: participantData.groupName || null,
-                checkOnly: true, // Flag to get token without triggering notifications
-            };
-
-            console.log("📤 checkForOngoingCall request:", requestBody);
-
-            const response = await fetch(CREATE_ROOM_ENDPOINT, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-api-key": "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d",
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            if (!response.ok) {
-                // Handle specific error codes from the backend
-                if (response.status === 409) {
-                    try {
-                        const errorData = await response.json();
-                        if (errorData.code === "ALREADY_IN_CALL") {
-                            console.log("❌ User already in call during check:", {
-                                activeCallRoomId: errorData.activeCallRoomId,
-                                activeCallStartTime: errorData.activeCallStartTime,
-                                userMessage: errorData.error,
-                            });
-                            // Return error data so caller can handle it appropriately
-                            return { error: "ALREADY_IN_CALL", data: errorData };
-                        }
-                    } catch (parseError) {
-                        console.warn("Failed to parse 409 error response:", parseError);
-                    }
-                }
-                console.warn("⚠️ checkForOngoingCall API request failed:", response.statusText);
-                return null;
-            }
-
-            const responseData = await response.json();
-            console.log("📥 checkForOngoingCall response:", responseData);
-
-            const { token: checkToken, serverUrl: checkServerUrl } = responseData;
-
-            // Now check actual LiveKit room for connected participants using Room.connect with minimal config
-            console.log("🔍 Checking actual LiveKit room state for ongoing calls...");
-
-            try {
-                // Use dynamic import to avoid issues with LiveKit imports
-                const { Room } = await import("livekit-client");
-
-                const tempRoom = new Room({
-                    publishDefaults: { simulcast: false },
-                    adaptiveStream: false,
-                });
-
-                // Connect briefly to check room state with timeout
-                const connectPromise = tempRoom.connect(checkServerUrl, checkToken);
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("Room check timeout")), 5000),
-                );
-
-                await Promise.race([connectPromise, timeoutPromise]);
-
-                // Wait a moment for room state to stabilize
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                // Get actual participants (excluding ourselves)
-                const actualParticipants = Array.from(tempRoom.remoteParticipants.values());
-                const connectedCount = actualParticipants.length;
-
-                console.log(`🎯 LiveKit room check: Found ${connectedCount} actual connected participants`);
-                console.log(
-                    `🎯 Participant details:`,
-                    actualParticipants.map((p) => ({
-                        identity: p.identity,
-                        name: p.name,
-                        connectionState: p.connectionState,
-                    })),
-                );
-
-                // Clean up: Immediately disconnect our check connection
-                tempRoom.disconnect();
-
-                if (connectedCount > 0) {
-                    // There are actual connected participants - this is an ongoing call
-                    console.log("✅ Confirmed ongoing call with real connected participants");
-
-                    const ongoingCallData = {
-                        participants: actualParticipants.map((p) => ({
-                            userId: p.identity,
-                            username: p.name || p.identity,
-                            isOnline: true,
-                        })),
-                        participantCount: connectedCount,
-                        isVideo: isVideo,
-                        participantData: participantData,
-                    };
-
-                    // Set state to show join confirmation UI
-                    setOngoingCallInfo(ongoingCallData);
-                    setShowJoinConfirmation(true);
-
-                    return ongoingCallData;
-                } else {
-                    // No actual connected participants - this is a new call
-                    console.log("✅ No connected participants found - this is a new call");
-                    return null;
-                }
-            } catch (livekitError) {
-                console.warn("⚠️ Failed to check LiveKit room state:", livekitError);
-                // If we can't check LiveKit state, assume it's a new call to avoid false positives
-                return null;
-            }
-        } catch (err) {
-            console.warn("Failed to check for ongoing calls:", err);
-            return null;
-        }
-    };
-
-    // Handle joining an ongoing call
-    const handleJoinOngoingCall = (): void => {
-        if (!ongoingCallInfo) {
-            console.error("❌ No ongoing call info available");
-            return;
-        }
-
-        console.log("🎯 User chose to join ongoing call");
-        setShowJoinConfirmation(false);
-
-        // Clear the ongoing call info
-        const callData = ongoingCallInfo.participantData;
-        const isVideo = ongoingCallInfo.isVideo;
-        setOngoingCallInfo(null);
-
-        // IMPORTANT: Set flag to indicate we're joining an ongoing call
-        setIsJoiningOngoingCall(true);
-
-        // Show our professional notification for joining call
-        const participantCount = callData.toUserIds.length;
-        const targetName =
-            participantCount === 1 ? Object.values(callData.toUsernames)[0] : `${participantCount} participants`;
-
-        // Show notification for joining call
-        const notificationId = (window as any).showLiveKitCallNotification("outgoing", {
-            caller: targetName,
-            isVideo: isVideo,
-            participantCount: participantCount,
-            onDismiss: () => {
-                console.log("Join call notification dismissed");
-            },
-        });
-
-        console.log("📤 Showed join ongoing call notification:", notificationId);
-
-        // Set call as active - we're joining an existing call
-        setIsLiveKitCallActive(true);
-        setLiveKitCallData(callData);
-        setLiveKitCallType(isVideo ? "video" : "voice");
-
-        // Set outgoing call state in GlobalSocketManager
-        console.log("📞 Setting outgoing call state to true for joining room:", callData.roomId);
-        GlobalSocketManager.setGlobalOutgoingCallState(true, callData.roomId);
-    };
-
-    // Handle declining to join ongoing call
-    const handleDeclineJoinOngoingCall = (): void => {
-        console.log("❌ User declined to join ongoing call");
-        setShowJoinConfirmation(false);
-        setOngoingCallInfo(null);
-    };
 
     // Helper function to gather participant data for the call
     const gatherParticipantData = (): any => {
@@ -934,7 +697,6 @@ export default function RoomHeader({
         setIsLiveKitCallActive(false);
         setLiveKitCallData(null);
         setActiveCallData(null);
-        setIsJoiningOngoingCall(false); // Reset joining flag
 
         // CRITICAL: Stop all media tracks to release mic/camera resources
         console.log("📞 closeLiveKitCall: Stopping all media tracks");
@@ -1116,47 +878,85 @@ export default function RoomHeader({
 
                     {/** INSERT THIS RIGHT BEFORE THE CALL BUTTONS **/}
                     <div className={classNames("mx_HeaderSearchWrap", { "mx_HeaderSearchWrap--open": isSearchOpen })}>
-                    {isSearchOpen ? (
-                        <Form.Root
-                        className="mx_HeaderSearchForm"
-                        onSubmit={(e) => e.preventDefault()}
-                        >
-                        <Search
-                            placeholder={_t("room|search|placeholder")}
-                            name="room_message_search"
-                            className="mx_HeaderSearchInput mx_no_textinput"
-                            ref={searchInputRef}
-                            onChange={onSearchChange}
-                            onBlur={() => {
-                            // Collapse if empty on blur
-                            if (!searchInputRef.current?.value) setIsSearchOpen(false);
-                            }}
-                            onKeyDown={(e) => {
-                            if (e.key === Key.ESCAPE && searchInputRef.current) {
-                                searchInputRef.current.value = "";
-                                onSearchCancel?.();
-                                setIsSearchOpen(false);
-                            }
-                            }}
-                        />
-                        </Form.Root>
-                    ) : (
-                        <IconButton
-                        aria-label={_t("room|search|open")}
-                        onClick={() => {
-                            setIsSearchOpen(true);
-                            setTimeout(() => searchInputRef.current?.focus(), 160);
-                        }}
-                        className="mx_HeaderSearchButton"
-                        >
-                        <SearchIcon />
-                        </IconButton>
-                    )}
+                        {isSearchOpen ? (
+                            <Form.Root className="mx_HeaderSearchForm" onSubmit={(e) => e.preventDefault()}>
+                                <Search
+                                    placeholder={_t("room|search|placeholder")}
+                                    name="room_message_search"
+                                    className="mx_HeaderSearchInput mx_no_textinput"
+                                    ref={searchInputRef}
+                                    onChange={onSearchChange}
+                                    onBlur={() => {
+                                        // Collapse if empty on blur
+                                        if (!searchInputRef.current?.value) setIsSearchOpen(false);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === Key.ESCAPE && searchInputRef.current) {
+                                            searchInputRef.current.value = "";
+                                            onSearchCancel?.();
+                                            setIsSearchOpen(false);
+                                        }
+                                    }}
+                                />
+                            </Form.Root>
+                        ) : (
+                            <IconButton
+                                aria-label={_t("room|search|open")}
+                                onClick={() => {
+                                    setIsSearchOpen(true);
+                                    setTimeout(() => searchInputRef.current?.focus(), 160);
+                                }}
+                                className="mx_HeaderSearchButton"
+                            >
+                                <SearchIcon />
+                            </IconButton>
+                        )}
                     </div>
-
 
                     {!showChatButton && (
                         <>
+                            
+                                <button
+                                    style={{
+                                        background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+                                        border: "none",
+                                        borderRadius: "40px",
+                                        height: "40px",
+                                        width: "170px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "#fff",
+                                        fontWeight: 600,
+                                        fontSize: "14px",
+                                        fontFamily:
+                                            "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+                                        cursor: "pointer",
+                                        transition: "all 0.3s ease",
+                                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                                    }}
+                                    onClick={() => window.open("https://beep.gov.pk", "_blank")}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+                                        e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+                                        e.currentTarget.style.transform = "translateY(-2px)";
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background =
+                                            "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+                                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+                                        e.currentTarget.style.transform = "translateY(0)";
+                                    }}
+                                    onMouseDown={(e) => {
+                                        e.currentTarget.style.transform = "scale(0.97)";
+                                    }}
+                                    onMouseUp={(e) => {
+                                        e.currentTarget.style.transform = "scale(1)";
+                                    }}
+                                >
+                                    Public Conference
+                                </button>
+                            
                             <button
                                 onClick={GroupCallVoice}
                                 disabled={isLiveKitCallActive || !!activeCallData}
@@ -1236,26 +1036,25 @@ export default function RoomHeader({
 
                     {/* FacePile (Member List) - hide if restricted */}
                     {/* FacePile (Member List) - hide if restricted */}
-                    {(!isDirectMessage && ((members.length === 1 || members.length === 0 || members.length >= 3 || !allSamePowerLevel))) && (
-    <BodyText as="div" size="sm" weight="medium">
-        <FacePile
-            className="mx_RoomHeader_members"
-            members={members.slice(0, 3)}
-            size="20px"
-            overflow={false}
-            viewUserOnClick={false}
-            tooltipLabel={_t("room|header_face_pile_tooltip")}
-            onClick={(e: ButtonEvent) => {
-                RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
-                e.stopPropagation();
-            }}
-            aria-label={_t("common|n_members", { count: memberCount })}
-        >
-            {formatCount(memberCount)}
-        </FacePile>
-    </BodyText>
-)}
-
+                    {((!isDirectMessage && !allSamePowerLevel) || memberCount === 1 || memberCount === 0) && (
+                        <BodyText as="div" size="sm" weight="medium">
+                            <FacePile
+                                className="mx_RoomHeader_members"
+                                members={members.slice(0, 3)}
+                                size="20px"
+                                overflow={false}
+                                viewUserOnClick={false}
+                                tooltipLabel={_t("room|header_face_pile_tooltip")}
+                                onClick={(e: ButtonEvent) => {
+                                    RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
+                                    e.stopPropagation();
+                                }}
+                                aria-label={_t("common|n_members", { count: memberCount })}
+                            >
+                                {formatCount(memberCount)}
+                            </FacePile>
+                        </BodyText>
+                    )}
                 </Flex>
                 {askToJoinEnabled && <RoomKnocksBar room={room} />}
             </CurrentRightPanelPhaseContextProvider>
@@ -1300,7 +1099,6 @@ export default function RoomHeader({
                                     useWrongKey: false,
                                     customKey: undefined,
                                 }}
-                                isJoiningOngoingCall={isJoiningOngoingCall} // Mark this as joining an ongoing call when user chose to join
                                 onLeave={closeLiveKitCall}
                             />
                         </div>
@@ -1342,127 +1140,6 @@ export default function RoomHeader({
                         </div>
                     </div>,
                     document.body, // Render at document.body level
-                )}
-
-            {/* Ongoing Call Join Confirmation Dialog */}
-            {showJoinConfirmation &&
-                ongoingCallInfo &&
-                ReactDOM.createPortal(
-                    <div
-                        style={{
-                            position: "fixed",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: "rgba(0, 0, 0, 0.8)",
-                            zIndex: 25000, // Higher than call UI
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backdropFilter: "blur(10px)",
-                        }}
-                    >
-                        <div
-                            style={{
-                                background:
-                                    "linear-gradient(135deg, rgba(15, 15, 15, 0.95) 0%, rgba(26, 26, 26, 0.95) 100%)",
-                                backdropFilter: "blur(20px)",
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
-                                borderRadius: "16px",
-                                padding: "40px",
-                                color: "white",
-                                textAlign: "center",
-                                maxWidth: "500px",
-                                width: "90%",
-                                boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
-                            }}
-                        >
-                            <div style={{ fontSize: "48px", marginBottom: "24px", color: "#4285f4" }}>📞</div>
-                            <h3 style={{ margin: "0 0 16px 0", color: "white", fontSize: "24px", fontWeight: "600" }}>
-                                Ongoing Call Detected
-                            </h3>
-                            <p
-                                style={{
-                                    margin: "0 0 8px 0",
-                                    opacity: 0.9,
-                                    textAlign: "center",
-                                    fontSize: "16px",
-                                    lineHeight: "1.5",
-                                }}
-                            >
-                                {ongoingCallInfo.participantCount === 1
-                                    ? `${ongoingCallInfo.participants[0]?.username || "1 participant"} is`
-                                    : `${ongoingCallInfo.participantCount} participants are`}{" "}
-                                currently in a call.
-                            </p>
-                            <p
-                                style={{
-                                    margin: "0 0 32px 0",
-                                    opacity: 0.7,
-                                    textAlign: "center",
-                                    fontSize: "14px",
-                                    lineHeight: "1.4",
-                                }}
-                            >
-                                Would you like to join the ongoing call?
-                            </p>
-                            <div style={{ display: "flex", gap: "16px", justifyContent: "center" }}>
-                                <button
-                                    onClick={handleDeclineJoinOngoingCall}
-                                    style={{
-                                        background: "rgba(255, 255, 255, 0.1)",
-                                        border: "1px solid rgba(255, 255, 255, 0.3)",
-                                        borderRadius: "8px",
-                                        color: "white",
-                                        padding: "12px 24px",
-                                        fontSize: "16px",
-                                        cursor: "pointer",
-                                        transition: "all 0.3s ease",
-                                        fontWeight: "500",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleJoinOngoingCall}
-                                    style={{
-                                        background: "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
-                                        border: "none",
-                                        borderRadius: "8px",
-                                        color: "white",
-                                        padding: "12px 24px",
-                                        fontSize: "16px",
-                                        cursor: "pointer",
-                                        transition: "all 0.3s ease",
-                                        fontWeight: "600",
-                                        boxShadow: "0 4px 12px rgba(66, 133, 244, 0.3)",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background =
-                                            "linear-gradient(135deg, #3367d6 0%, #2d8f47 100%)";
-                                        e.currentTarget.style.transform = "translateY(-1px)";
-                                        e.currentTarget.style.boxShadow = "0 6px 16px rgba(66, 133, 244, 0.4)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background =
-                                            "linear-gradient(135deg, #4285f4 0%, #34a853 100%)";
-                                        e.currentTarget.style.transform = "translateY(0)";
-                                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(66, 133, 244, 0.3)";
-                                    }}
-                                >
-                                    Join Call
-                                </button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body,
                 )}
         </>
     );
