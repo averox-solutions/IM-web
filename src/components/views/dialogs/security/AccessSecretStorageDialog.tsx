@@ -88,6 +88,14 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
         } catch {
             /* ignore */
         }
+        // Mark session as verified only when we have a successful key input
+        try {
+            if (result && typeof result === "object" && ("passphrase" in result || "recoveryKey" in result)) {
+                localStorage.setItem("sessionVerified", "true");
+            }
+        } catch {
+            /* ignore */
+        }
         this.setState({ canClose: true }, () => this.props.onFinished(result));
     };
 

@@ -100,8 +100,8 @@ interface Result {
     lastActive?: number;
 }
 
-const INITIAL_ROOMS_SHOWN = 3; // Number of rooms to show at first
-const INCREMENT_ROOMS_SHOWN = 5; // Number of rooms to add when 'show more' is clicked
+const INITIAL_ROOMS_SHOWN = 30; // Number of rooms to show at first
+const INCREMENT_ROOMS_SHOWN = 30; // Number of rooms to add when 'show more' is clicked
 
 enum TabId {
     UserDirectory = "users",

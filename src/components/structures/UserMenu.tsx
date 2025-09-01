@@ -350,11 +350,21 @@ export default class UserMenu extends React.Component<IProps, IState> {
                     label={_t("room_settings|security|title")}
                     onClick={(e) => this.onSettingsOpen(e, UserTab.Security)}
                 />
-                {/* <IconizedContextMenuOption
-                    iconClassName="mx_UserMenu_iconLock" // you can swap for a better key/phrase icon if available
-                    label={_t("encryption|verification|verify_using_key_or_phrase")}
-                    onClick={this.onOpenVerifyUsingKeyOrPhrase}
-                /> */}
+                {(() => {
+                    try {
+                        const isSessionVerified = localStorage.getItem("sessionVerified") === "true";
+                        if (isSessionVerified) return null;
+                    } catch {
+                        /* ignore */
+                    }
+                    return (
+                        <IconizedContextMenuOption
+                            iconClassName="mx_UserMenu_iconLock"
+                            label={_t("encryption|verification|verify_using_key_or_phrase")}
+                            onClick={this.onOpenVerifyUsingKeyOrPhrase}
+                        />
+                    );
+                })()}
 
                 <IconizedContextMenuOption
                     iconClassName="mx_UserMenu_iconSettings"
