@@ -222,6 +222,22 @@ export default function RoomHeader({
 
             setActiveCallData(activeCall);
 
+            // Also set incoming call data for proper event emission when user leaves
+            (window as any).__incomingCallData = {
+                roomId: callData.roomId,
+                fromUsername: callData.fromUsername || "Unknown",
+                groupName: callData.groupName,
+                isVideo: callData.isVideo,
+                toUserIds: callData.toUserIds || [],
+                toUsernames: callData.toUsernames || {},
+            };
+            console.log(
+                "📞 RoomHeader: Set incoming call data for event emission:",
+                (window as any).__incomingCallData,
+            );
+            console.log("📞 RoomHeader: Original callData.roomId:", callData.roomId);
+            console.log("📞 RoomHeader: Full callData:", callData);
+
             // Send call picked up event to backend to notify other devices
             const socket = GlobalSocketManager.getInstance().getSocket();
             if (socket && callData.roomId && currentUserId) {
@@ -1116,44 +1132,40 @@ export default function RoomHeader({
 
                     {/** INSERT THIS RIGHT BEFORE THE CALL BUTTONS **/}
                     <div className={classNames("mx_HeaderSearchWrap", { "mx_HeaderSearchWrap--open": isSearchOpen })}>
-                    {isSearchOpen ? (
-                        <Form.Root
-                        className="mx_HeaderSearchForm"
-                        onSubmit={(e) => e.preventDefault()}
-                        >
-                        <Search
-                            placeholder={_t("room|search|placeholder")}
-                            name="room_message_search"
-                            className="mx_HeaderSearchInput mx_no_textinput"
-                            ref={searchInputRef}
-                            onChange={onSearchChange}
-                            onBlur={() => {
-                            // Collapse if empty on blur
-                            if (!searchInputRef.current?.value) setIsSearchOpen(false);
-                            }}
-                            onKeyDown={(e) => {
-                            if (e.key === Key.ESCAPE && searchInputRef.current) {
-                                searchInputRef.current.value = "";
-                                onSearchCancel?.();
-                                setIsSearchOpen(false);
-                            }
-                            }}
-                        />
-                        </Form.Root>
-                    ) : (
-                        <IconButton
-                        aria-label={_t("room|search|open")}
-                        onClick={() => {
-                            setIsSearchOpen(true);
-                            setTimeout(() => searchInputRef.current?.focus(), 160);
-                        }}
-                        className="mx_HeaderSearchButton"
-                        >
-                        <SearchIcon />
-                        </IconButton>
-                    )}
+                        {isSearchOpen ? (
+                            <Form.Root className="mx_HeaderSearchForm" onSubmit={(e) => e.preventDefault()}>
+                                <Search
+                                    placeholder={_t("room|search|placeholder")}
+                                    name="room_message_search"
+                                    className="mx_HeaderSearchInput mx_no_textinput"
+                                    ref={searchInputRef}
+                                    onChange={onSearchChange}
+                                    onBlur={() => {
+                                        // Collapse if empty on blur
+                                        if (!searchInputRef.current?.value) setIsSearchOpen(false);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === Key.ESCAPE && searchInputRef.current) {
+                                            searchInputRef.current.value = "";
+                                            onSearchCancel?.();
+                                            setIsSearchOpen(false);
+                                        }
+                                    }}
+                                />
+                            </Form.Root>
+                        ) : (
+                            <IconButton
+                                aria-label={_t("room|search|open")}
+                                onClick={() => {
+                                    setIsSearchOpen(true);
+                                    setTimeout(() => searchInputRef.current?.focus(), 160);
+                                }}
+                                className="mx_HeaderSearchButton"
+                            >
+                                <SearchIcon />
+                            </IconButton>
+                        )}
                     </div>
-
 
                     {!showChatButton && (
                         <>
@@ -1236,26 +1248,26 @@ export default function RoomHeader({
 
                     {/* FacePile (Member List) - hide if restricted */}
                     {/* FacePile (Member List) - hide if restricted */}
-                    {(!isDirectMessage && ((members.length === 1 || members.length === 0 || members.length >= 3 || !allSamePowerLevel))) && (
-    <BodyText as="div" size="sm" weight="medium">
-        <FacePile
-            className="mx_RoomHeader_members"
-            members={members.slice(0, 3)}
-            size="20px"
-            overflow={false}
-            viewUserOnClick={false}
-            tooltipLabel={_t("room|header_face_pile_tooltip")}
-            onClick={(e: ButtonEvent) => {
-                RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
-                e.stopPropagation();
-            }}
-            aria-label={_t("common|n_members", { count: memberCount })}
-        >
-            {formatCount(memberCount)}
-        </FacePile>
-    </BodyText>
-)}
-
+                    {!isDirectMessage &&
+                        (members.length === 1 || members.length === 0 || members.length >= 3 || !allSamePowerLevel) && (
+                            <BodyText as="div" size="sm" weight="medium">
+                                <FacePile
+                                    className="mx_RoomHeader_members"
+                                    members={members.slice(0, 3)}
+                                    size="20px"
+                                    overflow={false}
+                                    viewUserOnClick={false}
+                                    tooltipLabel={_t("room|header_face_pile_tooltip")}
+                                    onClick={(e: ButtonEvent) => {
+                                        RightPanelStore.instance.showOrHidePhase(RightPanelPhases.MemberList);
+                                        e.stopPropagation();
+                                    }}
+                                    aria-label={_t("common|n_members", { count: memberCount })}
+                                >
+                                    {formatCount(memberCount)}
+                                </FacePile>
+                            </BodyText>
+                        )}
                 </Flex>
                 {askToJoinEnabled && <RoomKnocksBar room={room} />}
             </CurrentRightPanelPhaseContextProvider>

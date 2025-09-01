@@ -215,11 +215,27 @@ const VideoRoomWithProvidedToken: React.FC<VideoRoomWithProvidedTokenProps> = ({
     });
 
     // For incoming calls, we need to use the special token-based mode
-    // We'll pass the token and serverUrl through the testMode for now
+    // Extract additional call data from globalActiveCallData for proper props
+    const globalActiveCallData = (window as any).__globalActiveCallData;
+    const incomingCallData = (window as any).__incomingCallData;
+
+    console.log("🎬 VideoRoomWithProvidedToken: Extracting call metadata", {
+        globalActiveCallData,
+        incomingCallData,
+    });
+
+    // Try to get additional call metadata from stored data
+    const callMetadata = incomingCallData || {};
+
     return (
         <VideoRoom
             roomName={roomId}
             participantName={participantName}
+            roomId={roomId} // Pass roomId explicitly
+            toUserIds={callMetadata.toUserIds || []}
+            toUsernames={callMetadata.toUsernames || {}}
+            fromUsername={callMetadata.fromUsername}
+            groupName={callMetadata.groupName}
             isVideo={callType === "video"}
             isAcceptingIncomingCall={true} // Flag to indicate this is an incoming call
             testMode={{
