@@ -874,7 +874,6 @@ export default function RoomHeader({
                         </Box>
                     </button>
 
-                    {/* existing header layout ... */}
 
                     {/** INSERT THIS RIGHT BEFORE THE CALL BUTTONS **/}
                     <div className={classNames("mx_HeaderSearchWrap", { "mx_HeaderSearchWrap--open": isSearchOpen })}>
@@ -957,49 +956,96 @@ export default function RoomHeader({
                                     Public Conference
                                 </button>
                             
-                            <button
-                                onClick={GroupCallVoice}
-                                disabled={isLiveKitCallActive || !!activeCallData}
-                                title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
-                                style={{
-                                    backgroundColor: "rgb(72, 141, 65)",
-                                    border: "none",
-                                    borderRadius: "50%",
-                                    width: "40px",
-                                    height: "40px",
-                                    padding: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                                    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                                }}
-                            >
-                                <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                            </button>
+                                <button
+  onClick={GroupCallVoice}
+  disabled={isLiveKitCallActive || !!activeCallData}
+  title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
+  style={{
+    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+    border: "none",
+    borderRadius: "50%",
+    width: "40px",
+    height: "40px",
+    padding: "8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+    transition: "all 0.3s ease",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+  }}
+  onMouseOver={(e) => {
+    if (!(isLiveKitCallActive || activeCallData)) {
+      e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+      e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+      e.currentTarget.style.transform = "translateY(-2px)";
+    }
+  }}
+  onMouseOut={(e) => {
+    e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+    e.currentTarget.style.transform = "translateY(0)";
+  }}
+  onMouseDown={(e) => {
+    if (!(isLiveKitCallActive || activeCallData)) {
+      e.currentTarget.style.transform = "scale(0.95)";
+    }
+  }}
+  onMouseUp={(e) => {
+    if (!(isLiveKitCallActive || activeCallData)) {
+      e.currentTarget.style.transform = "scale(1)";
+    }
+  }}
+>
+  <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+</button>
 
-                            <button
-                                onClick={GroupCallVideo}
-                                disabled={isLiveKitCallActive || !!activeCallData}
-                                title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
-                                style={{
-                                    backgroundColor: "rgb(72, 141, 65)",
-                                    border: "none",
-                                    borderRadius: "50%",
-                                    width: "40px",
-                                    height: "40px",
-                                    padding: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                                    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                                }}
-                            >
-                                <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                            </button>
+<button
+  onClick={GroupCallVideo}
+  disabled={isLiveKitCallActive || !!activeCallData}
+  title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
+  style={{
+    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+    border: "none",
+    borderRadius: "50%",
+    width: "40px",
+    height: "40px",
+    padding: "8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+    transition: "all 0.3s ease",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+  }}
+  onMouseOver={(e) => {
+    if (!(isLiveKitCallActive || activeCallData)) {
+      e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+      e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+      e.currentTarget.style.transform = "translateY(-2px)";
+    }
+  }}
+  onMouseOut={(e) => {
+    e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+    e.currentTarget.style.transform = "translateY(0)";
+  }}
+  onMouseDown={(e) => {
+    if (!(isLiveKitCallActive || activeCallData)) {
+      e.currentTarget.style.transform = "scale(0.95)";
+    }
+  }}
+  onMouseUp={(e) => {
+    if (!(isLiveKitCallActive || activeCallData)) {
+      e.currentTarget.style.transform = "scale(1)";
+    }
+  }}
+>
+  <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+</button>
+
                         </>
                     )}
 
