@@ -1456,8 +1456,6 @@ const startIncomingCallSound = (): void => {
 };
 
 const stopIncomingCallSound = (): void => {
-    console.log("🔇 Stopping incoming call sound");
-
     try {
         // Stop our tracked audio
         if (currentIncomingCallAudio) {
@@ -1718,16 +1716,18 @@ const AudioCallInterface: React.FC<{
             );
 
             // Capture roomData now while it's still available, before component might unmount
-            // For incoming calls, use __incomingCallData as fallback if __currentLiveKitRoomData is not available
+            // Prioritize incoming call data for complete participant context, fallback to current room data
             const currentRoomData = (window as any).__currentLiveKitRoomData;
             const incomingCallData = (window as any).__incomingCallData;
 
-            const roomData = currentRoomData || incomingCallData;
-            console.log("roomData captured for auto leave", {
+            const roomData = incomingCallData || currentRoomData;
+            console.log("📊 roomData captured for auto leave", {
                 currentRoomData,
                 incomingCallData,
                 finalRoomData: roomData,
-                source: currentRoomData ? "currentLiveKitRoomData" : incomingCallData ? "incomingCallData" : "none",
+                source: roomData === incomingCallData ? "incomingCallData" : "currentRoomData",
+                incomingToUserIds: incomingCallData?.toUserIds,
+                currentToUserIds: currentRoomData?.toUserIds,
             });
             console.log("isGroupCall", isGroupCall);
 
@@ -1735,20 +1735,75 @@ const AudioCallInterface: React.FC<{
                 if (room && room.state === "connected" && participantCount === 1) {
                     console.log("🎯 Auto-leaving audio call - only one participant remaining");
 
-                    // Emit call ended event before disconnecting for group calls using captured roomData
-                    if (roomData?.roomId && roomData?.toUserIds) {
+                    // Build participant IDs from actual participants for more reliable context
+                    // This ensures we have complete participant info even when roomData is incomplete
+                    let participantIds: string[] = [];
+
+                    // Prioritize incoming call data as it contains the most complete participant list
+                    const currentRoomData = (window as any).__currentLiveKitRoomData;
+                    console.log("currentRoomData", currentRoomData);
+                    const incomingCallData = (window as any).__incomingCallData;
+                    console.log("incomingCallData", incomingCallData);
+                    if (incomingCallData?.toUserIds && incomingCallData.toUserIds.length > 1) {
+                        // Use incoming call data as it has the most complete participant list
+                        participantIds = incomingCallData.toUserIds;
                         console.log(
-                            "📞 Auto-leave audio call - emitting CALL_ENDED event for group call with captured data",
+                            "📞 Using incoming call data toUserIds for complete participant context:",
+                            participantIds,
                         );
-                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                    } else if (currentRoomData?.toUserIds && currentRoomData.toUserIds.length > 0) {
+                        // Fallback to current room data
+                        participantIds = currentRoomData.toUserIds;
+                        console.log("📞 Using current room data toUserIds for participant context:", participantIds);
+                    } else {
+                        // Fallback: build from current and recent participants
+                        // Include all participants who were in the call (current + recently left)
+                        const currentParticipantIds = participants
+                            .map((p) => p.identity)
+                            .filter((identity) => identity && identity.trim() !== "");
+
+                        // Get recently left participants from global call data if available
+                        const globalCallData = (window as any).__globalActiveCallData;
+                        const recentParticipants = globalCallData?.participants || [];
+                        const recentParticipantIds = recentParticipants
+                            .map((p: any) => p.userId || p.id)
+                            .filter(Boolean);
+
+                        // Also get comprehensive participant tracking
+                        const allCallParticipants = (window as any).__allCallParticipants || new Set<string>();
+                        const trackedParticipantIds = Array.from(allCallParticipants);
+
+                        // Combine and deduplicate
+                        participantIds = [
+                            ...new Set([...currentParticipantIds, ...recentParticipantIds, ...trackedParticipantIds]),
+                        ];
+                        console.log("📞 Built participant IDs from current and recent participants:", {
+                            currentParticipantIds,
+                            recentParticipantIds,
+                            trackedParticipantIds,
+                            finalParticipantIds: participantIds,
+                        });
+                    }
+
+                    // Emit call ended event before disconnecting for group calls
+                    const finalRoomId = roomData?.roomId || currentRoomData?.roomId || incomingCallData?.roomId;
+                    if (finalRoomId && participantIds.length > 0) {
+                        console.log("📞 Auto-leave audio call - emitting CALL_ENDED event with participant context", {
+                            roomId: finalRoomId,
+                            participantIds,
+                            dataSource: roomData === incomingCallData ? "incomingCallData" : "currentRoomData",
+                        });
+                        emitCallEndedEvent(finalRoomId, participantIds).catch((err) =>
                             console.error("Failed to emit call ended event on auto-leave:", err),
                         );
                     } else {
                         console.warn("📞 Auto-leave audio call - cannot emit CALL_ENDED event", {
                             hasRoomData: !!roomData,
-                            hasRoomId: !!roomData?.roomId,
-                            hasToUserIds: !!roomData?.toUserIds,
+                            hasRoomId: !!finalRoomId,
+                            participantIdsLength: participantIds.length,
                             isGroupCall,
+                            currentRoomDataRoomId: currentRoomData?.roomId,
+                            incomingCallDataRoomId: incomingCallData?.roomId,
                         });
                     }
 
@@ -1760,7 +1815,7 @@ const AudioCallInterface: React.FC<{
                 }
             }, graceTime);
         }
-    }, [participantCount, room, isGroupCall]);
+    }, [participantCount, room, isGroupCall, participants]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -2735,11 +2790,11 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
             console.log("🎯 Only one participant left after video call was established - scheduling auto-leave");
 
             // Capture roomData now while it's still available, before component might unmount
-            // For incoming calls, use __incomingCallData as fallback if __currentLiveKitRoomData is not available
+            // Prioritize incoming call data for complete participant context, fallback to current room data
             const currentRoomData = (window as any).__currentLiveKitRoomData;
             const incomingCallData = (window as any).__incomingCallData;
 
-            const roomData = currentRoomData || incomingCallData;
+            const roomData = incomingCallData || currentRoomData;
             // For video calls, determine if it's a group call based on toUserIds length
             const isGroupVideoCall = roomData?.toUserIds && roomData.toUserIds.length > 1;
             console.log("roomData captured for video auto leave", {
@@ -2754,20 +2809,79 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 if (room && room.state === "connected" && currentCount === 1) {
                     console.log("🎯 Auto-leaving video call - only one participant remaining");
 
-                    // Emit call ended event before disconnecting for group calls using captured roomData
-                    if (roomData?.roomId && roomData?.toUserIds) {
+                    // Build participant IDs from actual participants for more reliable context
+                    // This ensures we have complete participant info even when roomData is incomplete
+                    let participantIds: string[] = [];
+
+                    // Prioritize incoming call data as it contains the most complete participant list
+                    const currentRoomData = (window as any).__currentLiveKitRoomData;
+                    const incomingCallData = (window as any).__incomingCallData;
+
+                    if (incomingCallData?.toUserIds && incomingCallData.toUserIds.length > 1) {
+                        // Use incoming call data as it has the most complete participant list
+                        participantIds = incomingCallData.toUserIds;
                         console.log(
-                            "📞 Auto-leave video call - emitting CALL_ENDED event for group call with captured data",
+                            "📞 Using incoming call data toUserIds for complete video participant context:",
+                            participantIds,
                         );
-                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                    } else if (currentRoomData?.toUserIds && currentRoomData.toUserIds.length > 0) {
+                        // Fallback to current room data
+                        participantIds = currentRoomData.toUserIds;
+                        console.log(
+                            "📞 Using current room data toUserIds for video participant context:",
+                            participantIds,
+                        );
+                    } else {
+                        // Fallback: build from current and recent participants
+                        // Include all participants who were in the call (current + recently left)
+                        const roomParticipants = room
+                            ? Array.from(room.remoteParticipants.values()).concat(room.localParticipant)
+                            : [];
+                        const currentParticipantIds = roomParticipants
+                            .map((p: any) => p.identity)
+                            .filter((identity) => identity && identity.trim() !== "");
+
+                        // Get recently left participants from global call data if available
+                        const globalCallData = (window as any).__globalActiveCallData;
+                        const recentParticipants = globalCallData?.participants || [];
+                        const recentParticipantIds = recentParticipants
+                            .map((p: any) => p.userId || p.id)
+                            .filter(Boolean);
+
+                        // Also get comprehensive participant tracking
+                        const allCallParticipants = (window as any).__allCallParticipants || new Set<string>();
+                        const trackedParticipantIds = Array.from(allCallParticipants);
+
+                        // Combine and deduplicate
+                        participantIds = [
+                            ...new Set([...currentParticipantIds, ...recentParticipantIds, ...trackedParticipantIds]),
+                        ];
+                        console.log("📞 Built video participant IDs from current and recent participants:", {
+                            currentParticipantIds,
+                            recentParticipantIds,
+                            finalParticipantIds: participantIds,
+                        });
+                    }
+
+                    // Emit call ended event before disconnecting for group calls
+                    const finalRoomId = roomData?.roomId || currentRoomData?.roomId || incomingCallData?.roomId;
+                    if (finalRoomId && participantIds.length > 0) {
+                        console.log("📞 Auto-leave video call - emitting CALL_ENDED event with participant context", {
+                            roomId: finalRoomId,
+                            participantIds,
+                            dataSource: roomData === incomingCallData ? "incomingCallData" : "currentRoomData",
+                        });
+                        emitCallEndedEvent(finalRoomId, participantIds).catch((err) =>
                             console.error("Failed to emit call ended event on video auto-leave:", err),
                         );
                     } else {
                         console.warn("📞 Auto-leave video call - cannot emit CALL_ENDED event", {
                             hasRoomData: !!roomData,
-                            hasRoomId: !!roomData?.roomId,
-                            hasToUserIds: !!roomData?.toUserIds,
+                            hasRoomId: !!finalRoomId,
+                            participantIdsLength: participantIds.length,
                             isGroupVideoCall,
+                            currentRoomDataRoomId: currentRoomData?.roomId,
+                            incomingCallDataRoomId: incomingCallData?.roomId,
                         });
                     }
 
@@ -3697,6 +3811,11 @@ export const VideoRoom = ({
         };
 
         window.addEventListener("liveKitParticipantCountUpdate", handleParticipantCountUpdate as EventListener);
+
+        // Initialize global participant tracking if not already done
+        if (!(window as any).__allCallParticipants) {
+            (window as any).__allCallParticipants = new Set<string>();
+        }
 
         return () => {
             // Clean up room data and event listener when component unmounts
