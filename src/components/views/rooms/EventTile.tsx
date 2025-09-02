@@ -839,15 +839,16 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         // Try to find an anchor element
         const anchorElement = clickTarget instanceof HTMLAnchorElement ? clickTarget : clickTarget.closest("a");
 
-        // There is no way to copy non-PNG images into clipboard, so we can't
-        // have our own handling for copying images, so we leave it to the
-        // Electron layer (webcontents-handler.ts)
-        if (clickTarget instanceof HTMLImageElement) return;
+        // Previously, right-clicking images bypassed our custom menu to defer to the native handler.
+        // Enable our context menu on images so users can react/forward/remove directly from the timeline.
 
-        // Return if we're in a browser and click either an a tag or we have
-        // selected text, as in those cases we want to use the native browser
-        // menu
-        if (!PlatformPeg.get()?.allowOverridingNativeContextMenus() && (getSelectedText() || anchorElement)) return;
+        // Return if we're in a browser and have selected text, as in that case we want the native menu.
+        // For anchor elements, allow our custom menu when right-clicking images specifically.
+        if (
+            !PlatformPeg.get()?.allowOverridingNativeContextMenus() &&
+            (getSelectedText() || (anchorElement && !(clickTarget instanceof HTMLImageElement)))
+        )
+            return;
 
         // We don't want to show the menu when editing a message
         if (this.props.editState) return;

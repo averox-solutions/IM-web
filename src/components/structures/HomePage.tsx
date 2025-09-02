@@ -121,21 +121,22 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
                     {/* Tooltips positioned on the left and right */}
                     {showTooltip && (
                         <div
-                            style={{
-                                position: "absolute",
-                                left: "-220px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                background: "rgba(76, 190, 82,0.42)",
-                                color: "#616161",
-                                padding: "10px",
-                                borderRadius: "8px",
-                                width: "200px",
-                                textAlign: "left",
-                                boxShadow: "0 4px 6px rgba(30, 147, 36,0.63)",
-                            }}
+                        style={{
+                            position: "absolute",
+                            left: "-194px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(76, 190, 82,0.42)",
+                            color: "#616161",
+                            padding: "12px 16px",
+                            borderRadius: "8px",
+                            width: "200px",
+                            textAlign: "left",
+                            boxShadow: "0px 6px 6px rgba(30, 147, 36,0.63)",
+                            boxSizing: "border-box",
+                          }}
                         >
-                            <ul>
+                            <ul style={{ margin: 0, padding: 0, listStyle: "disc inside", lineHeight: 1.5 }}>
                                 <li>Click "Send Message" and add the user ID to start a one-on-one chat.</li>
                                 <li>Click "Explore Group" to search and join chats, groups, or rooms.</li>
                             </ul>
@@ -144,21 +145,22 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
 
                     {showTooltip && (
                         <div
-                            style={{
-                                position: "absolute",
-                                right: "-220px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                background: "rgba(76, 190, 82,0.42)",
-                                color: "#616161",
-                                padding: "10px",
-                                borderRadius: "8px",
-                                width: "200px",
-                                textAlign: "left",
-                                boxShadow: "0 4px 6px rgba(30, 147, 36,0.63)",
-                            }}
+                        style={{
+                            position: "absolute",
+                            right: "-192px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(76, 190, 82,0.42)",
+                            color: "#616161",
+                            padding: "12px 16px",
+                            borderRadius: "8px",
+                            width: "200px",
+                            textAlign: "left",
+                            boxShadow: "0px 6px 6px rgba(30, 147, 36,0.63)",
+                            boxSizing: "border-box",
+                          }}
                         >
-                            <ul>
+                            <ul style={{ margin: 0, padding: 0, listStyle: "disc inside", lineHeight: 1.5 }}>
                                 <li>Click "Group Chat" to create a group chat and invite users.</li>
                                 <li>Click "Create" select "Video Group" to start a video chat.</li>
                             </ul>

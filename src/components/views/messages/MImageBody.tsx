@@ -12,7 +12,7 @@ import { Blurhash } from "react-blurhash";
 import classNames from "classnames";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { logger } from "matrix-js-sdk/src/logger";
-import { ClientEvent } from "matrix-js-sdk/src/matrix";
+import { ClientEvent, MatrixEventEvent } from "matrix-js-sdk/src/matrix";
 import { type ImageContent } from "matrix-js-sdk/src/types";
 import { Tooltip } from "@vector-im/compound-web";
 
@@ -149,7 +149,16 @@ export default class MImageBody extends React.Component<IBodyProps, IState> {
 
     private reconnectedListener = createReconnectedListener((): void => {
         MatrixClientPeg.get()?.off(ClientEvent.Sync, this.reconnectedListener);
-        this.setState({ imgError: false });
+        // Clear any previous failures and force a retry after hard reload/network reconnection
+        this.setState(
+            { imgError: false, error: undefined, contentUrl: null, thumbUrl: null },
+            () => {
+                if (this.state.showImage) {
+                    // noinspection JSIgnoredPromiseFromCall
+                    this.downloadImage();
+                }
+            },
+        );
     });
 
     private onImageError = (): void => {
@@ -370,6 +379,9 @@ export default class MImageBody extends React.Component<IBodyProps, IState> {
         this.sizeWatcher = SettingsStore.watchSetting("Images.size", null, () => {
             this.forceUpdate(); // we don't really have a reliable thing to update, so just update the whole thing
         });
+
+        // Retry when the event finishes decrypting after a hard refresh
+        this.props.mxEvent.on(MatrixEventEvent.Decrypted, this.onEventDecrypted);
     }
 
     public componentWillUnmount(): void {
@@ -380,7 +392,21 @@ export default class MImageBody extends React.Component<IBodyProps, IState> {
         if (this.state.isAnimated && this.state.thumbUrl) {
             URL.revokeObjectURL(this.state.thumbUrl);
         }
+        this.props.mxEvent.removeListener(MatrixEventEvent.Decrypted, this.onEventDecrypted);
     }
+
+    private onEventDecrypted = (): void => {
+        if (this.unmounted) return;
+        this.setState(
+            { imgError: false, error: undefined, contentUrl: null, thumbUrl: null },
+            () => {
+                if (this.state.showImage) {
+                    // noinspection JSIgnoredPromiseFromCall
+                    this.downloadImage();
+                }
+            },
+        );
+    };
 
     protected getBanner(content: ImageContent): ReactNode {
         // Hide it for the threads list & the file panel where we show it as text anyway.
