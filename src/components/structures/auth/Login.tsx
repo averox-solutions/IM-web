@@ -78,6 +78,13 @@ interface IState {
     twoFAToken?: string;
     isVerifying2FA: boolean; // ✅ Added this here
     isVerified: boolean; 
+
+    // 2FA setup (generate) data
+    generating2FA?: boolean;
+    generate2FAError?: string;
+    twoFASecret?: string;
+    twoFAOtpauthUrl?: string;
+    twoFAQr?: string;
 }
 
 
@@ -119,6 +126,11 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             otpauthUrl: undefined,
             twoFAMessage: undefined,
             twoFAToken: "",
+            generating2FA: false,
+            generate2FAError: undefined,
+            twoFASecret: undefined,
+            twoFAOtpauthUrl: undefined,
+            twoFAQr: undefined,
         };
         
         // map from login step type to a function which will render a control
@@ -250,7 +262,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                 {
                     method: "GET",
                     headers: {
-                        "api-key": TWO_FA_API_KEY,
+                        "api-key": TWO_FA_API_KEY as string,
                         "Content-Type": "application/json",
                     },
                 }
@@ -259,7 +271,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             const statusResult = await statusResponse.json();
             if (!statusResponse.ok) throw new Error(statusResult?.error || "Failed to check 2FA status");
     
-            const { isEnabled } = statusResult;
+            const { isEnabled, isConfigured } = statusResult;
     
             if (isEnabled) {
                 // ✅ Persist 2FA state in localStorage for refresh
@@ -273,8 +285,15 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                 // ✅ Show 2FA UI
                 this.setState({
                     show2FA: true,
-                    twoFAMessage: "Enter your 6-digit 2FA code",
+                    twoFAMessage: isConfigured
+                        ? "Enter your 6-digit 2FA code"
+                        : "Scan the QR to set up 2FA, then enter the code",
                 });
+
+                // If enabled but not configured, generate secret & QR for initial setup
+                if (!isConfigured) {
+                    await this.generate2FASecret(formattedUsername);
+                }
             } else {
                 // ✅ If no 2FA, log in directly
                 localStorage.removeItem("twoFAState");
@@ -301,6 +320,32 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             });
         }
     };
+
+    /** Generate new 2FA secret and QR code for first-time setup */
+    private async generate2FASecret(username: string): Promise<void> {
+        const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
+        this.setState({ generating2FA: true, generate2FAError: undefined, twoFASecret: undefined, twoFAOtpauthUrl: undefined, twoFAQr: undefined });
+        try {
+            const response = await fetch("https://em4.averox.com/2fa/generate", {
+                method: "POST",
+                headers: {
+                    "api-key": TWO_FA_API_KEY as string,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ username }),
+            });
+            if (!response.ok) throw new Error("Failed to generate 2FA secret");
+            const result = await response.json();
+            this.setState({
+                generating2FA: false,
+                twoFASecret: result?.secret,
+                twoFAOtpauthUrl: result?.otpauth_url,
+                twoFAQr: result?.qr,
+            });
+        } catch (e: any) {
+            this.setState({ generating2FA: false, generate2FAError: e?.message || "Failed to generate 2FA details" });
+        }
+    }
     
     // ✅ Add a helper function to clear storage and refresh page
     private handleGoBackToLogin = (): void => {
@@ -776,7 +821,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         } catch (error) {
             // If server check or flow fetch fails
             this.setState({
-                errorText: messageForConnectionError(error, this.props.serverConfig),
+                errorText: messageForConnectionError(error as Error, this.props.serverConfig),
                 loginIncorrect: false,
                 canTryLogin: false,
             });
@@ -962,8 +1007,30 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         {twoFAMessage || "Enter your 6-digit 2FA code"}
                     </h3>
     
+                    {/* Show QR/secret if we are in initial setup */}
+                    {this.state.generating2FA && (
+                        <div style={{ color: "#666", marginBottom: 12 }}>Preparing your 2FA setup…</div>
+                    )}
+                    {this.state.generate2FAError && (
+                        <div style={{ color: "red", marginBottom: 12 }}>{this.state.generate2FAError}</div>
+                    )}
                     {!isVerified && (
                         <>
+                            {(this.state.twoFAQr || this.state.twoFASecret) && (
+                                <div style={{ width: "100%", border: "1px solid #ccc", borderRadius: 6, padding: 12, marginBottom: 12 }}>
+                                    <h4 style={{ margin: 0, marginBottom: 8, color: "#000" }}>Set up Two-Factor Authentication</h4>
+                                    {this.state.twoFAQr && (
+                                        <div style={{ textAlign: "center", marginBottom: 8 }}>
+                                            <img src={this.state.twoFAQr} alt="2FA QR Code" style={{ maxWidth: 200, maxHeight: 200 }} />
+                                        </div>
+                                    )}
+                                    {this.state.twoFASecret && (
+                                        <div style={{ color: "#000", wordBreak: "break-all" }}>
+                                            <strong>Secret:</strong> {this.state.twoFASecret}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <input
                                 type="text"
                                 placeholder="Enter 6-digit code"
@@ -1051,6 +1118,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                 onForgotPasswordClick={this.props.onForgotPasswordClick}
                 loginIncorrect={this.state.loginIncorrect}
                 serverConfig={this.props.serverConfig}
+                showPassword={true}
                 disableSubmit={this.isBusy()}
                 busy={this.props.isSyncing || this.state.busyLoggingIn}
             />

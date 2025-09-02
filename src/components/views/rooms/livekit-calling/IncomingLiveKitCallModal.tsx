@@ -148,8 +148,8 @@ export const IncomingLiveKitCallModal: React.FC<IncomingLiveKitCallModalProps> =
                         color: "#666",
                         fontWeight: "500",
                     }}
-                >
-                    {caller} is calling you
+                >you
+                    {caller} is calling 
                 </p>
 
                 {/* Call Details */}

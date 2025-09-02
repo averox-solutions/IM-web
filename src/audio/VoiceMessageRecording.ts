@@ -50,6 +50,36 @@ export class VoiceMessageRecording implements IDestroyable {
         return this.audioBuffer;
     }
 
+    // public async pause(): Promise<void> {
+    //     if (!this.voiceRecording.isRecording) {
+    //         throw new Error("Cannot pause: not currently recording");
+    //     }
+    //     // Store current recording state
+    //     this.voiceRecording.pauseRecording();
+    // }
+
+    // public async resume(): Promise<void> {
+    //     if (this.voiceRecording.isRecording) {
+    //         throw new Error("Cannot resume: already recording");
+    //     }
+    //     // Resume from where we left off
+    //     this.voiceRecording.resumeRecording();
+    // }
+    public async pause(): Promise<void> {
+        if (!this.voiceRecording.isRecording || this.voiceRecording.isPaused) {
+            throw new Error("Cannot pause: not currently recording or already paused");
+        }
+        await this.voiceRecording.pauseRecording();
+    }
+    
+    public async resume(): Promise<void> {
+        if (!this.voiceRecording.isRecording || !this.voiceRecording.isPaused) {
+            throw new Error("Cannot resume: not paused");
+        }
+        await this.voiceRecording.resumeRecording();
+    }
+    
+
     public on(event: string | symbol, listener: (...args: any[]) => void): this {
         this.voiceRecording.on(event, listener);
         return this;

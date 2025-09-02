@@ -35,6 +35,8 @@ import RoomContext from "../../../contexts/RoomContext";
 import { type IUpload, type VoiceMessageRecording } from "../../../audio/VoiceMessageRecording";
 import { createVoiceMessageContent } from "../../../utils/createVoiceMessageContent";
 import AccessibleButton from "../elements/AccessibleButton";
+import PlayIcon from "@vector-im/compound-design-tokens/assets/web/icons/play-solid";
+import PauseIcon from "@vector-im/compound-design-tokens/assets/web/icons/pause-solid";
 
 interface IProps {
     room: Room;
@@ -46,6 +48,7 @@ interface IState {
     recorder?: VoiceMessageRecording;
     recordingPhase?: RecordingState;
     didUploadFail?: boolean;
+    isPaused?: boolean;
 }
 
 /**
@@ -151,15 +154,33 @@ export default class VoiceRecordComposerTile extends React.PureComponent<IProps,
         await VoiceRecordingStore.instance.disposeRecording(this.voiceRecordingId);
 
         // Reset back to no recording, which means no phase (ie: restart component entirely)
-        this.setState({ recorder: undefined, recordingPhase: undefined, didUploadFail: false });
+        this.setState({ recorder: undefined, recordingPhase: undefined, didUploadFail: false, isPaused: false });
     }
 
     private onCancel = async (): Promise<void> => {
         await this.disposeRecording();
     };
 
+    private onPauseResumeClick = async (): Promise<void> => {
+        if (!this.state.recorder) return;
+
+        try {
+            if (this.state.isPaused) {
+                // Resume recording
+                await this.state.recorder.resume();
+                this.setState({ isPaused: false });
+            } else {
+                // Pause recording
+                await this.state.recorder.pause();
+                this.setState({ isPaused: true });
+            }
+        } catch (e) {
+            logger.error("Error pausing/resuming recording:", e);
+        }
+    };
+
     public onRecordStartEndClick = async (): Promise<void> => {
-        if (this.state.recorder) {
+        if (this.state.recorder && this.state.recorder.isRecording) {
             await this.state.recorder.stop();
             return;
         }
@@ -206,7 +227,7 @@ export default class VoiceRecordComposerTile extends React.PureComponent<IProps,
 
             this.bindNewRecorder(recorder);
 
-            this.setState({ recorder, recordingPhase: RecordingState.Started });
+            this.setState({ recorder, recordingPhase: RecordingState.Started, isPaused: false });
         } catch (e) {
             logger.error("Error starting recording: ", e);
             accessError();
@@ -228,16 +249,23 @@ export default class VoiceRecordComposerTile extends React.PureComponent<IProps,
     private onRecordingUpdate = (ev: RecordingState): void => {
         if (ev === RecordingState.EndingSoon) return; // ignore this state: it has no UI purpose here
         this.setState({ recordingPhase: ev });
+        
+        // Update pause state based on recording phase
+        if (ev === RecordingState.Paused) {
+            this.setState({ isPaused: true });
+        } else if (ev === RecordingState.Started) {
+            this.setState({ isPaused: false });
+        }
     };
 
     private renderWaveformArea(): ReactNode {
         if (!this.state.recorder) return null; // no recorder means we're not recording: no waveform
 
-        if (this.state.recordingPhase !== RecordingState.Started) {
+        if (this.state.recordingPhase !== RecordingState.Started && this.state.recordingPhase !== RecordingState.Paused) {
             return <RecordingPlayback playback={this.state.recorder.getPlayback()} layout={PlaybackLayout.Composer} />;
         }
 
-        // only other UI is the recording-in-progress UI
+        // Show live recording UI for both Started and Paused states
         return (
             <div className="mx_MediaBody mx_VoiceMessagePrimaryContainer mx_VoiceRecordComposerTile_recording">
                 <LiveRecordingClock recorder={this.state.recorder} />
@@ -246,67 +274,158 @@ export default class VoiceRecordComposerTile extends React.PureComponent<IProps,
         );
     }
 
+    // public render(): ReactNode {
+    //     if (!this.state.recordingPhase) return null;
+
+    //     let stopBtn;
+    //     let pauseResumeBtn;
+    //     let deleteButton;
+    //     if (this.state.recordingPhase === RecordingState.Started || this.state.recordingPhase === RecordingState.Paused) {
+    //         let tooltip = _t("composer|send_voice_message");
+    //         if (!!this.state.recorder) {
+    //             tooltip = _t("composer|stop_voice_message");
+    //         }
+
+    //         stopBtn = (
+    //             <AccessibleButton
+    //                 className="mx_VoiceRecordComposerTile_stop"
+    //                 onClick={this.onRecordStartEndClick}
+    //                 title={tooltip}
+    //             />
+    //         );
+    //         if (this.state.recorder && !this.state.recorder?.isRecording && !this.state.isPaused) {
+    //             stopBtn = null;
+    //         }
+
+    //         // Add pause/resume button
+    //         if (this.state.recorder && (this.state.recorder.isRecording || this.state.isPaused)) {
+    //             const pauseResumeTooltip = this.state.isPaused 
+    //                 ? "Resume recording" 
+    //                 : "Pause recording";
+                
+    //             pauseResumeBtn = (
+    //                 <AccessibleButton
+    //                     className={`mx_VoiceRecordComposerTile_pauseResume ${this.state.isPaused ? 'paused' : ''}`}
+    //                     onClick={this.onPauseResumeClick}
+    //                     title={pauseResumeTooltip}
+    //                 >
+    //                     {this.state.isPaused ? '▶️' : '⏸️'}
+    //                 </AccessibleButton>
+    //             );
+    //         }
+    //     }
+
+    //     if (this.state.recorder && this.state.recordingPhase !== RecordingState.Uploading) {
+    //         deleteButton = (
+    //             <AccessibleButton
+    //                 className="mx_VoiceRecordComposerTile_delete"
+    //                 title={_t("action|delete")}
+    //                 onClick={this.onCancel}
+    //             />
+    //         );
+    //     }
+
+    //     let uploadIndicator;
+    //     if (this.state.recordingPhase === RecordingState.Uploading) {
+    //         uploadIndicator = (
+    //             <span className="mx_VoiceRecordComposerTile_uploadingState">
+    //                 <InlineSpinner w={16} h={16} />
+    //             </span>
+    //         );
+    //     } else if (this.state.didUploadFail && this.state.recordingPhase === RecordingState.Ended) {
+    //         uploadIndicator = (
+    //             <span className="mx_VoiceRecordComposerTile_failedState">
+    //                 <span className="mx_VoiceRecordComposerTile_uploadState_badge">
+    //                     {/* Need to stick the badge in a span to ensure it doesn't create a block component */}
+    //                     <NotificationBadge
+    //                         notification={StaticNotificationState.forSymbol("!", NotificationLevel.Highlight)}
+    //                     />
+    //                 </span>
+    //                 <span className="text-warning">{_t("timeline|send_state_failed")}</span>
+    //             </span>
+    //         );
+    //     }
+
+    //     return (
+    //         <>
+    //             {uploadIndicator}
+    //             {deleteButton}
+    //             {pauseResumeBtn}
+    //             {stopBtn}
+    //             {this.renderWaveformArea()}
+    //         </>
+    //     );
+    // }
     public render(): ReactNode {
-        if (!this.state.recordingPhase) return null;
+    if (!this.state.recordingPhase) return null;
 
-        let stopBtn;
-        let deleteButton;
-        if (this.state.recordingPhase === RecordingState.Started) {
-            let tooltip = _t("composer|send_voice_message");
-            if (!!this.state.recorder) {
-                tooltip = _t("composer|stop_voice_message");
-            }
+    let mainToggleBtn;
+    let deleteButton;
+    let uploadIndicator;
 
-            stopBtn = (
-                <AccessibleButton
-                    className="mx_VoiceRecordComposerTile_stop"
-                    onClick={this.onRecordStartEndClick}
-                    title={tooltip}
-                />
-            );
-            if (this.state.recorder && !this.state.recorder?.isRecording) {
-                stopBtn = null;
-            }
-        }
+    // Show the single Pause/Play toggle whenever we are in a live session
+    if (
+        this.state.recorder &&
+        (this.state.recordingPhase === RecordingState.Started ||
+         this.state.recordingPhase === RecordingState.Paused)
+    ) {
+        const isPaused = !!this.state.isPaused;
 
-        if (this.state.recorder && this.state.recordingPhase !== RecordingState.Uploading) {
-            deleteButton = (
-                <AccessibleButton
-                    className="mx_VoiceRecordComposerTile_delete"
-                    title={_t("action|delete")}
-                    onClick={this.onCancel}
-                />
-            );
-        }
-
-        let uploadIndicator;
-        if (this.state.recordingPhase === RecordingState.Uploading) {
-            uploadIndicator = (
-                <span className="mx_VoiceRecordComposerTile_uploadingState">
-                    <InlineSpinner w={16} h={16} />
-                </span>
-            );
-        } else if (this.state.didUploadFail && this.state.recordingPhase === RecordingState.Ended) {
-            uploadIndicator = (
-                <span className="mx_VoiceRecordComposerTile_failedState">
-                    <span className="mx_VoiceRecordComposerTile_uploadState_badge">
-                        {/* Need to stick the badge in a span to ensure it doesn't create a block component */}
-                        <NotificationBadge
-                            notification={StaticNotificationState.forSymbol("!", NotificationLevel.Highlight)}
-                        />
-                    </span>
-                    <span className="text-warning">{_t("timeline|send_state_failed")}</span>
-                </span>
-            );
-        }
-
-        return (
-            <>
-                {uploadIndicator}
-                {deleteButton}
-                {stopBtn}
-                {this.renderWaveformArea()}
-            </>
+        // Use the same onPauseResumeClick you already have
+        mainToggleBtn = (
+            <AccessibleButton
+                // keep layout styling where the old stop button lived; add a pauseResume class for theming
+                className={`mx_VoiceRecordComposerTile_stop mx_VoiceRecordComposerTile_pauseResume ${isPaused ? "paused" : "recording"}`}
+                onClick={this.onPauseResumeClick}
+                // ARIA: toggle buttons should expose aria-pressed
+                aria-pressed={!isPaused}
+                aria-label={isPaused ? "Resume recording" : "Pause recording"}
+                title={isPaused ? "Resume recording" : "Pause recording"}
+                data-testid="voice-toggle"
+            >
+                {/* Icon swap only; the text is aria-hidden so SRs announce via aria-label */}
+                <span aria-hidden="true">{isPaused ? <PlayIcon /> : <PauseIcon />}</span>
+            </AccessibleButton>
         );
     }
+
+    if (this.state.recorder && this.state.recordingPhase !== RecordingState.Uploading) {
+        deleteButton = (
+            <AccessibleButton
+                className="mx_VoiceRecordComposerTile_delete"
+                title={_t("action|delete")}
+                onClick={this.onCancel}
+            />
+        );
+    }
+
+    if (this.state.recordingPhase === RecordingState.Uploading) {
+        uploadIndicator = (
+            <span className="mx_VoiceRecordComposerTile_uploadingState">
+                <InlineSpinner w={16} h={16} />
+            </span>
+        );
+    } else if (this.state.didUploadFail && this.state.recordingPhase === RecordingState.Ended) {
+        uploadIndicator = (
+            <span className="mx_VoiceRecordComposerTile_failedState">
+                <span className="mx_VoiceRecordComposerTile_uploadState_badge">
+                    <NotificationBadge
+                        notification={StaticNotificationState.forSymbol("!", NotificationLevel.Highlight)}
+                    />
+                </span>
+                <span className="text-warning">{_t("timeline|send_state_failed")}</span>
+            </span>
+        );
+    }
+
+    return (
+        <>
+            {uploadIndicator}
+            {deleteButton}
+            {mainToggleBtn}
+            {this.renderWaveformArea()}
+        </>
+    );
+}
+
 }

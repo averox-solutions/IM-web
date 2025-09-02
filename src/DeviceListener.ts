@@ -372,16 +372,17 @@ export default class DeviceListener {
 
         // Display or hide the batch toast for old unverified sessions
         // don't show the toast if the current device is unverified
-        if (
-            oldUnverifiedDeviceIds.size > 0 &&
-            isCurrentDeviceTrusted &&
-            this.enableBulkUnverifiedSessionsReminder &&
-            !isBulkUnverifiedSessionsReminderSnoozed
-        ) {
-            showBulkUnverifiedSessionsToast(oldUnverifiedDeviceIds);
-        } else {
-            hideBulkUnverifiedSessionsToast();
-        }
+        // Disabled bulk unverified sessions toast
+        // if (
+        //     oldUnverifiedDeviceIds.size > 0 &&
+        //     isCurrentDeviceTrusted &&
+        //     this.enableBulkUnverifiedSessionsReminder &&
+        //     !isBulkUnverifiedSessionsReminderSnoozed
+        // ) {
+        //     showBulkUnverifiedSessionsToast(oldUnverifiedDeviceIds);
+        // } else {
+        //     hideBulkUnverifiedSessionsToast();
+        // }
 
         // Show toasts for new unverified devices if they aren't already there
         for (const deviceId of newUnverifiedDeviceIds) {
