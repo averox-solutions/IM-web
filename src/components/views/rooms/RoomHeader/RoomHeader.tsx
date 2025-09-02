@@ -70,84 +70,12 @@ import { VideoRoom } from "../livekit-calling/VideoRoom";
 import LiveKitRoomManager from "../livekit-calling/LiveKitRoomManager";
 import LegacyCallHandler, { AudioID } from "../../../../LegacyCallHandler";
 import { showToast } from "../Calling/notificationUtils";
-import CryptoJS from "crypto-js";
 import { VideoRoomChatButton } from "./VideoRoomChatButton.tsx";
 import { isVideoRoom as calcIsVideoRoom } from "../../../../utils/video-rooms.ts";
 import { MainSplitContentType } from "../../../structures/RoomView.tsx";
 import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
 
-// --- LOG CALL FUNCTION (AES-CBC, API POST) ---
-export async function logCall(payload: Record<string, any>) {
-    console.log("📞 logCall payload (before encryption):", payload);
 
-    const apiKey =
-        process.env.REACT_APP_MY_API_KEY || "dd567d9dc413ba272f5c418640a53c1ed89cce360b6e28af93f7c422dd0aaa16";
-    const apiUrl = process.env.REACT_APP_CALL_LOG_API_URL || "https://bservices-api.org.pk/api/call-logs/";
-    const rememberKey = localStorage.getItem("rememberKey") || "default-secret";
-
-    // Hash key using SHA-256 and take first 16 bytes (32 hex chars) for AES key + IV
-    const hashedKey = CryptoJS.SHA256(rememberKey).toString(); // 64 hex chars
-    const shortHex = hashedKey.slice(0, 32); // 128-bit = 16 bytes = 32 hex chars
-    const aesKey = CryptoJS.enc.Hex.parse(shortHex);
-    const iv = CryptoJS.enc.Hex.parse(shortHex); // Same IV as key, as in Flutter
-
-    // Inline AES encryption
-    function encryptAES(value: string): string {
-        const encrypted = CryptoJS.AES.encrypt(value, aesKey, {
-            iv,
-            mode: CryptoJS.mode.CBC,
-            padding: CryptoJS.pad.Pkcs7,
-        });
-        return encrypted.toString(); // base64 output
-    }
-
-    const encryptedPayload: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(payload)) {
-        if (key === "userId") {
-            encryptedPayload[key] = value;
-        } else if (typeof value === "boolean") {
-            encryptedPayload[key] = value;
-        } else if (Array.isArray(value)) {
-            encryptedPayload[key] = value.map((item) =>
-                item !== null && item !== undefined ? encryptAES(String(item)) : encryptAES(""),
-            );
-        } else if (value instanceof Date) {
-            encryptedPayload[key] = encryptAES(value.toISOString());
-        } else if (value === null || value === undefined) {
-            encryptedPayload[key] = encryptAES("");
-        } else {
-            encryptedPayload[key] = encryptAES(String(value));
-        }
-    }
-
-    console.log("🔐 logCall encryptedPayload:", encryptedPayload);
-
-    const headers = {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-    };
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: "POST",
-            headers,
-            body: JSON.stringify(encryptedPayload),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`❌ Failed to post call log: ${response.status} ${errorText}`);
-            return;
-        }
-
-        const data = await response.json();
-        console.log("✅ Call log API success:", data);
-        return data;
-    } catch (e) {
-        console.error("🚨 logCall fetch error:", e);
-    }
-}
 
 export default function RoomHeader({
     room,
@@ -246,31 +174,7 @@ export default function RoomHeader({
                 console.warn("❌ Cannot emit call_picked_up from RoomHeader - socket, roomId, or userId not available");
             }
 
-            // Log answered call (not missed)
-            const now = new Date().toISOString();
-            await logCall({
-                userRecords: [
-                    {
-                        userId: currentUserId,
-                        name: [currentUserId],
-                        imageUrl: [null],
-                        isIncoming: false,
-                        isMissedCall: false,
-                        userCalledId: toUserIds,
-                    },
-                    ...toUserIds.map((id) => ({
-                        userId: id,
-                        name: [id],
-                        imageUrl: [null],
-                        isIncoming: true,
-                        isMissedCall: false,
-                        userCalledId: [currentUserId],
-                    })),
-                ],
-                isVideoCall: true,
-                roomId: room.roomId,
-                groupName: roomName,
-            }).catch((e) => console.error("logCall error", e));
+
         },
         [currentUserId],
     );
@@ -399,20 +303,6 @@ export default function RoomHeader({
                 console.log("📞 Setting up call UI for accepted call in this room");
                 console.log("📞 Setting activeCallData to:", activeCall);
                 setActiveCallData(activeCall);
-                const now = new Date().toISOString();
-                logCall({
-                    userId: client.getUserId() || "",
-                    name: [client.getUserId() || ""],
-                    imageUrl: [null],
-                    date: now,
-                    isVideoCall: isLiveKitCallActive ? liveKitCallType === "video" : false,
-                    roomId: room.roomId,
-                    isIncoming: false,
-                    isMissedCall: false, // Not missed
-                    userCalledId: members
-                        .filter((member) => member.userId !== client.getUserId())
-                        .map((member) => member.userId),
-                }).catch((e) => console.error("logCall error", e));
             } else {
                 console.log("❌ Call is not for this room, ignoring");
             }
@@ -444,21 +334,7 @@ export default function RoomHeader({
             showToast("No answer - call ended", "info", 3000);
             console.log("📞 Call timeout handled successfully");
 
-            // Log missed call
-            const now = new Date().toISOString();
-            await logCall({
-                userId: client.getUserId() || "",
-                name: [client.getUserId() || ""],
-                imageUrl: [null],
-                date: now,
-                isVideoCall: isLiveKitCallActive ? liveKitCallType === "video" : false,
-                roomId: room.roomId,
-                isIncoming: false,
-                isMissedCall: false, // Missed call
-                userCalledId: members
-                    .filter((member) => member.userId !== client.getUserId())
-                    .map((member) => member.userId),
-            }).catch((e) => console.error("logCall error", e));
+
         });
 
         // Cleanup function
@@ -676,22 +552,6 @@ export default function RoomHeader({
             document.querySelectorAll(".mx_LiveKitCallNotification").forEach((el) => el.remove());
         }
         console.log("🧹 Removed all existing LiveKit call notifications on call close");
-        const now = new Date().toISOString();
-
-        // Log call end
-        logCall({
-            userId: client.getUserId() || "",
-            name: [client.getUserId() || ""],
-            imageUrl: [null],
-            date: now,
-            isVideoCall: liveKitCallType === "video",
-            roomId: room.roomId,
-            isIncoming: false,
-            isMissedCall: false, // Call was answered and then ended
-            userCalledId: members
-                .filter((member) => member.userId !== client.getUserId())
-                .map((member) => member.userId),
-        }).catch((e) => console.error("logCall error", e));
 
         console.log("📞 closeLiveKitCall: Setting call states to false/null");
         setIsLiveKitCallActive(false);
@@ -915,8 +775,7 @@ export default function RoomHeader({
 
                     {!showChatButton && (
                         <>
-                            
-                                <button
+                        <button
                                     style={{
                                         background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
                                         border: "none",
@@ -956,50 +815,96 @@ export default function RoomHeader({
                                 >
                                     Public Conference
                                 </button>
-                            
-                            <button
-                                onClick={GroupCallVoice}
-                                disabled={isLiveKitCallActive || !!activeCallData}
-                                title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
-                                style={{
-                                    backgroundColor: "rgb(72, 141, 65)",
-                                    border: "none",
-                                    borderRadius: "50%",
-                                    width: "40px",
-                                    height: "40px",
-                                    padding: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                                    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                                }}
-                            >
-                                <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                            </button>
-
-                            <button
-                                onClick={GroupCallVideo}
-                                disabled={isLiveKitCallActive || !!activeCallData}
-                                title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
-                                style={{
-                                    backgroundColor: "rgb(72, 141, 65)",
-                                    border: "none",
-                                    borderRadius: "50%",
-                                    width: "40px",
-                                    height: "40px",
-                                    padding: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    transition: "background-color 0.2s ease, opacity 0.2s ease",
-                                    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-                                    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
-                                }}
-                            >
-                                <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-                            </button>
+                           
+                                <button
+                                        onClick={GroupCallVoice}
+                                        disabled={isLiveKitCallActive || !!activeCallData}
+                                        title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
+                                        style={{
+                                            background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+                                            border: "none",
+                                            borderRadius: "50%",
+                                            width: "40px",
+                                            height: "40px",
+                                            padding: "8px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+                                            opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+                                            transition: "all 0.3s ease",
+                                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                                        }}
+                                        onMouseOver={(e) => {
+                                            if (!(isLiveKitCallActive || activeCallData)) {
+                                            e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+                                            e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+                                            e.currentTarget.style.transform = "translateY(-2px)";
+                                            }
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+                                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+                                            e.currentTarget.style.transform = "translateY(0)";
+                                        }}
+                                        onMouseDown={(e) => {
+                                            if (!(isLiveKitCallActive || activeCallData)) {
+                                            e.currentTarget.style.transform = "scale(0.95)";
+                                            }
+                                        }}
+                                        onMouseUp={(e) => {
+                                            if (!(isLiveKitCallActive || activeCallData)) {
+                                            e.currentTarget.style.transform = "scale(1)";
+                                            }
+                                        }}
+                                        >
+                                        <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                                        </button>
+                                        
+                                        <button
+                                        onClick={GroupCallVideo}
+                                        disabled={isLiveKitCallActive || !!activeCallData}
+                                        title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
+                                        style={{
+                                            background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+                                            border: "none",
+                                            borderRadius: "50%",
+                                            width: "40px",
+                                            height: "40px",
+                                            padding: "8px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
+                                            opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+                                            transition: "all 0.3s ease",
+                                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                                        }}
+                                        onMouseOver={(e) => {
+                                            if (!(isLiveKitCallActive || activeCallData)) {
+                                            e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+                                            e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+                                            e.currentTarget.style.transform = "translateY(-2px)";
+                                            }
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+                                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+                                            e.currentTarget.style.transform = "translateY(0)";
+                                        }}
+                                        onMouseDown={(e) => {
+                                            if (!(isLiveKitCallActive || activeCallData)) {
+                                            e.currentTarget.style.transform = "scale(0.95)";
+                                            }
+                                        }}
+                                        onMouseUp={(e) => {
+                                            if (!(isLiveKitCallActive || activeCallData)) {
+                                            e.currentTarget.style.transform = "scale(1)";
+                                            }
+                                        }}
+                                        >
+                                        <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                                        </button>
                         </>
                     )}
 

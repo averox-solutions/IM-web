@@ -51,6 +51,7 @@ export interface IRecordingUpdate {
 
 export enum RecordingState {
     Started = "started",
+    Paused = "paused",
     EndingSoon = "ending_soon", // emits an object with a single numerical value: secondsLeft
     Ended = "ended",
     Uploading = "uploading",
@@ -65,6 +66,7 @@ export class VoiceRecording extends EventEmitter implements IDestroyable {
     private recorderWorklet?: AudioWorkletNode;
     private recorderProcessor?: ScriptProcessorNode;
     private recording = false;
+    private paused = false;
     private observable?: SimpleObservable<IRecordingUpdate>;
     private targetMaxLength: number | null = TARGET_MAX_LENGTH;
     public amplitudes: number[] = []; // at each second mark, generated
@@ -82,6 +84,10 @@ export class VoiceRecording extends EventEmitter implements IDestroyable {
 
     public get isRecording(): boolean {
         return this.recording;
+    }
+
+    public get isPaused(): boolean {
+        return this.paused;
     }
 
     public emit(event: string, ...args: any[]): boolean {
@@ -212,7 +218,7 @@ export class VoiceRecording extends EventEmitter implements IDestroyable {
     };
 
     private processAudioUpdate = (timeSeconds: number): void => {
-        if (!this.recording) return;
+        if (!this.recording || this.paused) return;
 
         this.observable!.update({
             waveform: this.liveWaveform.value.map((v) => clamp(v, 0, 1)),
@@ -295,10 +301,36 @@ export class VoiceRecording extends EventEmitter implements IDestroyable {
 
             // Finally do our post-processing and clean up
             this.recording = false;
+            this.paused = false;
             await this.recorder!.close();
             this.emit(RecordingState.Ended);
         });
     }
+
+    public async pauseRecording(): Promise<void> {
+        if (!this.recording || this.paused) {
+            throw new Error("Cannot pause: not recording or already paused");
+        }
+    
+        // Suspend the AudioContext so time/worklet updates stop advancing
+        await this.recorderContext!.suspend();
+    
+        this.paused = true;
+        this.emit(RecordingState.Paused);
+    }
+    
+    public async resumeRecording(): Promise<void> {
+        if (!this.recording || !this.paused) {
+            throw new Error("Cannot resume: not recording or not paused");
+        }
+    
+        // Resume audio clock first so the graph is running again
+        await this.recorderContext!.resume();
+    
+        this.paused = false;
+        this.emit(RecordingState.Started);
+    }
+    
 
     public destroy(): void {
         // noinspection JSIgnoredPromiseFromCall - not concerned about stop() being called async here
