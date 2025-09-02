@@ -25,6 +25,32 @@ Please see LICENSE files in the repository root for full details.
         border-radius: 2px;
         background-color: $voice-record-stop-symbol-color;
     }
+
+    /* Override the ::after pseudo-element for pause/resume button */
+    &.mx_VoiceRecordComposerTile_pauseResume::after {
+        content: none;
+    }
+
+    /* Style the React icons inside the pause/resume button */
+    &.mx_VoiceRecordComposerTile_pauseResume {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+
+            svg {
+                width: 16px;
+                height: 16px;
+                fill: $voice-record-stop-symbol-color;
+            }
+        }
+    }
 }
 
 .mx_VoiceRecordComposerTile_delete {

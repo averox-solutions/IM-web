@@ -166,7 +166,6 @@ export default class LeftPanel extends React.Component<IProps, IState> {
 
         let lastTopHeader: HTMLDivElement | undefined;
         let firstBottomHeader: HTMLDivElement | undefined;
-        console.log("sublists", sublists);
         for (const sublist of sublists) {
             const header = sublist.querySelector<HTMLDivElement>(".mx_RoomSublist_stickable");
             if (!header) continue; // this should never occur

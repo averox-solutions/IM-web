@@ -77,6 +77,8 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
     public componentDidMount(): void {
         try {
             localStorage.setItem(REQUIRE_FLAG, "true");
+            // Set session as unverified when security key dialog appears
+            localStorage.setItem("sessionVerified", "false");
         } catch {
             /* ignore */
         }
