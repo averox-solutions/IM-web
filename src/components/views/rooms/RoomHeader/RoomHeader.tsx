@@ -457,7 +457,7 @@ export default function RoomHeader({
             }
 
             // Show toast notification that no one answered
-            showToast("No answer - call ended", "info", 3000);
+            showToast("Call ended", "info", 3000);
             console.log("📞 Call timeout handled successfully");
 
             // Log missed call

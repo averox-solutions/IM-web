@@ -395,8 +395,8 @@ class GlobalSocketManager {
             fromUsername: callData.fromUsername || "Unknown",
             groupName: callData.groupName,
             isVideo: callData.isVideo,
-            toUserIds: callData.toUserIds || [],
-            toUsernames: callData.toUsernames || {},
+            toUserIds: callData.participants ? callData.participants.map((p: any) => p.userId) : [callData.fromUserId],
+            toUsernames: callData.participants ? callData.participants.map((p: any) => p.username) : [callData.fromUsername],
         };
         console.log(
             "📞 GlobalSocketManager: Set incoming call data for event emission:",
@@ -718,7 +718,7 @@ class GlobalSocketManager {
 
         // Listen for incoming LiveKit calls from backend
         this.socket.on("incoming_call", async (callData: any) => {
-            // console.log("📞 GlobalSocketManager: Received incoming_call from backend", callData);
+            console.log("📞 GlobalSocketManager: Received incoming_call from backend", callData);
 
             const {
                 roomId,
