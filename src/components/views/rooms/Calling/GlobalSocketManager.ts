@@ -389,6 +389,22 @@ class GlobalSocketManager {
         // Set the active call data globally
         (window as any).__globalActiveCallData = activeCall;
 
+        // Also set incoming call data for proper event emission when user leaves
+        (window as any).__incomingCallData = {
+            roomId: callData.roomId,
+            fromUsername: callData.fromUsername || "Unknown",
+            groupName: callData.groupName,
+            isVideo: callData.isVideo,
+            toUserIds: callData.participants ? callData.participants.map((p: any) => p.userId) : [callData.fromUserId],
+            toUsernames: callData.participants ? callData.participants.map((p: any) => p.username) : [callData.fromUsername],
+        };
+        console.log(
+            "📞 GlobalSocketManager: Set incoming call data for event emission:",
+            (window as any).__incomingCallData,
+        );
+        console.log("📞 GlobalSocketManager: Original callData.roomId:", callData.roomId);
+        console.log("📞 GlobalSocketManager: Full callData:", callData);
+
         // Dispatch a custom event to notify the UI about accepted call
         const acceptedCallEvent = new CustomEvent("globalCallAccepted", {
             detail: activeCall,
@@ -611,10 +627,15 @@ class GlobalSocketManager {
             delete (window as any).__globalActiveCallData;
         }
 
-        // Clear incoming call data
+        // Clear incoming call data after a delay to allow disconnect handlers to access it
         if ((window as any).__incomingCallData) {
-            delete (window as any).__incomingCallData;
-            console.log("🧹 Cleared incoming call data");
+            // Delay clearing by 2 seconds to allow disconnect handlers to complete
+            setTimeout(() => {
+                if ((window as any).__incomingCallData) {
+                    delete (window as any).__incomingCallData;
+                    console.log("🧹 Cleared incoming call data (delayed)");
+                }
+            }, 2000);
         }
 
         // Clear outgoing call state since call has ended
@@ -697,7 +718,7 @@ class GlobalSocketManager {
 
         // Listen for incoming LiveKit calls from backend
         this.socket.on("incoming_call", async (callData: any) => {
-            // console.log("📞 GlobalSocketManager: Received incoming_call from backend", callData);
+            console.log("📞 GlobalSocketManager: Received incoming_call from backend", callData);
 
             const {
                 roomId,

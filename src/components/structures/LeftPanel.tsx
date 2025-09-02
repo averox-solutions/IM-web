@@ -34,6 +34,8 @@ import { shouldShowComponent } from "../../customisations/helpers/UIComponents";
 import { UIComponent } from "../../settings/UIFeature";
 import AccessibleButton, { type ButtonEvent } from "../views/elements/AccessibleButton";
 import PosthogTrackers from "../../PosthogTrackers";
+import MatrixClientContext from "../../contexts/MatrixClientContext";
+import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import type PageType from "../../PageTypes";
 import { Landmark, LandmarkNavigation } from "../../accessibility/LandmarkNavigation";
 import { Calllog } from "./Calllog";
@@ -55,6 +57,8 @@ interface IState {
 }
 
 export default class LeftPanel extends React.Component<IProps, IState> {
+    public static contextType = MatrixClientContext;
+    public context!: MatrixClient;
     private listContainerRef = createRef<HTMLDivElement>();
     private roomListRef = createRef<RoomList>();
     private focusedElement: Element | null = null;
@@ -73,7 +77,31 @@ export default class LeftPanel extends React.Component<IProps, IState> {
     private static get breadcrumbsMode(): BreadcrumbsMode {
         return !BreadcrumbsStore.instance.visible ? BreadcrumbsMode.Disabled : BreadcrumbsMode.Legacy;
     }
-
+    private logOrderedLists = (): void => {
+        const tagMap = RoomListStore.instance.orderedLists;
+    
+        // Build a compact debug payload: per tag -> ordered rooms with index, id, and name
+        const ordered = Object.fromEntries(
+            Object.entries(tagMap).map(([tagId, rooms]) => [
+                tagId,
+                rooms.map((room, idx) => ({
+                    index: idx,
+                    roomId: room.roomId,
+                    name: room.name, // human-readable
+                })),
+            ]),
+        );
+    
+        // If you also want counts per tag:
+        const counts = Object.fromEntries(
+            Object.keys(tagMap).map((tagId) => [tagId, RoomListStore.instance.getCount(tagId as any)])
+        );
+    
+        // One clean console entry (easy to expand in DevTools)
+        // eslint-disable-next-line no-console
+        console.log("[LeftPanel] Sliding Sync orderedLists:", { ordered, counts });
+    };
+    
     public componentDidMount(): void {
         BreadcrumbsStore.instance.on(UPDATE_EVENT, this.onBreadcrumbsUpdate);
         RoomListStore.instance.on(LISTS_UPDATE_EVENT, this.onBreadcrumbsUpdate);
@@ -87,6 +115,22 @@ export default class LeftPanel extends React.Component<IProps, IState> {
             this.listContainerRef.current.addEventListener("scroll", this.onScroll, { passive: true });
         }
         UIStore.instance.on("ListContainer", this.refreshStickyHeaders);
+        RoomListStore.instance.on(LISTS_UPDATE_EVENT, this.logOrderedLists); // <- ADD
+        this.logOrderedLists();
+        (window as any).__mxDumpRoom = (roomId: string) => {
+            const room = this.context.getRoom(roomId);
+            const full = room?.toJSON ? room.toJSON() : room;
+            console.log(`[Dump] ${roomId}`, full);
+            return full;
+        };
+        (window as any).__mxDownloadJSON = (obj: any, filename: string) => {
+            const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        };
     }
 
     public componentWillUnmount(): void {
@@ -97,6 +141,7 @@ export default class LeftPanel extends React.Component<IProps, IState> {
         UIStore.instance.stopTrackingElementDimensions("ListContainer");
         UIStore.instance.removeListener("ListContainer", this.refreshStickyHeaders);
         this.listContainerRef.current?.removeEventListener("scroll", this.onScroll);
+        RoomListStore.instance.off(LISTS_UPDATE_EVENT, this.logOrderedLists);
     }
 
     public componentDidUpdate(prevProps: IProps, prevState: IState): void {
@@ -166,7 +211,6 @@ export default class LeftPanel extends React.Component<IProps, IState> {
 
         let lastTopHeader: HTMLDivElement | undefined;
         let firstBottomHeader: HTMLDivElement | undefined;
-        console.log("sublists", sublists);
         for (const sublist of sublists) {
             const header = sublist.querySelector<HTMLDivElement>(".mx_RoomSublist_stickable");
             if (!header) continue; // this should never occur

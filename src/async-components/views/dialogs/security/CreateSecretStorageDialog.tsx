@@ -455,7 +455,14 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
                 </p>
                 <DialogButtons
                     primaryButton={_t("action|done")}
-                    onPrimaryButtonClick={() => this.props.onFinished(true)}
+                    onPrimaryButtonClick={() => {
+                        try {
+                            localStorage.setItem("sessionVerified", "true");
+                        } catch {
+                            /* ignore */
+                        }
+                        this.props.onFinished(true);
+                    }}
                     hasCancel={false}
                 />
             </>

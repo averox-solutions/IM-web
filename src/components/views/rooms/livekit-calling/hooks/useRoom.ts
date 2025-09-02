@@ -21,6 +21,7 @@ interface UseRoomProps {
     isVideo?: boolean;
     fromUsername?: string;
     groupName?: string;
+    isJoiningOngoingCall?: boolean; // Flag to indicate user is joining an ongoing call
     testMode?: {
         useWrongKey?: boolean; // For testing - will modify the key to simulate wrong key
         customKey?: string; // For testing - use a completely custom key
@@ -64,6 +65,7 @@ export const useRoom = ({
     isVideo,
     fromUsername,
     groupName,
+    isJoiningOngoingCall,
     testMode,
 }: UseRoomProps): {
     token: string;
@@ -155,6 +157,7 @@ export const useRoom = ({
                     isVideo: isVideo || false,
                     fromUsername,
                     groupName: groupName || null,
+                    isJoiningOngoingCall: isJoiningOngoingCall || false, // Flag to prevent duplicate notifications when joining ongoing calls
                 };
 
                 console.log("🚀 Starting NEW FORMAT LiveKit call:", {
@@ -164,6 +167,7 @@ export const useRoom = ({
                     isVideo,
                     fromUsername,
                     groupName,
+                    isJoiningOngoingCall,
                     participantCount: toUserIds.length,
                 });
             } else {

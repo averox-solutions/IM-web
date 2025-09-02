@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const B_SERVICES_API_KEY = "291d4ab2d879ca7cbf46f38d23d6327604c83479c6c4abc4b8e0fc59f28e5d99";
+const B_SERVICES_API_KEY = "4a2c6375c9ce9ec0a11c5761581a379e83c114fee4e242d1e9062eda9d03fb0d";
 
 export interface BServicesUserMinimal {
   fcmtoken: string;

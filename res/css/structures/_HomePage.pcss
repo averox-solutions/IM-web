@@ -2,11 +2,12 @@
 Copyright 2019-2024 New Vector Ltd.
 Copyright 2017 Vector Creations Ltd
 Copyright 2016 OpenMarket Ltd
- 
+
 SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE files in the repository root for full details.
 */
- 
+
+/* Main container for the homepage */
 .mx_HomePage {
     max-width: 960px;
     width: 100%;
@@ -14,87 +15,231 @@ Please see LICENSE files in the repository root for full details.
     margin-left: auto;
     margin-right: auto;
 }
- 
+
+/* Default homepage styles */
 .mx_HomePage_default {
     text-align: center;
     display: flex;
- 
+    flex-direction: column;
+    align-items: center;
+
     .mx_HomePage_default_wrapper {
         margin: auto;
     }
- 
+
+    /* Logo image styling */
     img {
-        height: 48px;
+        max-width: 100%;  /* Make sure image fits within its container */
+        width: 300px;  /* Set a smaller width */
+        height: 300px;  /* Set a smaller height */
+        cursor: pointer;
+        transition: transform 0.3s ease-in-out, box-shadow 0.3s ease;  /* Add box-shadow transition */
+        margin-bottom: 10px;
+        animation: bounce 3s ease-out infinite; /* Slower bounce with 3s duration */
     }
- 
+
     h1 {
         font-weight: var(--cpd-font-weight-semibold);
-        font-size: $font-32px;
+        font-size: 32px;
         line-height: 1.375;
         margin-bottom: 4px;
     }
- 
+
     h2 {
         margin-top: 4px;
         font-weight: var(--cpd-font-weight-semibold);
-        font-size: $font-18px;
-        line-height: $font-25px;
-        color: $muted-fg-color;
+        font-size: 18px;
+        line-height: 25px;
+        color: #6b6b6b;
     }
- 
+
     .mx_MiniAvatarUploader {
         margin: 0 auto;
-        display:none;
+        display: none;
     }
- 
+
+    /* Tooltip positioning on left and right of the image */
+    .tooltip {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgb(158 189 234 / 42%);
+        color: #616161;
+        padding: 10px;
+        border-radius: 8px;
+        width: 200px;
+        text-align: left;
+        display: none;
+        box-shadow: 0 4px 6px rgba(76, 190, 82, 0.63);
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .tooltip-left {
+        left: -220px;
+    }
+
+    .tooltip-right {
+        right: -220px;
+    }
+
+    /* Buttons positioning below the image */
     .mx_HomePage_default_buttons {
         display: flex;
         margin: 60px auto 0;
         width: fit-content;
- 
-        .mx_AccessibleButton {
-            padding: 73px 8px 15px; /* top: 20px top padding + 40px icon + 13px margin */
- 
-            width: 160px;
-            min-height: 132px;
-            margin: 20px;
-            position: relative;
-            display: inline-block;
-            border-radius: 8px;
-            vertical-align: top;
-            word-break: break-word;
-            box-sizing: border-box;
- 
-            font-weight: var(--cpd-font-weight-semibold);
-            font-size: $font-15px;
-            line-height: $font-20px;
-            color: #fff; /* on all themes */
-            background-color: #488d41;
- 
-            &::before {
-                top: 20px;
-                left: 60px; /* (160px-40px)/2 */
-                width: 40px;
-                height: 40px;
- 
-                content: "";
-                position: absolute;
-                background-color: #fff; /* on all themes */
-                mask-repeat: no-repeat;
-                mask-size: contain;
-            }
- 
-            &.mx_HomePage_button_sendDm::before {
-                mask-image: url("$(res)/img/element-icons/feedback.svg");
-            }
- 
-            &.mx_HomePage_button_explore::before {
-                mask-image: url("$(res)/img/element-icons/roomlist/explore.svg");
-            }
- 
-            &.mx_HomePage_button_createGroup::before {
-                mask-image: url("$(res)/img/element-icons/group-members.svg");
-            }
+        justify-content: center;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    /* Button styling with flexbox to align icon and text */
+    .mx_AccessibleButton {
+        padding: 10px 33px;
+        min-width: 140px;
+        height: 48px;
+        margin: 20px;
+        position: relative;
+        display: flex;  /* Use flexbox for layout */
+        align-items: center;  /* Align vertically */
+        justify-content: center;  /* Align horizontally */
+        border-radius: 30px;
+        vertical-align: top;
+        box-sizing: border-box;
+
+        font-weight: 300;
+        font-size: 15px;
+        line-height: 20px;
+        color: #fff;
+        background-color: #2e7d32;
+
+        /* Icon inside buttons */
+        &::before {
+            content: "";
+            position: absolute;
+            left: 10px;
+            width: 30px;
+            height: 30px;
+            background-color: #fff;
+            mask-repeat: no-repeat;
+            mask-size: contain;
+        }
+
+        &.mx_HomePage_button_sendDm::before {
+            mask-image: url("$(res)/img/element-icons/feedback.svg");
+        }
+
+        &.mx_HomePage_button_explore::before {
+            mask-image: url("$(res)/img/element-icons/roomlist/explore.svg");
+        }
+
+        &.mx_HomePage_button_createGroup::before {
+            mask-image: url("$(res)/img/element-icons/group-members.svg");
+        }
+
+        /* Space the icon and text */
+        & > span {
+            margin-left: 10px;
+        }
+
+        /* Add shimmer animation to buttons */
+        background: linear-gradient(135deg, rgb(76, 190, 82), #2e7d32);
+        background-size: 200% 200%;
+        animation: bgShift 5s ease infinite, pulseGlow 3s ease-in-out infinite;
+
+        /* Inner shine shimmer */
+        &::after {
+            content: ""; 
+            position: absolute;
+            top: 0;
+            left: -30px;
+width: 110%;
+            height: 100%;
+            background: linear-gradient(120deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0) 100%);
+            transform: skewX(-20deg);
+            animation: shimmer 2.5s infinite;
+            border-radius: 30px;
+            pointer-events: none;
+        }
+
+        &:hover {
+            transform: scale(1.07);
+            background: linear-gradient(135deg, rgb(76, 190, 82), #2e7d32);
+            box-shadow: 0 0 20px #2e7d32;
+        }
+
+        /* Optional: smoother icon or text interaction */
+        * {
+            transition: transform 0.3s ease;
+        }
+
+        &:hover * {
+            transform: scale(1.03);
         }
     }
+
+    /* Display the buttons and tooltips when hovered */
+    .mx_HomePage_default_wrapper:hover .mx_HomePage_default_buttons {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* Show the tooltips on hover */
+    .mx_HomePage_default_wrapper:hover .tooltip {
+        display: block;
+    }
+
+    /* Show buttons below the image when hovered */
+    .mx_HomePage_default_wrapper:hover .mx_HomePage_default_buttons {
+        visibility: visible;
+        opacity: 1;
+    }
+}
+
+/* Bounce animation for the image */
+@keyframes bounce {
+    0% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* Stop the bounce animation when hovered */
+.mx_HomePage_default_wrapper:hover img {
+    animation: none; /* Remove the bounce animation when hovered */
+}
+
+/* Background gradient animation for the buttons */
+@keyframes bgShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Pulse glow animation for the buttons */
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgb(76, 190, 82);
+    }
+    50% {
+        box-shadow: 0 0 20px #2e7d32;
+    }
+}
+
+/* Inner shimmer animation for the buttons */
+@keyframes shimmer {
+    0% { left: -30px; }
+    100% { left: 110%; }
 }

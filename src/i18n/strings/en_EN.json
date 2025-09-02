@@ -81,7 +81,7 @@
         "mention": "Mention",
         "minimise": "Minimise",
         "new_room": "New Group",
-        "new_video_room": "New video Group",
+        "new_video_room": "Secure Video Conference",
         "next": "Next",
         "no": "No",
         "ok": "OK",
@@ -1069,7 +1069,7 @@
         "admin_contact_short": "Contact your <a>server admin</a>.",
         "app_launch_unexpected_error": "Unexpected error preparing the app. See console for details.",
         "cannot_load_config": "Unable to load config file: please refresh the page to try again.",
-        "connection": "You have hit the limit of max login",
+        "connection": "There was a problem communicating with the homeserver, please try again later.",
         "dialog_description_default": "An error has occurred.",
         "download_media": "Failed to download source media, no source url was found",
         "edit_history_unsupported": "Your homeserver doesn't seem to support this feature.",
@@ -1676,13 +1676,13 @@
         "m.key.verification.request": "%(name)s is requesting verification"
     },
     "onboarding": {
-        "create_room": "Create a Group Chat",
-        "explore_rooms": "Explore Public Groups",
+        "create_room": "Group Chat",
+        "explore_rooms": "Explore Groups",
         "has_avatar_label": "Great, that'll help people know it's you",
         "intro_byline": "Own your conversations.",
         "intro_welcome": "Welcome to %(appName)s",
         "no_avatar_label": "Add a photo so people know it's you.",
-        "send_dm": "Send a Direct Message",
+        "send_dm": "Send Message",
         "welcome_detail": "Now, let's help you get started",
         "welcome_user": "Welcome %(name)s"
     },
@@ -1911,7 +1911,7 @@
             "mark_unread": "Mark as unread",
             "notifications_default": "Default",
             "notifications_mute": "Mute",
-            "title": "Groups options",
+            "title": "Options",
             "unfavourite": "Favourited"
         },
         "creating_room_text": "Please wait!",
@@ -1923,7 +1923,7 @@
         "error_3pid_invite_email_lookup": "Unable to find user by email",
         "error_cancel_knock_title": "Failed to cancel",
         "error_join_403": "You need an invite to access this Group.",
-        "error_join_404_1": "invalid invite please try again later",
+        "error_join_404_1": "You attempted to join using a Groups ID without providing a list of servers to join through. Groups IDs are internal identifiers and cannot be used to join a Groups without additional information.",
         "error_join_404_2": "If you know a Groups address, try joining through that instead.",
         "error_join_404_invite": "The person who invited you has already left, or their server is offline.",
         "error_join_404_invite_same_hs": "The person who invited you has already left.",
@@ -2040,7 +2040,7 @@
         "rejecting": "Rejecting invite…",
         "rejoin_button": "Re-join",
         "search": {
-            "all_rooms_button": "Search in all Groups",
+            "all_rooms_button": "Search all Groups",
             "placeholder": "Search messages…",
             "summary": {
                 "one": "1 result found for “<query/>”",

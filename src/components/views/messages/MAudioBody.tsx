@@ -7,6 +7,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React from "react";
+import { MatrixEventEvent } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
 import { type IContent } from "matrix-js-sdk/src/matrix";
 import { type MediaEventContent } from "matrix-js-sdk/src/types";
@@ -35,6 +36,8 @@ export default class MAudioBody extends React.PureComponent<IBodyProps, IState> 
     public state: IState = {};
 
     public async componentDidMount(): Promise<void> {
+        // In case this event decrypts after a hard reload, retry setup
+        this.props.mxEvent.on(MatrixEventEvent.Decrypted, this.onEventDecrypted);
         let buffer: ArrayBuffer;
 
         try {
@@ -72,7 +75,22 @@ export default class MAudioBody extends React.PureComponent<IBodyProps, IState> 
 
     public componentWillUnmount(): void {
         this.state.playback?.destroy();
+        this.props.mxEvent.removeListener(MatrixEventEvent.Decrypted, this.onEventDecrypted);
     }
+
+    private onEventDecrypted = async (): Promise<void> => {
+        try {
+            const blob = await this.props.mediaEventHelper!.sourceBlob.value;
+            const buffer = await blob.arrayBuffer();
+            const content = this.props.mxEvent.getContent<MediaEventContent & IContent>();
+            const waveform = content?.["org.matrix.msc1767.audio"]?.waveform?.map((p: number) => p / 1024);
+            const playback = PlaybackManager.instance.createPlaybackInstance(buffer, waveform);
+            playback.clockInfo.populatePlaceholdersFrom(this.props.mxEvent);
+            this.setState({ error: false, playback });
+        } catch (e) {
+            // stay in error state
+        }
+    };
 
     protected get showFileBody(): boolean {
         return (

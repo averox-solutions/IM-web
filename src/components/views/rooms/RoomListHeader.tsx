@@ -418,18 +418,18 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                 title={_t("action|start_chat")}
                     >
                     <BsPlus style={{
-                        fontSize: "24px", 
+                        fontSize: "18px", 
                         marginRight: "5px",
                         transition: "transform 0.2s ease",
                         zIndex: "9999",
                     }} className="plus-icon" /> 
                     <h1 style={{
                         margin: "0",
-                        fontSize: "18px",
-                        fontWeight: "700",
+                        fontSize: "14px",
+                        fontWeight: "450",
                         zIndex: "9999",
                         fontFamily: "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                    }}>Chat</h1>
+                    }}>New</h1>
                     </ContextMenuTooltipButton>
             )}
             
