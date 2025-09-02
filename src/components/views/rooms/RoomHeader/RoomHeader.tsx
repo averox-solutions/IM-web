@@ -159,6 +159,22 @@ export default function RoomHeader({
 
             setActiveCallData(activeCall);
 
+            // Also set incoming call data for proper event emission when user leaves
+            (window as any).__incomingCallData = {
+                roomId: callData.roomId,
+                fromUsername: callData.fromUsername || "Unknown",
+                groupName: callData.groupName,
+                isVideo: callData.isVideo,
+                toUserIds: callData.toUserIds || [],
+                toUsernames: callData.toUsernames || {},
+            };
+            console.log(
+                "📞 RoomHeader: Set incoming call data for event emission:",
+                (window as any).__incomingCallData,
+            );
+            console.log("📞 RoomHeader: Original callData.roomId:", callData.roomId);
+            console.log("📞 RoomHeader: Full callData:", callData);
+
             // Send call picked up event to backend to notify other devices
             const socket = GlobalSocketManager.getInstance().getSocket();
             if (socket && callData.roomId && currentUserId) {
@@ -941,6 +957,7 @@ export default function RoomHeader({
 
                     {/* FacePile (Member List) - hide if restricted */}
                     {/* FacePile (Member List) - hide if restricted */}
+
                     {((!isDirectMessage && !allSamePowerLevel) || memberCount === 1 || memberCount === 0) && (
                         <BodyText as="div" size="sm" weight="medium">
                             <FacePile
@@ -960,6 +977,7 @@ export default function RoomHeader({
                             </FacePile>
                         </BodyText>
                     )}
+
                 </Flex>
                 {askToJoinEnabled && <RoomKnocksBar room={room} />}
             </CurrentRightPanelPhaseContextProvider>

@@ -23,27 +23,37 @@ import GlobalSocketManager from "../Calling/GlobalSocketManager";
 import { getCurrentMatrixUserId } from "../Calling/MatrixUtils";
 import { CALL_ENDED, USER_LEFT_CALL } from "../Calling/socketEvents";
 
-// Utility function to emit call ended event to backend
-const emitCallEndedEvent = (roomId: string, toUserIds: string[]): void => {
-    try {
-        console.log("🚀 emitCallEndedEvent called with:", { roomId, toUserIds });
+// Helper function to ensure socket is ready before emitting events
+const ensureSocketReady = async (maxRetries = 5, delayMs = 1000): Promise<any> => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
         const socket = GlobalSocketManager.getGlobalSocket();
-        const fromUserId = getCurrentMatrixUserId();
+        const userId = getCurrentMatrixUserId();
 
-        console.log("🔌 Global socket and user check:", {
+        if (socket && socket.connected && userId) {
+            return { socket, userId };
+        }
+
+        console.log(`🔌 Socket not ready (attempt ${attempt + 1}/${maxRetries}):`, {
             hasSocket: !!socket,
-            isSocketConnected: socket?.connected,
-            fromUserId,
+            isConnected: socket?.connected,
+            hasUserId: !!userId,
         });
 
-        if (!socket || !fromUserId) {
-            console.warn("❌ Cannot emit call ended event: global socket or user ID not available", {
-                hasSocket: !!socket,
-                isSocketConnected: socket?.connected,
-                fromUserId,
-            });
-            return;
+        if (attempt < maxRetries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
+    }
+
+    throw new Error(`Socket not ready after ${maxRetries} attempts`);
+};
+
+// Utility function to emit call ended event to backend with robust retry logic
+const emitCallEndedEvent = async (roomId: string, toUserIds: string[]): Promise<void> => {
+    try {
+        console.log("🚀 emitCallEndedEvent called with:", { roomId, toUserIds });
+
+        // Ensure socket is ready before proceeding
+        const { socket, userId: fromUserId } = await ensureSocketReady();
 
         const callEndedData = {
             roomId,
@@ -56,30 +66,37 @@ const emitCallEndedEvent = (roomId: string, toUserIds: string[]): void => {
         console.log("✅ CALL_ENDED event emitted successfully via global socket");
     } catch (error) {
         console.error("💥 Failed to emit call ended event:", error);
+
+        // Fallback: try once more with the old method as a last resort
+        console.log("🔄 Attempting fallback emission...");
+        const socket = GlobalSocketManager.getGlobalSocket();
+        const fromUserId = getCurrentMatrixUserId();
+
+        if (socket && fromUserId) {
+            try {
+                const callEndedData = {
+                    roomId,
+                    initiatorUserId: fromUserId,
+                    participantIds: toUserIds || [],
+                };
+                socket.emit(CALL_ENDED, callEndedData);
+                console.log("✅ CALL_ENDED event emitted via fallback method");
+            } catch (fallbackError) {
+                console.error("💥 Fallback emission also failed:", fallbackError);
+            }
+        } else {
+            console.error("❌ Fallback failed: socket or userId not available");
+        }
     }
 };
 
-// Utility function to emit user left call event to backend
-const emitUserLeftCallEvent = (roomId: string): void => {
+// Utility function to emit user left call event to backend with robust retry logic
+const emitUserLeftCallEvent = async (roomId: string): Promise<void> => {
     try {
         console.log("🚀 emitUserLeftCallEvent called with:", { roomId });
-        const socket = GlobalSocketManager.getGlobalSocket();
-        const userId = getCurrentMatrixUserId();
 
-        console.log("🔌 Global socket and user check:", {
-            hasSocket: !!socket,
-            isSocketConnected: socket?.connected,
-            userId,
-        });
-
-        if (!socket || !userId) {
-            console.warn("❌ Cannot emit user left call event: global socket or user ID not available", {
-                hasSocket: !!socket,
-                isSocketConnected: socket?.connected,
-                userId,
-            });
-            return;
-        }
+        // Ensure socket is ready before proceeding
+        const { socket, userId } = await ensureSocketReady();
 
         const userLeftData = {
             roomId,
@@ -91,6 +108,23 @@ const emitUserLeftCallEvent = (roomId: string): void => {
         console.log("✅ USER_LEFT_CALL event emitted successfully via global socket");
     } catch (error) {
         console.error("💥 Failed to emit user left call event:", error);
+
+        // Fallback: try once more with the old method as a last resort
+        console.log("🔄 Attempting fallback emission...");
+        const socket = GlobalSocketManager.getGlobalSocket();
+        const userId = getCurrentMatrixUserId();
+
+        if (socket && userId) {
+            try {
+                const userLeftData = { roomId, userId };
+                socket.emit(USER_LEFT_CALL, userLeftData);
+                console.log("✅ USER_LEFT_CALL event emitted via fallback method");
+            } catch (fallbackError) {
+                console.error("💥 Fallback emission also failed:", fallbackError);
+            }
+        } else {
+            console.error("❌ Fallback failed: socket or userId not available");
+        }
     }
 };
 
@@ -1641,7 +1675,9 @@ const AudioCallInterface: React.FC<{
                         // Emit call ended event for no-answer timeout using captured roomData
                         if (roomDataForTimeout?.roomId && roomDataForTimeout?.toUserIds) {
                             console.log("📞 No-answer timeout - emitting CALL_ENDED event with captured data");
-                            emitCallEndedEvent(roomDataForTimeout.roomId, roomDataForTimeout.toUserIds);
+                            emitCallEndedEvent(roomDataForTimeout.roomId, roomDataForTimeout.toUserIds).catch((err) =>
+                                console.error("Failed to emit call ended event on timeout:", err),
+                            );
                         }
 
                         isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
@@ -1661,7 +1697,9 @@ const AudioCallInterface: React.FC<{
                 const roomData = currentRoomData || incomingCallData;
                 if (roomData?.roomId && roomData?.toUserIds) {
                     console.log("📞 Immediate timeout - emitting CALL_ENDED event");
-                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                        console.error("Failed to emit call ended event on immediate timeout:", err),
+                    );
                 }
 
                 isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
@@ -1702,7 +1740,9 @@ const AudioCallInterface: React.FC<{
                         console.log(
                             "📞 Auto-leave audio call - emitting CALL_ENDED event for group call with captured data",
                         );
-                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                            console.error("Failed to emit call ended event on auto-leave:", err),
+                        );
                     } else {
                         console.warn("📞 Auto-leave audio call - cannot emit CALL_ENDED event", {
                             hasRoomData: !!roomData,
@@ -1778,14 +1818,43 @@ const AudioCallInterface: React.FC<{
         // Get room data for event emission, with fallback to incoming call data
         const currentRoomData = (window as any).__currentLiveKitRoomData;
         const incomingCallData = (window as any).__incomingCallData;
-        const roomData = currentRoomData || incomingCallData;
+        const globalActiveCallData = (window as any).__globalActiveCallData;
+
+        console.log("📞 AudioCallInterface DEBUG: Checking all room data sources:");
+        console.log("📞 AudioCallInterface currentRoomData:", currentRoomData);
+        console.log("📞 AudioCallInterface incomingCallData:", incomingCallData);
+        console.log("📞 AudioCallInterface globalActiveCallData:", globalActiveCallData);
+
+        // Priority: currentRoomData > incomingCallData > globalActiveCallData (for home screen accepted calls)
+        let roomData = currentRoomData || incomingCallData;
+
+        // Special handling for calls accepted from home screen - use globalActiveCallData
+        if (!roomData && globalActiveCallData) {
+            console.log("📞 AudioCallInterface: Using globalActiveCallData for home screen accepted call");
+            // Convert globalActiveCallData format to expected roomData format
+            roomData = {
+                roomId: globalActiveCallData.roomId,
+                toUserIds: [], // We don't have this info in globalActiveCallData, but it's not critical for USER_LEFT_CALL
+                toUsernames: {},
+                fromUsername: undefined,
+                groupName: undefined,
+                isVideo: globalActiveCallData.callType === "video",
+            };
+        }
+
+        // Additional fallback: If room data is missing, log it for debugging
+        if (!roomData || !roomData.roomId) {
+            console.log("📞 AudioCallInterface: Room data missing - events may not be emitted");
+        }
 
         if (roomData?.roomId) {
             if (participantCount === 1) {
                 // Last participant leaving - emit CALL_ENDED
                 if (roomData?.toUserIds) {
                     console.log("📞 User ending call as only participant - emitting CALL_ENDED event");
-                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                        console.error("Failed to emit call ended event:", err),
+                    );
                 }
             } else {
                 // Not the last participant - emit USER_LEFT_CALL to clean up backend state
@@ -1794,7 +1863,9 @@ const AudioCallInterface: React.FC<{
                     roomId: roomData.roomId,
                     participantCount: participantCount,
                 });
-                emitUserLeftCallEvent(roomData.roomId);
+                emitUserLeftCallEvent(roomData.roomId).catch((err) =>
+                    console.error("Failed to emit user left call event:", err),
+                );
             }
         }
 
@@ -2619,7 +2690,9 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                             console.log(
                                 "📞 Video call no-answer timeout - emitting CALL_ENDED event with captured data",
                             );
-                            emitCallEndedEvent(roomDataForVideoTimeout.roomId, roomDataForVideoTimeout.toUserIds);
+                            emitCallEndedEvent(roomDataForVideoTimeout.roomId, roomDataForVideoTimeout.toUserIds).catch(
+                                (err) => console.error("Failed to emit call ended event on video timeout:", err),
+                            );
                         }
 
                         isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
@@ -2644,7 +2717,9 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                 });
                 if (roomData?.roomId && roomData?.toUserIds) {
                     console.log("📞 Video call immediate timeout - emitting CALL_ENDED event");
-                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                    emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                        console.error("Failed to emit call ended event on video immediate timeout:", err),
+                    );
                 }
 
                 isAutoEndingRef.current = true; // Mark as auto-ending due to timeout
@@ -2684,7 +2759,9 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                         console.log(
                             "📞 Auto-leave video call - emitting CALL_ENDED event for group call with captured data",
                         );
-                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                        emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                            console.error("Failed to emit call ended event on video auto-leave:", err),
+                        );
                     } else {
                         console.warn("📞 Auto-leave video call - cannot emit CALL_ENDED event", {
                             hasRoomData: !!roomData,
@@ -3577,7 +3654,32 @@ export const VideoRoom = ({
 
     // Store room data globally for access in nested components
     useEffect(() => {
-        (window as any).__currentLiveKitRoomData = {
+        console.log("📞 VideoRoom props received:", {
+            roomId,
+            toUserIds,
+            toUsernames,
+            fromUsername,
+            groupName,
+            isVideo,
+            isAcceptingIncomingCall,
+        });
+
+        // If this is an accepted incoming call and we have globalActiveCallData but no proper props,
+        // preserve the call data from globalActiveCallData for later event emission
+        const globalActiveCallData = (window as any).__globalActiveCallData;
+        if (isAcceptingIncomingCall && globalActiveCallData && (!roomId || !toUserIds)) {
+            console.log("📞 Preserving globalActiveCallData for incoming call event emission");
+            (window as any).__incomingCallData = {
+                roomId: globalActiveCallData.roomId,
+                fromUsername: fromUsername || "Unknown",
+                groupName: groupName,
+                isVideo: globalActiveCallData.callType === "video",
+                toUserIds: toUserIds || [],
+                toUsernames: toUsernames || {},
+            };
+        }
+
+        const currentRoomData = {
             roomId,
             toUserIds,
             toUsernames,
@@ -3585,6 +3687,9 @@ export const VideoRoom = ({
             groupName,
             isVideo,
         };
+
+        (window as any).__currentLiveKitRoomData = currentRoomData;
+        console.log("📞 Stored __currentLiveKitRoomData:", currentRoomData);
 
         // Set up custom event listener for participant count updates
         const handleParticipantCountUpdate = (event: CustomEvent): void => {
@@ -3598,7 +3703,7 @@ export const VideoRoom = ({
             delete (window as any).__currentLiveKitRoomData;
             window.removeEventListener("liveKitParticipantCountUpdate", handleParticipantCountUpdate as EventListener);
         };
-    }, [roomId, toUserIds, toUsernames, fromUsername, groupName, isVideo]);
+    }, [roomId, toUserIds, toUsernames, fromUsername, groupName, isVideo, isAcceptingIncomingCall]);
 
     // Listen for call_ended events from backend
     useEffect(() => {
@@ -3664,6 +3769,7 @@ export const VideoRoom = ({
         isVideo,
         fromUsername,
         groupName,
+        isJoiningOngoingCall,
         testMode,
     });
     const connectionInitiated = useRef(false);
@@ -4006,7 +4112,44 @@ export const VideoRoom = ({
                     // Check if user was the only participant and emit CALL_ENDED if needed
                     const currentRoomData = (window as any).__currentLiveKitRoomData;
                     const incomingCallData = (window as any).__incomingCallData;
-                    const roomData = currentRoomData || incomingCallData;
+                    const globalActiveCallData = (window as any).__globalActiveCallData;
+
+                    console.log("📞 DEBUG: Checking all room data sources:");
+                    console.log("📞 currentRoomData:", currentRoomData);
+                    console.log("📞 incomingCallData:", incomingCallData);
+                    console.log("📞 globalActiveCallData:", globalActiveCallData);
+
+                    // If incoming call data was already cleared, try to reconstruct from stored room props
+                    // Priority: currentRoomData > incomingCallData > globalActiveCallData (for home screen accepted calls)
+                    let roomData = currentRoomData || incomingCallData;
+
+                    // Special handling for calls accepted from home screen - use globalActiveCallData
+                    if (!roomData && globalActiveCallData && isAcceptingIncomingCall) {
+                        console.log("📞 Using globalActiveCallData for home screen accepted call");
+                        // Convert globalActiveCallData format to expected roomData format
+                        roomData = {
+                            roomId: globalActiveCallData.roomId,
+                            toUserIds: toUserIds || [],
+                            toUsernames: toUsernames || {},
+                            fromUsername: fromUsername,
+                            groupName: groupName,
+                            isVideo: globalActiveCallData.callType === "video",
+                        };
+                    }
+
+                    // Fallback: If both are null/empty, use the component props for incoming calls
+                    if ((!roomData || !roomData.roomId) && isAcceptingIncomingCall) {
+                        console.log("📞 Room data missing, reconstructing from component props for incoming call");
+                        roomData = {
+                            roomId: roomId,
+                            toUserIds: toUserIds || [],
+                            toUsernames: toUsernames || {},
+                            fromUsername: fromUsername,
+                            groupName: groupName,
+                            isVideo: isVideo,
+                        };
+                    }
+
                     const currentParticipantCount = (window as any).__currentParticipantCount || 0;
                     console.log("📞 Room data for disconnect check:", {
                         roomData,
@@ -4015,6 +4158,15 @@ export const VideoRoom = ({
                         hasToUserIds: !!roomData?.toUserIds,
                         toUserIdsLength: roomData?.toUserIds?.length,
                         participantCount: currentParticipantCount,
+                        dataSource: currentRoomData
+                            ? "currentRoomData"
+                            : incomingCallData
+                              ? "incomingCallData"
+                              : globalActiveCallData
+                                ? "globalActiveCallData"
+                                : "reconstructedFromProps",
+                        reconstructedFromProps:
+                            !currentRoomData && !incomingCallData && !globalActiveCallData && isAcceptingIncomingCall,
                     });
 
                     // Handle different disconnect scenarios based on participant count
@@ -4030,7 +4182,9 @@ export const VideoRoom = ({
                                     participantCount: currentParticipantCount,
                                 });
 
-                                emitCallEndedEvent(roomData.roomId, roomData.toUserIds);
+                                emitCallEndedEvent(roomData.roomId, roomData.toUserIds).catch((err) =>
+                                    console.error("Failed to emit call ended event on disconnect:", err),
+                                );
                             } else {
                                 console.log("📞 No CALL_ENDED emission - accepting incoming call", {
                                     isAcceptingIncomingCall,
@@ -4047,7 +4201,9 @@ export const VideoRoom = ({
                                 participantCount: currentParticipantCount,
                             });
 
-                            emitUserLeftCallEvent(roomData.roomId);
+                            emitUserLeftCallEvent(roomData.roomId).catch((err) =>
+                                console.error("Failed to emit user left call event on disconnect:", err),
+                            );
                         }
                     } else {
                         console.log("📞 No events emitted - missing room data", {
