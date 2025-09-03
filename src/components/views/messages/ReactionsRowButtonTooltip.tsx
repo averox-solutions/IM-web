@@ -16,6 +16,11 @@ import { formatList } from "../../../utils/FormattingUtils";
 import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import { REACTION_SHORTCODE_KEY } from "./ReactionsRow";
 
+// Base URL for backend services (e.g., notifications), configurable via env
+// Primary: REACT_APP_NOTIFCATIONURL (as requested), Fallbacks: REACT_APP_BACKEND_URL, localhost
+const NOTIFICATION_API_BASE_URL =
+    process.env.REACT_APP_NOTIFCATIONURL ||  "http://localhost:4000";
+
 interface IProps {
     /** The event we're displaying reactions for */
     mxEvent: MatrixEvent;
@@ -35,6 +40,105 @@ interface IProps {
 export default class ReactionsRowButtonTooltip extends React.PureComponent<PropsWithChildren<IProps>> {
     public static contextType = MatrixClientContext;
     declare public context: React.ContextType<typeof MatrixClientContext>;
+    private static sentKeys: Set<string> = new Set();
+    private static readonly STORAGE_KEY = "mx_reaction_notified_keys";
+    private static loadSentKeys(): void {
+        try {
+            const raw = localStorage.getItem(ReactionsRowButtonTooltip.STORAGE_KEY);
+            if (raw) {
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr)) {
+                    ReactionsRowButtonTooltip.sentKeys = new Set(arr);
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }
+    private static persistSentKeys(): void {
+        try {
+            localStorage.setItem(
+                ReactionsRowButtonTooltip.STORAGE_KEY,
+                JSON.stringify(Array.from(ReactionsRowButtonTooltip.sentKeys)),
+            );
+        } catch {
+            // ignore
+        }
+    }
+
+    private getNotificationKey(): string {
+        const { content, mxEvent } = this.props;
+        const eventId = mxEvent.getId?.() || "";
+        return `${eventId}::${content}`;
+    }
+
+    private triggerNotifications = (): void => {
+        const key = this.getNotificationKey();
+        if (ReactionsRowButtonTooltip.sentKeys.has(key)) return;
+
+        try {
+            const mxUserId = localStorage.getItem("mx_user_id") || "";
+            let formattedUsername = mxUserId;
+            if (formattedUsername.startsWith("@")) {
+                formattedUsername = formattedUsername.slice(1);
+            }
+            formattedUsername = formattedUsername.replace(/:ms\.beep\.gov\.pk$/, "");
+
+            // Attempt to read activeCallData from localStorage for recipients
+            let recipients: string[] | undefined;
+            try {
+                const raw = localStorage.getItem("activeCallData");
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed?.toUserIds)) {
+                        recipients = parsed.toUserIds as string[];
+                    }
+                }
+            } catch {
+                // ignore parse errors
+            }
+
+            const send = (targetUserId: string): void => {
+                let cleaned = targetUserId || "";
+                if (cleaned.startsWith("@")) cleaned = cleaned.slice(1);
+                cleaned = cleaned.replace(/:ms\.beep\.gov\.pk$/, "");
+                void fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        userId: targetUserId,
+                        notificationTitle: formattedUsername,
+                        notificationBody: "Reacted",
+                    }),
+                });
+            };
+
+            if (recipients && recipients.length > 0) {
+                for (const r of recipients) {
+                    send(r);
+                }
+            } else {
+                // Fallback: send to current username if no recipients available
+                send(mxUserId);
+            }
+
+            ReactionsRowButtonTooltip.sentKeys.add(key);
+            ReactionsRowButtonTooltip.persistSentKeys();
+        } catch (e) {
+            // ignore
+        }
+    };
+
+    public componentDidMount(): void {
+        ReactionsRowButtonTooltip.loadSentKeys();
+        this.triggerNotifications();
+    }
+
+    public componentDidUpdate(prevProps: Readonly<PropsWithChildren<IProps>>): void {
+        if (prevProps.mxEvent !== this.props.mxEvent || prevProps.content !== this.props.content) {
+            this.triggerNotifications();
+        }
+    }
 
     public render(): React.ReactNode {
         const { content, reactionEvents, mxEvent, children, customReactionImagesEnabled } = this.props;
@@ -68,8 +172,9 @@ export default class ReactionsRowButtonTooltip extends React.PureComponent<Props
 
         // Optional caption under tooltip (emoji shortcode)
         const caption = shortName
-            ? _t("timeline|reactions|tooltip_caption", { shortName })
+            ? _t("timeline|reactions|tooltip_caption", { shortName: String(shortName) })
             : undefined;
+        console.log(formattedSenders, caption, shortName);
 
         return (
             <Tooltip description={formattedSenders} caption={caption} placement="right">
