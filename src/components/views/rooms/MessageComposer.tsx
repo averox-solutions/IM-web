@@ -55,6 +55,11 @@ import { UIFeature } from "../../../settings/UIFeature";
 import { formatTimeLeft } from "../../../DateUtils";
 import RoomReplacedSvg from "../../../../res/img/room_replaced.svg";
 
+// Base URL for backend services (e.g., notifications), configurable via env
+// Primary: REACT_APP_NOTIFCATIONURL (as requested), Fallbacks: REACT_APP_BACKEND_URL, localhost
+const NOTIFICATION_API_BASE_URL =
+    process.env.REACT_APP_NOTIFCATIONURL || "http://localhost:4000";
+
 // The prefix used when persisting editor drafts to localstorage.
 export const WYSIWYG_EDITOR_STATE_STORAGE_PREFIX = "mx_wysiwyg_state_";
 
@@ -469,15 +474,13 @@ private onAction = (payload: ActionPayload): void => {
                 console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
                 console.log(`Is iOS platform:`, is_iOS);
     
-                await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        fcmToken: fcmtoken,
+                        userid: member.userId,
                         notificationTitle: `${sender}`,
                         notificationBody: `text`,
-                        badgeValue: 1,
-                        platform: is_iOS ? "ios" : "android",
                     }),
                 });
             } catch (err) {
@@ -552,15 +555,13 @@ private onAction = (payload: ActionPayload): void => {
                     console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
                     console.log(`Is iOS platform:`, is_iOS);
     
-                    await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                    await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            fcmToken: fcmtoken,
+                            userId: member.userId,
                             notificationTitle: sender,
                             notificationBody: "Text",
-                            badgeValue: 1,
-                            platform: is_iOS ? "ios" : "android",
                         }),
                     });
                 } catch (err) {
