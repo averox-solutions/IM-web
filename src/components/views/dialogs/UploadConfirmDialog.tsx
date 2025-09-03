@@ -7,6 +7,11 @@ import BaseDialog from "./BaseDialog";
 import DialogButtons from "../elements/DialogButtons";
 import { fileSize } from "../../../utils/FileUtils";
 
+// Base URL for backend services (e.g., notifications), configurable via env
+// Primary: REACT_APP_NOTIFCATIONURL (as requested), Fallbacks: REACT_APP_BACKEND_URL, localhost
+const NOTIFICATION_API_BASE_URL =
+    process.env.REACT_APP_NOTIFCATIONURL ||  "http://localhost:4000";
+
 interface IProps {
     file: File;
     currentIndex: number;
@@ -129,17 +134,14 @@ export default class UploadConfirmDialog extends React.Component<IProps, IState>
 
             for (const userId of toUserIds) {
                 try {
-                    const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(userId);
 
-                    await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                    await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            fcmToken: fcmtoken,
+                            userId: userId,
                             notificationTitle: targetName,
                             notificationBody: fileCategory,
-                            badgeValue: 1,
-                            platform: is_iOS ? "ios" : "android",
                         }),
                     });
 
