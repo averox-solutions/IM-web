@@ -101,7 +101,7 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
                     style={{
                         position: "relative",
                         textAlign: "center",
-                        marginTop: "17px",
+                        marginTop: "25px",
                     }}
                     onMouseEnter={() => setShowTooltip(true)}
                     onMouseLeave={() => setShowTooltip(false)}
@@ -114,7 +114,7 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
                             height: "350px",
                             cursor: "pointer",
                             transition: "transform 0.3s ease-in-out",
-                            marginBottom: "10px",
+                            marginBottom: "15px",
                         }}
                     />
 
