@@ -35,9 +35,7 @@ export class MainGrouper extends BaseGrouper {
             return true;
         }
 
-        if (ev.isRedacted()) {
-            return true;
-        }
+        // Do not start a group for redacted events. Each redacted message should render individually.
 
         if (panel.showHiddenEvents && !panel.shouldShowEvent(ev, true)) {
             return true;
@@ -69,9 +67,7 @@ export class MainGrouper extends BaseGrouper {
         if (ev.isState() && groupedStateEvents.includes(ev.getType() as EventType)) {
             return true;
         }
-        if (ev.isRedacted()) {
-            return true;
-        }
+        // Do not absorb redacted events into a group to avoid collapsing multiple "Message deleted" tiles.
         if (this.panel.showHiddenEvents && !this.panel.shouldShowEvent(ev, true)) {
             return true;
         }
