@@ -104,6 +104,7 @@ export default function RoomTopic({ room, className, ...props }: IProps): JSX.El
                 button: false,
             });
         }
+        
     });
 
     // Do not render the tooltip if the topic is empty

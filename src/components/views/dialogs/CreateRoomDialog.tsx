@@ -800,18 +800,21 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                 <form onSubmit={this.onOk} onKeyDown={this.onKeyDown}>
                     <div className="mx_Dialog_content">
                         <Field
-                            ref={this.nameField}
-                            label={_t("common|name")}
-                            onChange={this.onNameChange}
-                            onValidate={this.onNameValidate}
-                            value={this.state.name}
-                            className="mx_CreateRoomDialog_name"
+                          ref={this.nameField}
+                          label={_t("common|name")}
+                          onChange={this.onNameChange}
+                          onValidate={this.onNameValidate}
+                          value={this.state.name}
+                          className="mx_CreateRoomDialog_name"
+                          maxLength={15}
                         />
                         <Field
-                            label={_t("create_room|topic_label")}
-                            onChange={this.onTopicChange}
-                            value={this.state.topic}
-                            className="mx_CreateRoomDialog_topic"
+                             label={_t("create_room|topic_label")}
+                             onChange={this.onTopicChange}
+                             value={this.state.topic}
+                             className="mx_CreateRoomDialog_topic"
+                             minLength={6} // <-- Add this line for minimum length
+                             maxLength={60}
                         />
 
                         {!isVideoRoom && (

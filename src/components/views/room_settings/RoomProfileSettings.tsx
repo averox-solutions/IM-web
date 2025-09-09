@@ -26,7 +26,6 @@ interface IState {
     displayName: string;
     originalAvatarUrl: string | null;
     avatarFile: File | null;
-    // If true, the user has indicated that they wish to remove the avatar and this should happen on save.
     avatarRemovalPending: boolean;
     originalTopic: string;
     topic: string;
@@ -96,18 +95,17 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         });
     };
 
-    // Ensure topic length between 10-15 and name length between 1-15 characters
-private isSaveEnabled = (): boolean => {
-    const { displayName, topic, profileFieldsTouched } = this.state;
+    // Ensure topic length between 6-26 and name length between 1-15 characters
+    private isSaveEnabled = (): boolean => {
+        const { displayName, topic, profileFieldsTouched } = this.state;
 
-    const hasChanges = Object.values(profileFieldsTouched).some(Boolean);
+        const hasChanges = Object.values(profileFieldsTouched).some(Boolean);
 
-    const nameValid = displayName.trim().length > 0 && displayName.trim().length <= 15;
-    const topicValid = topic.trim().length >= 10 && topic.trim().length <= 15;
+        const nameValid = displayName.trim().length > 0 && displayName.trim().length <= 15;
+        const topicValid = topic.trim().length >= 6 && topic.trim().length <= 60;
 
-    return hasChanges && nameValid && topicValid;
-};
-
+        return hasChanges && nameValid && topicValid;
+    };
 
     private cancelProfileChanges = async (e: ButtonEvent): Promise<void> => {
         e.stopPropagation();
@@ -126,26 +124,24 @@ private isSaveEnabled = (): boolean => {
     private saveProfile = async (e: React.FormEvent): Promise<void> => {
         e.stopPropagation();
         e.preventDefault();
-    
+
         // Final validation
         const { displayName, topic } = this.state;
         if (
             displayName.trim().length === 0 ||
             displayName.trim().length > 15 ||
-            topic.trim().length < 10 ||
-            topic.trim().length > 15
+            topic.trim().length < 6 ||
+            topic.trim().length > 60
         ) {
             console.warn("Validation failed: Name or topic length is invalid.");
             return;
         }
-    
+
         if (!this.isSaveEnabled()) return;
         this.setState({ profileFieldsTouched: {} });
-    
+
         const client = MatrixClientPeg.safeGet();
         const newState: Partial<IState> = {};
-    
-    
 
         // TODO: What do we do about errors?
         if (this.state.originalDisplayName !== this.state.displayName) {
@@ -179,7 +175,7 @@ private isSaveEnabled = (): boolean => {
     private onDisplayNameChanged = (e: React.ChangeEvent<HTMLInputElement>): void => {
         const value = e.target.value.slice(0, 15); // ✅ Limit to 15 characters
         this.setState({ displayName: value });
-    
+
         this.setState({
             profileFieldsTouched: {
                 ...this.state.profileFieldsTouched,
@@ -190,11 +186,11 @@ private isSaveEnabled = (): boolean => {
 
     private onTopicChanged = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
         let value = e.target.value;
-        if (value.length > 15) {
-            value = value.slice(0, 15); // ✅ Hard limit at 15
+        if (value.length > 60) {
+            value = value.slice(0, 60); // ✅ Hard limit at 26
         }
         this.setState({ topic: value });
-    
+
         this.setState({
             profileFieldsTouched: {
                 ...this.state.profileFieldsTouched,
@@ -230,32 +226,31 @@ private isSaveEnabled = (): boolean => {
             <form onSubmit={this.saveProfile} autoComplete="off" noValidate={true} className="mx_RoomProfileSettings">
                 <div className="mx_RoomProfileSettings_profile">
                     <div className="mx_RoomProfileSettings_profile_controls">
-                    <Field
-    label={_t("room_settings|general|name_field_label")}
-    type="text"
-    value={this.state.displayName}
-    autoComplete="off"
-    maxLength={15} // ✅ Added
-    onChange={this.onDisplayNameChanged}
-    disabled={!this.state.canSetName}
-/>
-<Field
-    className={classNames(
-        "mx_RoomProfileSettings_profile_controls_topic",
-        "mx_RoomProfileSettings_profile_controls_topic--room",
-    )}
-    id="profileTopic"
-    label={_t("room_settings|general|topic_field_label")}
-    disabled={!this.state.canSetTopic}
-    type="text"
-    value={this.state.topic}
-    autoComplete="off"
-    minLength={10} // ✅ Added
-    maxLength={15} // ✅ Added
-    onChange={this.onTopicChanged}
-    element="textarea"
-/>
-
+                        <Field
+                            label={_t("room_settings|general|name_field_label")}
+                            type="text"
+                            value={this.state.displayName}
+                            autoComplete="off"
+                            maxLength={15} // ✅ Added maxLength for name
+                            onChange={this.onDisplayNameChanged}
+                            disabled={!this.state.canSetName}
+                        />
+                        <Field
+                            className={classNames(
+                                "mx_RoomProfileSettings_profile_controls_topic",
+                                "mx_RoomProfileSettings_profile_controls_topic--room",
+                            )}
+                            id="profileTopic"
+                            label={_t("room_settings|general|topic_field_label")}
+                            disabled={!this.state.canSetTopic}
+                            type="text"
+                            value={this.state.topic}
+                            autoComplete="off"
+                            minLength={6} // ✅ Added minLength for topic
+                            maxLength={60} // ✅ Added maxLength for topic
+                            onChange={this.onTopicChanged}
+                            element="textarea"
+                        />
                     </div>
                     <AvatarSetting
                         avatar={
