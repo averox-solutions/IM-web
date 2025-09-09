@@ -124,24 +124,26 @@ const RoomTopic: React.FC<Pick<IProps, "room">> = ({ room }): JSX.Element | null
             })}
         >
             <Box flex="1" className="mx_RoomSummaryCard_topic_container">
-                <Text
-                    size="sm"
-                    onClick={(ev: React.MouseEvent): void => {
-                        if (ev.target instanceof HTMLAnchorElement) {
-                            onRoomTopicLinkClick(ev);
-                            return;
-                        }
-                    }}
-                >
-                    {expanded ? <Linkify>{body}</Linkify> : body}
-                </Text>
-                <IconButton
+            <Text
+    size="sm"
+    className="mx_RoomSummaryCard_topic"
+    onClick={(ev: React.MouseEvent): void => {
+        if (ev.target instanceof HTMLAnchorElement) {
+            onRoomTopicLinkClick(ev);
+            return;
+        }
+    }}
+>
+    {/* Show the topic text (up to 37 characters) on the first line */}
+    <Linkify>{body}</Linkify>
+</Text>
+                {/* <IconButton
                     className="mx_RoomSummaryCard_topic_chevron"
                     size="24px"
                     onClick={() => setExpanded(!expanded)}
                 >
                     <ChevronDownIcon />
-                </IconButton>
+                </IconButton> */}
             </Box>
         </Flex>
     );
@@ -231,6 +233,7 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
                 {(name) => (
                     <Heading as="h1" size="md" className="mx_RoomSummaryCard_roomName" title={name}>
                         {name}
+
                     </Heading>
                 )}
             </RoomName>

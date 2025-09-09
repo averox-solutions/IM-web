@@ -1568,25 +1568,6 @@ const BasicUserInfo: React.FC<{
         }
     }
 
-    let editDevices;
-    if (member.userId == cli.getUserId()) {
-        editDevices = (
-            <div>
-                <AccessibleButton
-                    kind="link"
-                    className="mx_UserInfo_field"
-                    onClick={() => {
-                        dis.dispatch({
-                            action: Action.ViewUserDeviceSettings,
-                        });
-                    }}
-                >
-                    {_t("user_info|edit_own_devices")}
-                </AccessibleButton>
-            </div>
-        );
-    }
-
     const securitySection = (
         <Container>
             <h2>{_t("common|security")}</h2>
@@ -1600,7 +1581,6 @@ const BasicUserInfo: React.FC<{
                     isUserVerified={isUserVerified}
                 />
             )}
-            {editDevices}
         </Container>
     );
 
@@ -1628,6 +1608,7 @@ const BasicUserInfo: React.FC<{
         </React.Fragment>
     );
 };
+
 
 export type Member = User | RoomMember;
 
