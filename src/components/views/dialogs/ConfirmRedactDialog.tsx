@@ -14,6 +14,7 @@ import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import Modal from "../../../Modal";
 import ErrorDialog from "./ErrorDialog";
 import TextInputDialog from "./TextInputDialog";
+import PinningUtils from "../../../utils/PinningUtils";
 
 interface IProps {
     event: MatrixEvent;
@@ -70,6 +71,12 @@ export function createRedactEventDialog({
 
                 try {
                     onCloseDialog?.();
+                    
+                    // Check if the message is pinned and unpin it before redacting
+                    if (PinningUtils.isPinned(cli, mxEvent)) {
+                        await PinningUtils.pinOrUnpinEvent(cli, mxEvent);
+                    }
+                    
                     await cli.redactEvent(roomId, eventId, undefined, {
                         ...(reason ? { reason } : {}),
                         ...withRelTypes,

@@ -166,12 +166,15 @@ export class SetupEncryptionStore extends EventEmitter {
         } catch (e) {
             if (e instanceof AccessCancelledError) {
                 logger.debug("SetupEncryptionStore.usePassphrase: user cancelled access to secret storage");
+                // Close the surrounding SetupEncryption flow if the user cancels, so it doesn't immediately
+                // re-open or trap them in the flow from profile.
+                this.phase = Phase.Finished;
+                this.emit("update");
             } else {
                 logger.log("SetupEncryptionStore.usePassphrase: error", e);
+                this.phase = Phase.Intro;
+                this.emit("update");
             }
-
-            this.phase = Phase.Intro;
-            this.emit("update");
         }
     }
 

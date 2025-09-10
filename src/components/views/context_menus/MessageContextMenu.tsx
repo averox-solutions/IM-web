@@ -579,7 +579,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let pinButton: JSX.Element | undefined;
-        if (rightClick && this.state.canPin) {
+        if (rightClick && this.state.canPin && !this.props.mxEvent.isRedacted()) {
             const isPinned = PinningUtils.isPinned(MatrixClientPeg.safeGet(), this.props.mxEvent);
             pinButton = (
                 <IconizedContextMenuOption
@@ -612,19 +612,17 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let quickItemsList: JSX.Element | undefined;
-        if (editButton || replyButton || reactButton || pinButton) {
+        const quickItems = [reactButton, replyButton, editButton, pinButton].filter(Boolean);
+        if (quickItems.length > 0) {
             quickItemsList = (
                 <IconizedContextMenuOptionList>
-                    {reactButton}
-                    {replyButton}
-                    {editButton}
-                    {pinButton}
+                    {quickItems}
                 </IconizedContextMenuOptionList>
             );
         }
 
         const commonItemsList = (
-            <IconizedContextMenuOptionList>
+            <IconizedContextMenuOptionList first={!quickItemsList}>
                 {viewInRoomButton}
                 {openInMapSiteButton}
                 {endPollButton}
