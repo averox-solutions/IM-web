@@ -689,7 +689,10 @@ class TimelinePanel extends React.Component<IProps, IState> {
     private onAction = (payload: ActionPayload): void => {
         switch (payload.action) {
             case "ignore_state_changed":
-                this.forceUpdate();
+                // Always reload so messages from newly unignored users appear immediately
+                // without requiring a page refresh. reloadEvents preserves highlighted and
+                // pending event state and is already used for safe re-renders elsewhere.
+                this.reloadEvents();
                 break;
             case Action.DumpDebugLogs:
                 this.onDumpDebugLogs();

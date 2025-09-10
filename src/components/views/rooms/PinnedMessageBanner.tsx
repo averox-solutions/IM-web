@@ -83,9 +83,11 @@ export function PinnedMessageBanner({
             metricsTrigger: undefined, // room doesn't change
         });
 
-        // Cycle through the pinned messages
+        // Cycle through the pinned messages only if there are multiple messages
         // When we reach the first message, we go back to the last message
-        setCurrentEventIndex((currentEventIndex) => (--currentEventIndex === -1 ? eventCount - 1 : currentEventIndex));
+        if (eventCount > 1) {
+            setCurrentEventIndex((currentEventIndex) => (--currentEventIndex === -1 ? eventCount - 1 : currentEventIndex));
+        }
     };
 
     return (

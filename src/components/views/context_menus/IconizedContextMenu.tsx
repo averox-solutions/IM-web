@@ -148,7 +148,7 @@ export const IconizedContextMenuOptionList: React.FC<IOptionListProps> = ({
     });
 
     return (
-        <div className={classes}>
+        <div className={classes} style={first ? { borderTop: "none" } : undefined}>
             {label && (
                 <div>
                     <span className="mx_IconizedContextMenu_optionList_label">{label}</span>

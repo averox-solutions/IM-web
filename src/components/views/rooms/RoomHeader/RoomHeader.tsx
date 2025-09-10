@@ -384,7 +384,9 @@ export default function RoomHeader({
 
     const notificationsEnabled = useFeatureEnabled("feature_notifications");
     const askToJoinEnabled = useFeatureEnabled("feature_ask_to_join");
-
+    const openRightPanelProfile = (): void => {
+        RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
+      };
     const onAvatarClick = (): void => {
         defaultDispatcher.dispatch({
             action: "open_room_settings",
@@ -680,27 +682,35 @@ export default function RoomHeader({
             <CurrentRightPanelPhaseContextProvider roomId={room.roomId}>
                 <Flex as="header" align="center" gap="var(--cpd-space-3x)" className="mx_RoomHeader light-panel">
                     <WithPresenceIndicator room={room} size="8px">
-                        <RoomAvatar
-                            room={room}
-                            size="40px"
-                            oobData={oobData}
-                            onClick={allSamePowerLevel ? undefined : onAvatarClick}
-                            tabIndex={-1}
-                            aria-label={_t("room|header_avatar_open_settings_label")}
-                        />
+                    <RoomAvatar
+  room={room}
+  size="40px"
+  oobData={oobData}
+ 
+  onClick={() => {
+    if (isDirectMessage) {
+      openRightPanelProfile();
+    } else if (!allSamePowerLevel) {
+      onAvatarClick();
+    }
+  }}
+  tabIndex={-1}
+  aria-label={_t("room|header_avatar_open_settings_label")}
+/>
                     </WithPresenceIndicator>
 
                     <button
-                        aria-label={_t("right_panel|room_summary_card|title")}
-                        tabIndex={0}
-                        onClick={() => {
-                            if (!allSamePowerLevel) {
-                                RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
-                            }
-                        }}
-                        disabled={allSamePowerLevel}
-                        className="mx_RoomHeader_infoWrapper"
-                    >
+  aria-label={_t("right_panel|room_summary_card|title")}
+  tabIndex={0}
+  onClick={() => {
+    // Allow for DMs OR for rooms where you previously allowed it
+    if (isDirectMessage || !allSamePowerLevel) {
+      RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
+    }
+  }}
+  disabled={!isDirectMessage && allSamePowerLevel}
+  className="mx_RoomHeader_infoWrapper"
+>
                         <Box flex="1" className="mx_RoomHeader_info">
                             <BodyText
                                 style={{ color: "black" }}

@@ -84,6 +84,15 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
         }
     }
 
+    public componentWillUnmount(): void {
+        // Ensure the requirement flag never lingers and causes the dialog to be re-opened.
+        try {
+            localStorage.removeItem(REQUIRE_FLAG);
+        } catch {
+            /* ignore */
+        }
+    }
+
     private allowCloseAndFinish = (result?: false | KeyParams): void => {
         try {
             localStorage.removeItem(REQUIRE_FLAG);
@@ -102,10 +111,9 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
     };
 
     private onDialogFinished = (result?: false | KeyParams): void => {
-        if (this.state.canClose) {
-            this.props.onFinished(result);
-        }
-        // otherwise swallow close attempts
+        // Always allow closing via the dialog close (X) or external cancel paths.
+        // Ensure we clean up the localStorage flag the same way as successful flows.
+        this.allowCloseAndFinish(result ?? false);
     };
 
     private onCancel = (): void => {
@@ -361,7 +369,8 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
                         <DialogButtons
                             primaryButton={_t("action|continue")}
                             onPrimaryButtonClick={this.onPassPhraseNext}
-                            hasCancel={false}
+                            hasCancel={true}
+                            onCancel={() => this.allowCloseAndFinish(false)}
                             focus={false}
                             // primaryDisabled={this.state.passPhrase.length === 0}
                             additive={resetLine}
@@ -426,7 +435,8 @@ export default class AccessSecretStorageDialog extends React.PureComponent<IProp
                         <DialogButtons
                             primaryButton={_t("action|continue")}
                             onPrimaryButtonClick={this.onRecoveryKeyNext}
-                            hasCancel={false}
+                            hasCancel={true}
+                            onCancel={() => this.allowCloseAndFinish(false)}
                             focus={false}
                             // Enable if we have some key and it's not explicitly invalid
                             // primaryDisabled={

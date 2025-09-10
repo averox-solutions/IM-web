@@ -579,7 +579,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let pinButton: JSX.Element | undefined;
-        if (rightClick && this.state.canPin) {
+        if (rightClick && this.state.canPin && !this.props.mxEvent.isRedacted()) {
             const isPinned = PinningUtils.isPinned(MatrixClientPeg.safeGet(), this.props.mxEvent);
             pinButton = (
                 <IconizedContextMenuOption
@@ -602,42 +602,39 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let nativeItemsList: JSX.Element | undefined;
-        if (copyButton || copyLinkButton) {
-            nativeItemsList = (
-                <IconizedContextMenuOptionList>
-                    {copyButton}
-                    {copyLinkButton}
-                </IconizedContextMenuOptionList>
-            );
+        const nativeItems = [copyButton, copyLinkButton].filter(Boolean);
+        if (nativeItems.length > 0) {
+            nativeItemsList = <IconizedContextMenuOptionList>{nativeItems}</IconizedContextMenuOptionList>;
         }
 
         let quickItemsList: JSX.Element | undefined;
-        if (editButton || replyButton || reactButton || pinButton) {
+        const quickItems = [reactButton, replyButton, editButton, pinButton].filter(Boolean);
+        if (quickItems.length > 0) {
             quickItemsList = (
                 <IconizedContextMenuOptionList>
-                    {reactButton}
-                    {replyButton}
-                    {editButton}
-                    {pinButton}
+                    {quickItems}
                 </IconizedContextMenuOptionList>
             );
         }
 
-        const commonItemsList = (
-            <IconizedContextMenuOptionList>
-                {viewInRoomButton}
-                {openInMapSiteButton}
-                {endPollButton}
-                {forwardButton}
-                {permalinkButton}
-                {reportEventButton}
-                {externalURLButton}
-                {jumpToRelatedEventButton}
-                {unhidePreviewButton}
-                {resendReactionsButton}
-                {collapseReplyChainButton}
-            </IconizedContextMenuOptionList>
-        );
+        const commonItems = [
+            viewInRoomButton,
+            openInMapSiteButton,
+            endPollButton,
+            forwardButton,
+            permalinkButton,
+            reportEventButton,
+            externalURLButton,
+            jumpToRelatedEventButton,
+            unhidePreviewButton,
+            resendReactionsButton,
+            collapseReplyChainButton,
+        ].filter(Boolean);
+        let commonItemsList: JSX.Element | undefined;
+        if (commonItems.length > 0) {
+            const isFirstGroup = !nativeItemsList && !quickItemsList;
+            commonItemsList = <IconizedContextMenuOptionList first={isFirstGroup}>{commonItems}</IconizedContextMenuOptionList>;
+        }
 
         let redactItemList: JSX.Element | undefined;
         if (redactButton) {
@@ -652,6 +649,11 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                     <ReactionPicker mxEvent={mxEvent} onFinished={this.onCloseReactionPicker} reactions={reactions} />
                 </ContextMenu>
             );
+        }
+
+        // If there is nothing to show, do not render the menu at all (prevents empty lists/separators)
+        if (!nativeItemsList && !quickItemsList && !commonItemsList && !redactItemList) {
+            return null;
         }
 
         return (

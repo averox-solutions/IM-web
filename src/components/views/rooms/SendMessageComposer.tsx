@@ -63,6 +63,11 @@ import { type IDiff } from "../../../editor/diff";
 import { getBlobSafeMimeType } from "../../../utils/blobs";
 import { EMOJI_REGEX } from "../../../HtmlUtils";
 
+// Base URL for backend services (e.g., notifications), configurable via env
+// Primary: REACT_APP_NOTIFCATIONURL (as requested), Fallbacks: REACT_APP_BACKEND_URL, localhost
+const NOTIFICATION_API_BASE_URL =
+    process.env.REACT_APP_NOTIFCATIONURL || "http://localhost:4000";
+
 // The prefix used when persisting editor drafts to localstorage.
 export const EDITOR_STATE_STORAGE_PREFIX = "mx_cider_state_";
 
@@ -597,16 +602,13 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
         const others = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
         for (const member of others) {
             try {
-                const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
-                await fetch("https://2fa.bservices-api.org.pk/notifications/send-notification", {
+                await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        fcmToken:        fcmtoken,
+                        userId:        member.userId,
                         notificationTitle: `${sender}`,
                         notificationBody:  "text",
-                        badgeValue:      1,
-                        platform:        is_iOS ? "ios" : "android",
                     }),
                 });
             } catch (e) {

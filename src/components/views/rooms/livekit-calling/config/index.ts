@@ -7,12 +7,12 @@ Please see LICENSE files in the repository root for full details.
 
 // LiveKit Configuration
 // In a real implementation, this should come from your backend/config service
-const LIVEKIT_API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://lk-auth.bservices-api.org.pk/api";
+const LIVEKIT_API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "https://lk-auth.bservices-api.org.pk";
 // const LIVEKIT_API_BASE_URL = "https://lk-auth.bservices-api.org.pk";
 // const LIVEKIT_API_BASE_URL = "https://lk-auth.bservices-api.org.pk";
 
-export const CREATE_ROOM_ENDPOINT = `${LIVEKIT_API_BASE_URL}/create-room`;
-export const GET_ROOM_KEY_ENDPOINT = `${LIVEKIT_API_BASE_URL}/room-key`;
+export const CREATE_ROOM_ENDPOINT = `${LIVEKIT_API_BASE_URL}/api/create-room`;
+export const GET_ROOM_KEY_ENDPOINT = `${LIVEKIT_API_BASE_URL}/api/room-key`;
 
 // LiveKit Server Configuration
 export const LIVEKIT_SERVER_CONFIG = {
