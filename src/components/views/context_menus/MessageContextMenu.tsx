@@ -602,13 +602,9 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let nativeItemsList: JSX.Element | undefined;
-        if (copyButton || copyLinkButton) {
-            nativeItemsList = (
-                <IconizedContextMenuOptionList>
-                    {copyButton}
-                    {copyLinkButton}
-                </IconizedContextMenuOptionList>
-            );
+        const nativeItems = [copyButton, copyLinkButton].filter(Boolean);
+        if (nativeItems.length > 0) {
+            nativeItemsList = <IconizedContextMenuOptionList>{nativeItems}</IconizedContextMenuOptionList>;
         }
 
         let quickItemsList: JSX.Element | undefined;
@@ -621,21 +617,24 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
             );
         }
 
-        const commonItemsList = (
-            <IconizedContextMenuOptionList first={!quickItemsList}>
-                {viewInRoomButton}
-                {openInMapSiteButton}
-                {endPollButton}
-                {forwardButton}
-                {permalinkButton}
-                {reportEventButton}
-                {externalURLButton}
-                {jumpToRelatedEventButton}
-                {unhidePreviewButton}
-                {resendReactionsButton}
-                {collapseReplyChainButton}
-            </IconizedContextMenuOptionList>
-        );
+        const commonItems = [
+            viewInRoomButton,
+            openInMapSiteButton,
+            endPollButton,
+            forwardButton,
+            permalinkButton,
+            reportEventButton,
+            externalURLButton,
+            jumpToRelatedEventButton,
+            unhidePreviewButton,
+            resendReactionsButton,
+            collapseReplyChainButton,
+        ].filter(Boolean);
+        let commonItemsList: JSX.Element | undefined;
+        if (commonItems.length > 0) {
+            const isFirstGroup = !nativeItemsList && !quickItemsList;
+            commonItemsList = <IconizedContextMenuOptionList first={isFirstGroup}>{commonItems}</IconizedContextMenuOptionList>;
+        }
 
         let redactItemList: JSX.Element | undefined;
         if (redactButton) {
@@ -650,6 +649,11 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                     <ReactionPicker mxEvent={mxEvent} onFinished={this.onCloseReactionPicker} reactions={reactions} />
                 </ContextMenu>
             );
+        }
+
+        // If there is nothing to show, do not render the menu at all (prevents empty lists/separators)
+        if (!nativeItemsList && !quickItemsList && !commonItemsList && !redactItemList) {
+            return null;
         }
 
         return (
