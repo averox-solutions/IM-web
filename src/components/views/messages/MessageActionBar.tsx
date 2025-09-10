@@ -427,8 +427,9 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
         }
 
         if (
-            PinningUtils.canPin(MatrixClientPeg.safeGet(), this.props.mxEvent) ||
-            PinningUtils.canUnpin(MatrixClientPeg.safeGet(), this.props.mxEvent)
+            (PinningUtils.canPin(MatrixClientPeg.safeGet(), this.props.mxEvent) ||
+            PinningUtils.canUnpin(MatrixClientPeg.safeGet(), this.props.mxEvent)) &&
+            !this.props.mxEvent.isRedacted()
         ) {
             const isPinned = PinningUtils.isPinned(MatrixClientPeg.safeGet(), this.props.mxEvent);
             toolbarOpts.push(

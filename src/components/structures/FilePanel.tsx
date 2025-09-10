@@ -34,7 +34,7 @@ import { Layout } from "../../settings/enums/Layout";
 import RoomContext, { TimelineRenderingType } from "../../contexts/RoomContext";
 import Measured from "../views/elements/Measured";
 import EmptyState from "../views/right_panel/EmptyState";
-import { ScopedRoomContextProvider } from "../../contexts/ScopedRoomContext.tsx";
+import { ScopedRoomContextProvider } from "../../contexts/ScopedRoomContext";
 
 interface IProps {
     roomId: string;
@@ -54,9 +54,9 @@ class FilePanel extends React.Component<IProps, IState> {
     public static contextType = RoomContext;
     declare public context: React.ContextType<typeof RoomContext>;
 
-    // This is used to track if a decrypted event was a live event and should be
-    // added to the timeline.
-    private decryptingEvents = new Set<string>();
+    // Track events that are being decrypted and whether they belong at the
+    // start of the timeline (historical pagination) or end (live).
+    private decryptingEvents = new Map<string, boolean>();
     public noRoom = false;
     private card = createRef<HTMLDivElement>();
 
@@ -73,15 +73,22 @@ class FilePanel extends React.Component<IProps, IState> {
         data: IRoomTimelineData,
     ): void => {
         if (room?.roomId !== this.props.roomId) return;
-        if (toStartOfTimeline || !data || !data.liveEvent || ev.isRedacted()) return;
+        if (ev.isRedacted()) return;
 
         const client = MatrixClientPeg.safeGet();
+        const isEncryptedRoom = client.isRoomEncrypted(this.props.roomId);
+
+        // For unencrypted rooms, the filtered timeline handles files via server-side filter
+        if (!isEncryptedRoom) return;
+
+        // In encrypted rooms, process both live events and backfilled events so the Files
+        // panel shows items even without the Event Index.
         client.decryptEventIfNeeded(ev);
 
         if (ev.isBeingDecrypted()) {
-            this.decryptingEvents.add(ev.getId()!);
+            this.decryptingEvents.set(ev.getId()!, Boolean(toStartOfTimeline));
         } else {
-            this.addEncryptedLiveEvent(ev);
+            this.addEncryptedLiveOrHistoricalEvent(ev, Boolean(toStartOfTimeline));
         }
     };
 
@@ -89,13 +96,15 @@ class FilePanel extends React.Component<IProps, IState> {
         if (ev.getRoomId() !== this.props.roomId) return;
         const eventId = ev.getId()!;
 
-        if (!this.decryptingEvents.delete(eventId)) return;
+        if (!this.decryptingEvents.has(eventId)) return;
+        const toStartOfTimeline = this.decryptingEvents.get(eventId)!;
+        this.decryptingEvents.delete(eventId);
         if (err) return;
 
-        this.addEncryptedLiveEvent(ev);
+        this.addEncryptedLiveOrHistoricalEvent(ev, toStartOfTimeline);
     };
 
-    public addEncryptedLiveEvent(ev: MatrixEvent): void {
+    public addEncryptedLiveOrHistoricalEvent(ev: MatrixEvent, toStartOfTimeline: boolean): void {
         if (!this.state.timelineSet) return;
 
         const timeline = this.state.timelineSet.getLiveTimeline();
@@ -108,7 +117,7 @@ class FilePanel extends React.Component<IProps, IState> {
             this.state.timelineSet.addEventToTimeline(ev, timeline, {
                 fromCache: false,
                 addToState: false,
-                toStartOfTimeline: false,
+                toStartOfTimeline,
             });
         }
     }
@@ -122,16 +131,12 @@ class FilePanel extends React.Component<IProps, IState> {
 
         // The timelineSets filter makes sure that encrypted events that contain
         // URLs never get added to the timeline, even if they are live events.
-        // These methods are here to manually listen for such events and add
-        // them despite the filter's best efforts.
-        //
-        // We do this only for encrypted rooms and if an event index exists,
-        // this could be made more general in the future or the filter logic
-        // could be fixed.
-        if (EventIndexPeg.get() !== null) {
-            client.on(RoomEvent.Timeline, this.onRoomTimeline);
-            client.on(MatrixEventEvent.Decrypted, this.onEventDecrypted);
-        }
+        // These methods manually listen for such events and add them despite the
+        // filter's best efforts. We attach these listeners for encrypted rooms
+        // regardless of whether an event index is available, so that new uploads
+        // appear immediately in the Files tab.
+        client.on(RoomEvent.Timeline, this.onRoomTimeline);
+        client.on(MatrixEventEvent.Decrypted, this.onEventDecrypted);
     }
 
     public componentWillUnmount(): void {
@@ -140,10 +145,8 @@ class FilePanel extends React.Component<IProps, IState> {
 
         if (!client.isRoomEncrypted(this.props.roomId)) return;
 
-        if (EventIndexPeg.get() !== null) {
-            client.removeListener(RoomEvent.Timeline, this.onRoomTimeline);
-            client.removeListener(MatrixEventEvent.Decrypted, this.onEventDecrypted);
-        }
+        client.removeListener(RoomEvent.Timeline, this.onRoomTimeline);
+        client.removeListener(MatrixEventEvent.Decrypted, this.onEventDecrypted);
     }
 
     public async fetchFileEventsServer(room: Room): Promise<EventTimelineSet> {
@@ -217,6 +220,21 @@ class FilePanel extends React.Component<IProps, IState> {
                 }
 
                 this.setState({ timelineSet: timelineSet });
+
+                // For encrypted rooms without an event index, proactively backfill the
+                // Files panel from currently loaded room timeline events.
+                if (client.isRoomEncrypted(roomId) && eventIndex === null) {
+                    const liveEvents = room.getLiveTimeline().getEvents();
+                    for (const ev of liveEvents) {
+                        // If event is encrypted, try to decrypt then add if it is a file-like message
+                        client.decryptEventIfNeeded(ev);
+                        if (!ev.isBeingDecrypted()) {
+                            this.addEncryptedLiveOrHistoricalEvent(ev, false);
+                        } else {
+                            this.decryptingEvents.set(ev.getId()!, false);
+                        }
+                    }
+                }
             } catch (error) {
                 logger.error("Failed to get or create file panel filter", error);
             }
