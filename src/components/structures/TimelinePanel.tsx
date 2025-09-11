@@ -693,6 +693,15 @@ class TimelinePanel extends React.Component<IProps, IState> {
                 // without requiring a page refresh. reloadEvents preserves highlighted and
                 // pending event state and is already used for safe re-renders elsewhere.
                 this.reloadEvents();
+                
+                // If a specific user was unignored, also trigger a timeline refresh
+                // to fetch their recent messages that were sent during the ignore period
+                if (payload.userId) {
+                    // Use a small delay to ensure the ignore state has been processed
+                    setTimeout(() => {
+                        this.refreshTimeline();
+                    }, 100);
+                }
                 break;
             case Action.DumpDebugLogs:
                 this.onDumpDebugLogs();
