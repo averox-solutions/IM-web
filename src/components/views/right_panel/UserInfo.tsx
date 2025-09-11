@@ -1001,11 +1001,15 @@ const IgnoreToggleButton: React.FC<{
     member: User | RoomMember;
 }> = ({ member }) => {
     const cli = useContext(MatrixClientContext);
-    const unignore = useCallback(() => {
+    const unignore = useCallback(async () => {
         const ignoredUsers = cli.getIgnoredUsers();
         const index = ignoredUsers.indexOf(member.userId);
         if (index !== -1) ignoredUsers.splice(index, 1);
-        cli.setIgnoredUsers(ignoredUsers);
+        await cli.setIgnoredUsers(ignoredUsers);
+        
+        // Force a timeline refresh to fetch messages from the unignored user
+        // This ensures messages sent during the ignore period are loaded
+        dis.dispatch({ action: "ignore_state_changed", userId: member.userId });
     }, [cli, member]);
 
     const ignore = useCallback(async () => {
