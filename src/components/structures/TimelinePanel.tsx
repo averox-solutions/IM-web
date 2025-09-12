@@ -689,19 +689,10 @@ class TimelinePanel extends React.Component<IProps, IState> {
     private onAction = (payload: ActionPayload): void => {
         switch (payload.action) {
             case "ignore_state_changed":
-                // Always reload so messages from newly unignored users appear immediately
-                // without requiring a page refresh. reloadEvents preserves highlighted and
-                // pending event state and is already used for safe re-renders elsewhere.
-                this.reloadEvents();
-                
-                // If a specific user was unignored, also trigger a timeline refresh
-                // to fetch their recent messages that were sent during the ignore period
-                if (payload.userId) {
-                    // Use a small delay to ensure the ignore state has been processed
-                    setTimeout(() => {
-                        this.refreshTimeline();
-                    }, 100);
-                }
+                // Rebuild the timeline window so that messages hidden during the ignore
+                // period are fetched and rendered immediately without a page refresh.
+                // Avoid auto-scrolling; keep current viewport stable.
+                this.loadTimeline(undefined, undefined, undefined, false);
                 break;
             case Action.DumpDebugLogs:
                 this.onDumpDebugLogs();
