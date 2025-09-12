@@ -45,6 +45,9 @@ interface IProps {
 interface IState {
     timelineSet: EventTimelineSet | null;
     narrow: boolean;
+    // Store file events in component state for persistence
+    fileEvents: MatrixEvent[];
+    isLoadingFiles: boolean;
 }
 
 /*
@@ -57,12 +60,16 @@ class FilePanel extends React.Component<IProps, IState> {
     // Track events that are being decrypted and whether they belong at the
     // start of the timeline (historical pagination) or end (live).
     private decryptingEvents = new Map<string, boolean>();
+    // Count of file-like events added during current session to allow early stop
+    private loadedFilesCount = 0;
     public noRoom = false;
     private card = createRef<HTMLDivElement>();
 
     public state: IState = {
         timelineSet: null,
         narrow: false,
+        fileEvents: [],
+        isLoadingFiles: false,
     };
 
     private onRoomTimeline = (
@@ -113,12 +120,26 @@ class FilePanel extends React.Component<IProps, IState> {
             return;
         }
 
+        // Add to timeline set
         if (!this.state.timelineSet.eventIdToTimeline(ev.getId()!)) {
             this.state.timelineSet.addEventToTimeline(ev, timeline, {
                 fromCache: false,
                 addToState: false,
                 toStartOfTimeline,
             });
+            this.loadedFilesCount++;
+        }
+
+        // Also add to our persistent file events state
+        const eventId = ev.getId()!;
+        const existingIndex = this.state.fileEvents.findIndex(e => e.getId() === eventId);
+        
+        if (existingIndex === -1) {
+            // New file event - add to state
+            const newFileEvents = toStartOfTimeline 
+                ? [ev, ...this.state.fileEvents]
+                : [...this.state.fileEvents, ev];
+            this.setState({ fileEvents: newFileEvents });
         }
     }
 
@@ -128,6 +149,9 @@ class FilePanel extends React.Component<IProps, IState> {
         await this.updateTimelineSet(this.props.roomId);
 
         if (!client.isRoomEncrypted(this.props.roomId)) return;
+
+        // Load all historical files for this room
+        await this.loadAllHistoricalFiles();
 
         // The timelineSets filter makes sure that encrypted events that contain
         // URLs never get added to the timeline, even if they are live events.
@@ -219,22 +243,8 @@ class FilePanel extends React.Component<IProps, IState> {
                     await eventIndex.populateFileTimeline(timelineSet, timeline, room, 10);
                 }
 
+                this.loadedFilesCount = 0;
                 this.setState({ timelineSet: timelineSet });
-
-                // For encrypted rooms without an event index, proactively backfill the
-                // Files panel from currently loaded room timeline events.
-                if (client.isRoomEncrypted(roomId) && eventIndex === null) {
-                    const liveEvents = room.getLiveTimeline().getEvents();
-                    for (const ev of liveEvents) {
-                        // If event is encrypted, try to decrypt then add if it is a file-like message
-                        client.decryptEventIfNeeded(ev);
-                        if (!ev.isBeingDecrypted()) {
-                            this.addEncryptedLiveOrHistoricalEvent(ev, false);
-                        } else {
-                            this.decryptingEvents.set(ev.getId()!, false);
-                        }
-                    }
-                }
             } catch (error) {
                 logger.error("Failed to get or create file panel filter", error);
             }
@@ -242,6 +252,78 @@ class FilePanel extends React.Component<IProps, IState> {
             logger.error("Failed to add filtered timelineSet for FilePanel as no room!");
         }
     }
+
+    private async loadAllHistoricalFiles(): Promise<void> {
+        const client = MatrixClientPeg.safeGet();
+        const room = client.getRoom(this.props.roomId);
+        if (!room) return;
+
+        this.setState({ isLoadingFiles: true });
+
+        try {
+            const allFileEvents: MatrixEvent[] = [];
+            
+            // First, collect all currently loaded events
+            const liveEvents = room.getLiveTimeline().getEvents();
+            for (const ev of liveEvents) {
+                if (this.isFileEvent(ev)) {
+                    allFileEvents.push(ev);
+                }
+            }
+
+            // Then paginate backwards to get historical files
+            const CHUNK = 100;
+            const MAX_CHUNKS = 20; // Load up to 2000 events worth of history
+            
+            for (let i = 0; i < MAX_CHUNKS; i++) {
+                const gotMore = await client.paginateEventTimeline(room.getLiveTimeline(), {
+                    backwards: true,
+                    limit: CHUNK,
+                });
+                
+                if (!gotMore) break;
+                
+                // Process newly loaded events
+                const newEvents = room.getLiveTimeline().getEvents();
+                for (const ev of newEvents) {
+                    if (this.isFileEvent(ev) && !allFileEvents.find(e => e.getId() === ev.getId())) {
+                        allFileEvents.push(ev);
+                    }
+                }
+            }
+
+            // Sort by timestamp (newest first)
+            allFileEvents.sort((a, b) => b.getTs() - a.getTs());
+
+            // Update state with all found files
+            console.log(`FilePanel: Found ${allFileEvents.length} files for room ${this.props.roomId}`);
+            this.setState({ 
+                fileEvents: allFileEvents,
+                isLoadingFiles: false 
+            });
+
+            // Add all files to the timeline set
+            for (const ev of allFileEvents) {
+                this.addEncryptedLiveOrHistoricalEvent(ev, false);
+            }
+
+            // Force update to ensure the count is displayed correctly
+            this.forceUpdate();
+
+        } catch (e) {
+            logger.warn("FilePanel loadAllHistoricalFiles failed", e);
+            this.setState({ isLoadingFiles: false });
+        }
+    }
+
+    private isFileEvent(ev: MatrixEvent): boolean {
+        if (ev.getType() !== "m.room.message") return false;
+        if (ev.isRedacted()) return false;
+        
+        const content = ev.getContent();
+        return ["m.file", "m.image", "m.video", "m.audio"].includes(content.msgtype!);
+    }
+
 
     public render(): React.ReactNode {
         if (MatrixClientPeg.safeGet().isGuest()) {
@@ -291,6 +373,11 @@ class FilePanel extends React.Component<IProps, IState> {
         const isRoomEncrypted = this.noRoom ? false : MatrixClientPeg.safeGet().isRoomEncrypted(this.props.roomId);
 
         if (this.state.timelineSet) {
+            // Show loading state in header; do not show numeric counts
+            const headerText = this.state.isLoadingFiles
+                ? `${_t("right_panel|files_button")} (Loading...)`
+                : _t("right_panel|files_button");
+
             return (
                 <ScopedRoomContextProvider
                     {...this.context}
@@ -302,20 +389,27 @@ class FilePanel extends React.Component<IProps, IState> {
                         onClose={this.props.onClose}
                         withoutScrollContainer
                         ref={this.card}
-                        header={_t("right_panel|files_button")}
+                        header={headerText}
                     >
                         <Measured sensor={this.card} onMeasurement={this.onMeasurement} />
                         <SearchWarning isRoomEncrypted={isRoomEncrypted} kind={WarningKind.Files} />
-                        <TimelinePanel
-                            manageReadReceipts={false}
-                            manageReadMarkers={false}
-                            timelineSet={this.state.timelineSet}
-                            showUrlPreview={false}
-                            onPaginationRequest={this.onPaginationRequest}
-                            resizeNotifier={this.props.resizeNotifier}
-                            empty={emptyState}
-                            layout={Layout.Group}
-                        />
+                        {this.state.isLoadingFiles ? (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>
+                                <Spinner />
+                                <div style={{ marginTop: '10px' }}>Loading files...</div>
+                            </div>
+                        ) : (
+                            <TimelinePanel
+                                manageReadReceipts={false}
+                                manageReadMarkers={false}
+                                timelineSet={this.state.timelineSet}
+                                showUrlPreview={false}
+                                onPaginationRequest={this.onPaginationRequest}
+                                resizeNotifier={this.props.resizeNotifier}
+                                empty={emptyState}
+                                layout={Layout.Group}
+                            />
+                        )}
                     </BaseCard>
                 </ScopedRoomContextProvider>
             );
