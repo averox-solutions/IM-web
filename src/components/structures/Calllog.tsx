@@ -430,7 +430,7 @@ export const Calllog = () => {
                                         <div style={{ fontWeight: 600 }}>{displayName}</div>
                                         <div style={{ fontSize: "12px", color: isMissedCall ? "#d9534f" : "#888" }}>
                                             {isGroupCall && (
-                                                <span style={{ marginRight: 8, color: "#3f6be3" }}>Group Call</span>
+                                                <span style={{ marginRight: 8, color: "#0dc8c9" }}>Group Call</span>
                                             )}
                                             {isMissedCall && (
                                                 <span

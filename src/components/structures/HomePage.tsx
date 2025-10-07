@@ -14,13 +14,11 @@ import { _tDom } from "../../languageHandler";
 import SdkConfig from "../../SdkConfig";
 import dis from "../../dispatcher/dispatcher";
 import { Action } from "../../dispatcher/actions";
-import BaseAvatar from "../views/avatars/BaseAvatar";
 import { OwnProfileStore } from "../../stores/OwnProfileStore";
 import AccessibleButton, { type ButtonEvent } from "../views/elements/AccessibleButton";
 import { UPDATE_EVENT } from "../../stores/AsyncStore";
 import { useEventEmitter } from "../../hooks/useEventEmitter";
 import MatrixClientContext, { useMatrixClientContext } from "../../contexts/MatrixClientContext";
-import MiniAvatarUploader, { AVATAR_SIZE } from "../views/elements/MiniAvatarUploader";
 import PosthogTrackers from "../../PosthogTrackers";
 import EmbeddedPage from "./EmbeddedPage";
 
@@ -38,10 +36,9 @@ const onClickNewRoom = (ev: ButtonEvent) => {
     dis.dispatch({ action: "view_create_room" });
 };
 
-// Fetch user's avatar
+// Fetch user's display name only (no avatar)
 const getOwnProfile = (userId: string) => ({
     displayName: OwnProfileStore.instance.displayName || userId,
-    avatarUrl: OwnProfileStore.instance.getHttpAvatarUrl(parseInt(AVATAR_SIZE, 10)) ?? undefined,
 });
 
 const UserWelcomeTop: React.FC = () => {
@@ -54,20 +51,7 @@ const UserWelcomeTop: React.FC = () => {
 
     return (
         <div style={{ textAlign: "center" }}>
-            <MiniAvatarUploader
-                hasAvatar={!!ownProfile.avatarUrl}
-                hasAvatarLabel={_tDom("onboarding|has_avatar_label")}
-                noAvatarLabel={_tDom("onboarding|no_avatar_label")}
-                setAvatarUrl={(url) => cli.setAvatarUrl(url)}
-                isUserAvatar
-            >
-                <BaseAvatar
-                    idName={userId}
-                    name={ownProfile.displayName}
-                    url={ownProfile.avatarUrl}
-                    size={AVATAR_SIZE}
-                />
-            </MiniAvatarUploader>
+            {/* Avatar intentionally removed */}
             <h1>{_tDom("onboarding|welcome_user", { name: ownProfile.displayName })}</h1>
             <h2>{_tDom("onboarding|welcome_detail")}</h2>
         </div>
@@ -90,8 +74,13 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
 
     const [showTooltip, setShowTooltip] = useState(false);
 
+    // Preserve original behavior: show welcome top if just registered OR user has no avatar
+    // (We do not render any avatar; this just preserves which intro text variant shows.)
+    const AVATAR_FETCH_SIZE = 96;
+    const hasAvatar = !!OwnProfileStore.instance.getHttpAvatarUrl(AVATAR_FETCH_SIZE);
+
     let introSection: JSX.Element;
-    if (justRegistered || !OwnProfileStore.instance.getHttpAvatarUrl(parseInt(AVATAR_SIZE, 10))) {
+    if (justRegistered || !hasAvatar) {
         introSection = <UserWelcomeTop />;
     } else {
         introSection = (
@@ -121,34 +110,35 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
                         src={logoUrl}
                         alt={config.brand}
                         style={{
-                            width: "400px",
-                            height: "350px",
+                            width: "340px",
+                            height: "250px",
                             cursor: "pointer",
                             transition: "transform 0.3s ease-in-out",
-                            marginBottom: "10px",
+                            marginBottom: "90px",
+                            marginTop: "25px",
                         }}
                     />
 
                     {/* Tooltips positioned on the left and right */}
-                    {showTooltip && (
+                    {/* {showTooltip && (
                         <div
                             style={{
                                 position: "absolute",
                                 left: "-220px",
                                 top: "50%",
                                 transform: "translateY(-50%)",
-                                background: "rgba(158,189,234,0.42)",
-                                color: "#616161",
+                                background: "#d7d7d9",
+                                color: "#111212",
                                 padding: "10px",
                                 borderRadius: "8px",
                                 width: "200px",
                                 textAlign: "left",
-                                boxShadow: "0 4px 6px rgba(5,100,244,0.63)",
+                                boxShadow: "0 4px 6px #9ea3a3",
                             }}
                         >
                             <ul>
-                            <li>Click "Send Message" and add the user ID to start a one-on-one chat.</li>
-                            <li>Click "Explore Group" to search and join chats, groups, or rooms.</li>
+                                <li>Click "Send Message" and add the user ID to start a one-on-one chat.</li>
+                                <li>Click "Explore Group" to search and join chats, groups, or rooms.</li>
                             </ul>
                         </div>
                     )}
@@ -160,28 +150,28 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
                                 right: "-220px",
                                 top: "50%",
                                 transform: "translateY(-50%)",
-                                background: "rgba(158,189,234,0.42)",
-                                color: "#616161",
+                                background: "#d7d7d9",
+                                color: "#111212",
                                 padding: "10px",
                                 borderRadius: "8px",
                                 width: "200px",
                                 textAlign: "left",
-                                boxShadow: "0 4px 6px rgba(5,100,244,0.63)",
+                                boxShadow: "0 4px 6px #9ea3a3",
                             }}
                         >
                             <ul>
-                            <li>Click "Group Chat" to create a group chat and invite users.</li>
-                            <li>Click "Create" select "Video Group" to start a video chat.</li>
+                                <li>Click "Group Chat" to create a group chat and invite users.</li>
+                                <li>Click "Create" select "Video Group" to start a video chat.</li>
                             </ul>
                         </div>
-                    )}
+                    )} */}
 
                     {/* Bottom Tooltip showing the buttons */}
                     {showTooltip && (
                         <div
                             style={{
                                 position: "absolute",
-                                bottom: "-59px", // Adjust this based on the image size
+                                bottom: "-59px",
                                 left: "50%",
                                 transform: "translateX(-50%)",
                                 display: "flex",
@@ -206,5 +196,3 @@ const HomePage: React.FC<IProps> = ({ justRegistered = false }) => {
 };
 
 export default HomePage;
-
-

@@ -39,7 +39,7 @@ export default class Welcome extends React.PureComponent<EmptyObject> {
                 />
 
                 {/* Welcome message instead of automatic redirect */}
-                <h1 style={{ fontSize: "24px", marginBottom: "10px", color: "#333" }}>Welcome to Averox</h1>
+                <h1 style={{ fontSize: "24px", marginBottom: "10px", color: "#333" }}>Welcome to Assadeq Tech</h1>
                 <p style={{ fontSize: "16px", color: "#666", marginBottom: "30px" }}>
                     Secure communication powered by Matrix
                 </p>

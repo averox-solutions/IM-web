@@ -1,8 +1,8 @@
 {
   "default_server_config": {
     "m.homeserver": {
-      "base_url": "https://ms3.beep.gov.pk",
-      "server_name": "ms3.beep.gov.pk"
+      "base_url": "https://testing-ms.averox.com",
+      "server_name": "testing-ms.averox.com"
     }
   },
   "disable_custom_urls": false,
@@ -10,7 +10,7 @@
   "disable_login_language_selector": false,
   "disable_3pid_login": false,
   "force_verification": false,
-  "brand": "Averox",
+  "brand": "Assadeq Tech",
   "default_widget_container_height": 280,
   "default_country_code": "PK",
   "show_labs_settings": false,
@@ -24,7 +24,7 @@
   "default_federate": false,
   "default_theme": "light",
   "room_directory": {
-    "servers": ["ms131.averox.com"]
+    "servers": ["testing-ms.averox.com"]
   },
   "setting_defaults": {
     "breadcrumbs": true,
@@ -32,7 +32,7 @@
   },
   "element_call": {
     "participant_limit": 8,
-    "brand": "Element Call"
+    "brand": "Assadeq Tech"
   },
   "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx",
   "permalinkPrefix": "https://wa3.beep.gov.pk"

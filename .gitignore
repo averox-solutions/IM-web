@@ -1,11 +1,11 @@
-
+/build
 /cert.pem
-
+/dist
 /key.pem
 /lib
 /node_modules
 /packages/
-
+/webapp
 /.npmrc
 /*.log
 package-lock.json
@@ -22,7 +22,7 @@ electron/pub
 /webpack-stats.json
 .vscode
 .vscode/
-
+.env
 /coverage
 # Auto-generated file
 /src/modules.ts

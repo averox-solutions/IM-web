@@ -8,6 +8,7 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { type SyntheticEvent } from "react";
 import classNames from "classnames";
+import { RiEyeFill, RiEyeCloseFill } from "react-icons/ri";
 
 import { _t } from "../../../languageHandler";
 import SdkConfig from "../../../SdkConfig";
@@ -39,12 +40,15 @@ interface IProps {
     onPhoneCountryChanged?(phoneCountry: string): void;
     onPhoneNumberChanged?(phoneNumber: string): void;
     onForgotPasswordClick?(): void;
+    showPassword: boolean;
 }
 
 interface IState {
     fieldValid: Partial<Record<LoginField, boolean>>;
     loginType: LoginField.Email | LoginField.MatrixId | LoginField.Phone;
     password: string;
+    showPassword: boolean;
+
 }
 
 const enum LoginField {
@@ -80,6 +84,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             fieldValid: {},
             loginType: LoginField.MatrixId,
             password: "",
+            showPassword: false,
         };
     }
 
@@ -262,7 +267,9 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
         this.markFieldValid(LoginField.Password, result.valid);
         return result;
     };
-
+    private toggleShowPassword = () => {
+        this.setState((s) => ({ showPassword: !s.showPassword }));
+    };
     private renderLoginField(loginType: IState["loginType"], autoFocus: boolean): JSX.Element {
         const classes = {
             error: false,
@@ -419,7 +426,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                         id="mx_LoginForm_password"
                         className={pwFieldClass}
                         autoComplete="current-password"
-                        type="password"
+                        type={this.state.showPassword ? "text" : "password"}
                         name="password"
                         label={_t("common|password")}
                         value={this.state.password}
@@ -428,6 +435,18 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                         autoFocus={autoFocusPassword}
                         onValidate={this.onPasswordValidate}
                         ref={(field) => (this[LoginField.Password] = field)}
+                        postfixComponent={
+                            <AccessibleButton
+                                className="mx_Password_toggle"
+                                onClick={this.toggleShowPassword}
+                                aria-label={
+                                    this.state.showPassword ? _t("auth|hide_password") : _t("auth|show_password")
+                                }
+                                title={this.state.showPassword ? _t("auth|hide_password") : _t("auth|show_password")}
+                            >
+                                {this.state.showPassword ? <RiEyeCloseFill size={20} /> : <RiEyeFill size={20} />}
+                            </AccessibleButton>
+                        }
                     />
                     {forgotPasswordJsx}
                     {!this.props.busy && (
