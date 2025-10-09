@@ -47,7 +47,7 @@ export function LoginSplashView(props: Props): React.JSX.Element {
 
     return (
         <div className="mx_MatrixChat_splash">
-         <span>Beep Pakistan</span>
+         <span>Averox</span>
         </div>
     );
 }

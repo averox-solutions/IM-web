@@ -97,3 +97,30 @@ div.mx_AccessibleButton_kind_link.mx_Login_forgot {
     width: 100%;
     margin-bottom: 16px;
 }
+.mx_Field { position: relative; }
+
+/* Ensure the input has space for the eye icon */
+.mx_Field input[type="password"],
+.mx_Field input[type="text"] {
+  padding-right: 40px; /* room for the toggle button */
+}
+.mx_Password_toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;         /* no extra padding */
+  margin: 0;          /* remove margin that pushed it down */
+  border: 0;
+  background: transparent; /* same background as input shows through */
+  cursor: pointer;
+  border-radius: 8px; /* keep your nice focus ring shape */
+}
+
+.mx_Password_toggle:focus-visible {
+  outline: 2px solid var(--cpd-color-border-primary);
+  outline-offset: 2px;
+}
