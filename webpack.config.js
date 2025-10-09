@@ -19,7 +19,7 @@ const { RetryChunkLoadPlugin } = require("webpack-retry-chunk-load-plugin");
 
 dotenv.config();
 let ogImageUrl = process.env.RIOT_OG_IMAGE_URL;
-if (!ogImageUrl) ogImageUrl = "https://app.element.io/themes/element/img/logos/opengraph.png";
+if (!ogImageUrl) ogImageUrl = "./res/themes/element/img/logos/element-logo--.png";
 
 const cssThemes = {
     // CSS themes
