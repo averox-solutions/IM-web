@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 
-const B_SERVICES_API_KEY = "4a2c6375c9ce9ec0a11c5761581a379e83c114fee4e242d1e9062eda9d03fb0d";
+const B_SERVICES_API_KEY = "da7c9c3b7ba19f44aeb452d5a263292e2a535240c3c19ed7ca051f43295f2883";
 
 export interface BServicesUserMinimal {
   fcmtoken: string;
@@ -8,7 +8,7 @@ export interface BServicesUserMinimal {
 }
 
 export async function fetchUserTokenAndPlatform(userId: string): Promise<BServicesUserMinimal> {
-  const url = `https://bservices-api.org.pk/api/users/${encodeURIComponent(userId)}?includeDevices=true`;
+  const url = `https://ss-ccpl.stage-beep.org/api/users/${encodeURIComponent(userId)}?includeDevices=true`;
 
   const response = await fetch(url, {
     headers: {

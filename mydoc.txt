@@ -340,7 +340,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
     ): Promise<void> => {
 
-        // Format username as @username:ms2.beep.gov.pk
+        // Format username as @username:ms.beep.gov.pk
 
         let formattedUsername = username || "";
 
@@ -352,9 +352,9 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
             }
 
-            if (!formattedUsername.endsWith(":ms2.beep.gov.pk")) {
+            if (!formattedUsername.endsWith(":ms.beep.gov.pk")) {
 
-                formattedUsername = formattedUsername.split(":")[0] + ":ms2.beep.gov.pk";
+                formattedUsername = formattedUsername.split(":")[0] + ":ms.beep.gov.pk";
 
             }
 
@@ -438,11 +438,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
                 this.loginCreds = data;
 
-                const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+              const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
+              const TWO_FA_URL = process.env.REACT_APP_2FA_URL;
 
-                try {
+              try {
 
-                    const response = await fetch("https://em4.averox.com/2fa/generate", {
+                  const response = await fetch(`${TWO_FA_URL}/2fa/generate`, {
 
                         method: "POST",
 
@@ -926,11 +927,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
         const usernameToVerify = this.formattedUsername ?? this.state.username; // Use fallback for username
 
-        const TWO_FA_API_KEY = "22641e45b21dd3626d95d9b4b21511a4";
+      const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
+      const TWO_FA_URL = process.env.REACT_APP_2FA_URL;
 
-        try {
+      try {
 
-            const response = await fetch("https://em4.averox.com/2fa/verify", {
+          const response = await fetch(`${TWO_FA_URL}/2fa/verify`, {
 
                 method: "POST",
 

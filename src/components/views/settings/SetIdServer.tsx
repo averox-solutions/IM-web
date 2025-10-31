@@ -284,8 +284,15 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 import React from "react";
 import SettingsFieldset from "./SettingsFieldset";
 import AccessibleButton from "../elements/AccessibleButton";
-import { process } from "process";
+
+// Read from process.env directly so webpack DefinePlugin can inline values at build time
 const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
+const TWO_FA_BASE_URL = process.env.REACT_APP_2FA_URL;
+
+function ensure2FAConfig(): { baseUrl: string; apiKey: string } | null {
+    if (!TWO_FA_BASE_URL || !TWO_FA_API_KEY) return null;
+    return { baseUrl: TWO_FA_BASE_URL, apiKey: TWO_FA_API_KEY };
+}
 
 interface IState {
     toggle2faLoading: boolean;
@@ -323,10 +330,15 @@ export default class SetIdServer extends React.Component<{}, IState> {
             const username = localStorage.getItem("mx_user_id");
             if (!username) return;
 
-            const response = await fetch(`https://em4.averox.com/2fa/status/${encodeURIComponent(username)}`, {
+            const cfg = ensure2FAConfig();
+            if (!cfg) {
+                this.setState({ toggle2faError: "2FA service is not configured. Please contact your administrator." });
+                return;
+            }
+            const response = await fetch(`${cfg.baseUrl}/2fa/status/${encodeURIComponent(username)}`, {
                 method: "GET",
                 headers: {
-                    "api-key": TWO_FA_API_KEY,
+                    "api-key": cfg.apiKey,
                     "Content-Type": "application/json",
                 },
             });
@@ -348,6 +360,67 @@ export default class SetIdServer extends React.Component<{}, IState> {
     }
 
     /** Toggle 2FA */
+    // private async toggle2FA(newState: boolean): Promise<void> {
+    //     const username = localStorage.getItem("mx_user_id");
+    //     if (!username) {
+    //         this.setState({ toggle2faError: "Username not found in local storage" });
+    //         return;
+    //     }
+
+    //     this.setState({ toggle2faLoading: true, toggle2faError: null });
+
+    //     try {
+    //         const cfg = ensure2FAConfig();
+    //         if (!cfg) {
+    //             this.setState({ toggle2faError: "2FA service is not configured. Please contact your administrator." });
+    //             return;
+    //         }
+    //         const response = await fetch(`${cfg.baseUrl}/2fa/toggle`, {
+    //             method: "POST",
+    //             headers: {
+    //                 "api-key": cfg.apiKey,
+    //                 "Content-Type": "application/json",
+    //             },
+    //             body: JSON.stringify({ username, enabled: newState }),
+    //         });
+
+    //         const text = await response.text();
+    //         let result: any = {};
+    //         try {
+    //             result = text ? JSON.parse(text) : {};
+    //         } catch {
+    //             // keep result as {}
+    //         }
+
+    //         // Treat idempotent backend responses as success
+    //         const message = String(result?.message || "").toLowerCase();
+    //         const isIdempotentEnable = newState && message.includes("already enabled");
+    //         const isIdempotentDisable = !newState && message.includes("already disabled");
+
+    //         if (!response.ok && !isIdempotentEnable && !isIdempotentDisable) {
+    //             throw new Error(result?.error || result?.message || "Failed to toggle 2FA");
+    //         }
+
+    //         // Sync UI state: prefer payload's isEnabled, otherwise fall back to requested newState
+    //         const effectiveEnabled = typeof result?.isEnabled === "boolean" ? result.isEnabled : newState;
+    //         this.setState({
+    //             toggle2faStatus: effectiveEnabled,
+    //             toggle2faLoading: false,
+    //             toggle2faError: null,
+    //         });
+
+    //         // Best-effort refresh to ensure server truth
+    //         void this.fetch2FAStatus();
+    //     } catch (err: any) {
+    //         this.setState({
+    //             toggle2faError: err.message || "Failed to toggle 2FA",
+    //             toggle2faLoading: false,
+    //         });
+    //     }
+    // }
+
+
+    /** Toggle 2FA enable/disable */
     private async toggle2FA(newState: boolean): Promise<void> {
         const username = localStorage.getItem("mx_user_id");
         if (!username) {
@@ -355,13 +428,24 @@ export default class SetIdServer extends React.Component<{}, IState> {
             return;
         }
 
+        // Once enabled, prevent disabling
+        if (newState === false && this.state.toggle2faStatus === true) {
+            this.setState({ toggle2faError: "Disabling 2FA is not permitted." });
+            return;
+        }
+
         this.setState({ toggle2faLoading: true, toggle2faError: null });
 
         try {
-            const response = await fetch("https://em4.averox.com/2fa/toggle", {
+            const cfg = ensure2FAConfig();
+            if (!cfg) {
+                this.setState({ toggle2faError: "2FA service is not configured. Please contact your administrator." });
+                return;
+            }
+            const response = await fetch(`${cfg.baseUrl}/2fa/toggle`, {
                 method: "POST",
                 headers: {
-                    "api-key": TWO_FA_API_KEY,
+                    "api-key": cfg.apiKey,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({ username, enabled: newState }),
@@ -394,10 +478,15 @@ export default class SetIdServer extends React.Component<{}, IState> {
         this.setState({ reset2faLoading: true, reset2faError: null });
 
         try {
-            const response = await fetch("https://em4.averox.com/2fa/reset", {
+            const cfg = ensure2FAConfig();
+            if (!cfg) {
+                this.setState({ reset2faError: "2FA service is not configured. Please contact your administrator." });
+                return;
+            }
+            const response = await fetch(`${cfg.baseUrl}/2fa/reset`, {
                 method: "POST",
                 headers: {
-                    "api-key": TWO_FA_API_KEY,
+                    "api-key": cfg.apiKey,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({ username }),
@@ -438,7 +527,7 @@ export default class SetIdServer extends React.Component<{}, IState> {
                         <input
                             type="checkbox"
                             checked={!!toggle2faStatus}
-                            disabled={toggle2faLoading || toggle2faStatus === null}
+                        disabled={toggle2faLoading || toggle2faStatus === null || toggle2faStatus === true}
                             onChange={async (e) => {
                                 const newState = e.target.checked;
                                 await this.toggle2FA(newState);

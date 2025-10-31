@@ -418,7 +418,7 @@
         "textarea_label": "Notes",
         "thank_you": "Thank you!",
         "title": "Bug reporting",
-        "unsupported_browser": "Reminder: Your browser is unsupported, so your experience may be unpredictable.",
+        "unsupported_browser": "Your browser is outdated please update it",
         "uploading_logs": "Uploading logs",
         "waiting_for_server": "Waiting for response from server"
     },
@@ -1277,20 +1277,20 @@
         "other": "In %(spaceName)s and %(count)s other Departments."
     },
     "incompatible_browser": {
-        "continue": "Continue anyway",
-        "description": "%(brand)s uses some browser features which are not available in your current browser. %(detail)s",
-        "detail_can_continue": "If you continue, some features may stop working and there is a risk that you may lose data in the future.",
-        "detail_no_continue": "Try updating this browser if you're not using the latest version and try again.",
-        "learn_more": "Learn more",
-        "linux": "Linux",
-        "macos": "Mac",
-        "supported_browsers": "For the best experience, use <Chrome>Chrome</Chrome>, <Firefox>Firefox</Firefox>, <Edge>Edge</Edge>, or <Safari>Safari</Safari>.",
-        "title": "%(brand)s does not support this browser",
-        "use_desktop_heading": "Use %(brand)s Desktop instead",
-        "use_mobile_heading": "Use %(brand)s on mobile instead",
-        "use_mobile_heading_after_desktop": "Or use our mobile app",
-        "windows": "Windows (%(bits)s-bit)"
-    },
+            "continue": "OK",
+            "description": "Your browser is outdated please update it",
+            "detail_can_continue": "Your browser is outdated please update it",
+            "detail_no_continue": "Your browser is outdated please update it",
+            "learn_more": "Learn more",
+            "linux": "Linux",
+            "macos": "Mac",
+            "supported_browsers": "Your browser is outdated please update it",
+            "title": "Browser Warning",
+            "use_desktop_heading": "Use %(brand)s Desktop instead",
+            "use_mobile_heading": "Use %(brand)s on mobile instead",
+            "use_mobile_heading_after_desktop": "Or use our mobile app",
+            "windows": "Windows (%(bits)s-bit)"
+        },
     "info_tooltip_title": "Information",
     "integration_manager": {
         "connecting": "Connecting to integration manager…",
@@ -3323,7 +3323,7 @@
             "unable_to_find": "Tried to load a specific point in this Group's timeline, but was unable to find it."
         },
         "m.audio": {
-            "error_downloading_audio": "Error downloading audio",
+            "error_downloading_audio": "Network error,please reload the page.",
             "error_processing_audio": "Error processing audio message",
             "error_processing_voice_message": "Error processing voice message",
             "unnamed_audio": "Unnamed audio"
@@ -3364,7 +3364,7 @@
         "m.image": {
             "error": "Unable to show image due to error",
             "error_decrypting": "Error decrypting image",
-            "error_downloading": "Error downloading image",
+            "error_downloading": "Network error,please reload the page.",
             "sent": "%(senderDisplayName)s sent an image.",
             "show_image": "Show image"
         },
@@ -3736,8 +3736,8 @@
         "other": "And %(count)s more..."
     },
     "unsupported_browser": {
-        "description": "If you continue, some features may stop working and there is a risk that you may lose data in the future. Update your browser to continue using %(brand)s.",
-        "title": "%(brand)s does not support this browser"
+        "description": "Your browser is outdated please update it",
+        "title": "Browser Warning"
     },
     "unsupported_server_description": "This server is using an older version of Matrix. Upgrade to Matrix %(version)s to use %(brand)s without errors.",
     "unsupported_server_title": "Your server is unsupported",
@@ -3959,7 +3959,7 @@
         "unknown_person": "unknown person",
         "unsilence": "Sound on",
         "unsupported": "Calls are unsupported",
-        "unsupported_browser": "You cannot place calls in this browser.",
+        "unsupported_browser": "Your browser is outdated please update it",
         "user_busy": "User Busy",
         "user_busy_description": "The user you called is busy.",
         "user_is_presenting": "%(sharerName)s is presenting",

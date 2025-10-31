@@ -29,7 +29,7 @@ The system now supports automatic incoming call notifications. When a user start
 ```tsx
 // NEW FORMAT - Automatically triggers notifications for room participants
 <VideoRoom
-    roomId="!pBwjTwVCSHvPMowYPr:ms2.beep.gov.pk"    // Matrix room ID
+    roomId="!pBwjTwVCSHvPMowYPr:ms.beep.gov.pk"    // Matrix room ID
     toUserIds={["@user1:server.com", "@user2:server.com"]}  // Users to call
     toUsernames={{"@user1:server.com": "Alice", "@user2:server.com": "Bob"}}
     isVideo={true}                                   // Video or voice call
@@ -51,7 +51,7 @@ The backend now receives enhanced data for automatic notifications:
 
 ```json
 {
-    "roomId": "!pBwjTwVCSHvPMowYPr:ms2.beep.gov.pk",
+    "roomId": "!pBwjTwVCSHvPMowYPr:ms.beep.gov.pk",
     "toUserIds": ["@user1:server.com", "@user2:server.com"],
     "toUsernames": {
         "@user1:server.com": "Alice",
@@ -366,7 +366,7 @@ When starting a call using the new format, the system automatically sends incomi
 ```tsx
 // Use VideoRoom with new format - triggers notifications for other users
 <VideoRoom
-    roomId="!pBwjTwVCSHvPMowYPr:ms2.beep.gov.pk" // Matrix room ID
+    roomId="!pBwjTwVCSHvPMowYPr:ms.beep.gov.pk" // Matrix room ID
     toUserIds={["@user1:server.com", "@user2:server.com"]} // Array of users to call
     toUsernames={{
         // Username mapping
@@ -393,7 +393,7 @@ When starting a call using the new format, the system automatically sends incomi
 3. **Backend receives create-room request** with proper format:
     ```json
     {
-        "roomId": "!pBwjTwVCSHvPMowYPr:ms2.beep.gov.pk",
+        "roomId": "!pBwjTwVCSHvPMowYPr:ms.beep.gov.pk",
         "toUserIds": ["@user1:server.com", "@user2:server.com"],
         "toUsernames": {
             "@user1:server.com": "Alice",
@@ -428,7 +428,7 @@ The `RoomHeader` component now automatically:
 ```typescript
 // Example of gathered participant data
 const participantData = {
-    roomId: "!pBwjTwVCSHvPMowYPr:ms2.beep.gov.pk",
+    roomId: "!pBwjTwVCSHvPMowYPr:ms.beep.gov.pk",
     toUserIds: ["@user1:server.com", "@user2:server.com"],
     toUsernames: {
         "@user1:server.com": "Alice",

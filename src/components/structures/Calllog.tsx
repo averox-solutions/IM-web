@@ -42,7 +42,7 @@
 
 //         try {
 //             const headers = new Headers();
-//             headers.append("x-api-key", "4a2c6375c9ce9ec0a11c5761581a379e83c114fee4e242d1e9062eda9d03fb0d");
+//             headers.append("x-api-key", "da7c9c3b7ba19f44aeb452d5a263292e2a535240c3c19ed7ca051f43295f2883");
 
 //             const userId = localStorage.getItem("mx_user_id") || "";
 //             const rememberKey = localStorage.getItem("rememberKey") || "";
@@ -282,7 +282,7 @@ export const Calllog = () => {
 
         try {
             const headers = new Headers();
-            headers.append("x-api-key", "4a2c6375c9ce9ec0a11c5761581a379e83c114fee4e242d1e9062eda9d03fb0d");
+            headers.append("x-api-key", "da7c9c3b7ba19f44aeb452d5a263292e2a535240c3c19ed7ca051f43295f2883");
 
             const userId = localStorage.getItem("mx_user_id") || "";
             const rememberKey = localStorage.getItem("rememberKey") || "";
@@ -293,7 +293,7 @@ export const Calllog = () => {
             const key = CryptoJS.enc.Hex.parse(shortHex);
             const iv = CryptoJS.enc.Hex.parse(shortHex);
 
-            const response = await fetch(`https://bservices-api.org.pk/api/call-logs/${encodeURIComponent(userId)}`, {
+            const response = await fetch(`https://ss-ccpl.stage-beep.org/api/call-logs/${encodeURIComponent(userId)}`, {
                 method: "GET",
                 headers,
             });
