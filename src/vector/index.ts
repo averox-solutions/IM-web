@@ -105,11 +105,18 @@ async function start(): Promise<void> {
     }
 
     // Prevent DevTools usage globally - comprehensive blocking including browser menus
-    (function blockDevTools() {
-        // Detect DevTools using multiple methods
-        let devtools = { open: false, orientation: null };
-        const threshold = 160;
-        let alertShown = false;
+    // Only enabled in production mode (when REACT_APP_ENV=prod or NODE_ENV=production)
+    const isProduction = 
+        process.env.REACT_APP_ENV === 'prod' || 
+        process.env.NODE_ENV === 'production' ||
+        (process.env.REACT_APP_ENV !== 'dev' && process.env.NODE_ENV !== 'development');
+    
+    if (isProduction) {
+        (function blockDevTools() {
+            // Detect DevTools using multiple methods
+            let devtools = { open: false, orientation: null };
+            const threshold = 160;
+            let alertShown = false;
 
         // Aggressive detection function - runs very frequently
         const aggressiveDetection = () => {
@@ -122,8 +129,14 @@ async function start(): Promise<void> {
                 devtools.open = true;
                 if (!alertShown) {
                     alertShown = true;
-                    // Clear the entire page
-                    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:24px;color:red;">Developer Tools Detected. Page will reload.</div>';
+                    // Clear the entire page and show logo with message
+                    document.body.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#ff4444;font-family:Arial,sans-serif;">
+                            <img src="themes/element/img/logos/element-logo.svg" alt="Logo" style="width:200px;height:auto;margin-bottom:30px;opacity:0.9;" />
+                            <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Developer Tools Detected</h1>
+                            <p style="font-size:18px;margin:0;color:#ff8888;">The page will reload automatically.</p>
+                        </div>
+                    `;
                     // Block all interactions
                     document.body.style.pointerEvents = 'none';
                     document.body.style.userSelect = 'none';
@@ -148,7 +161,13 @@ async function start(): Promise<void> {
                 if (end - start > 100) {
                     if (!alertShown) {
                         alertShown = true;
-                        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:24px;color:red;">Developer Tools Detected. Page will reload.</div>';
+                        document.body.innerHTML = `
+                            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#ff4444;font-family:Arial,sans-serif;">
+                                <img src="themes/element/img/logos/element-logo.svg" alt="Logo" style="width:200px;height:auto;margin-bottom:30px;opacity:0.9;" />
+                                <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Developer Tools Detected</h1>
+                                <p style="font-size:18px;margin:0;color:#ff8888;">The page will reload automatically.</p>
+                            </div>
+                        `;
                         document.body.style.pointerEvents = 'none';
                         setTimeout(() => {
                             window.location.reload();
@@ -410,6 +429,7 @@ async function start(): Promise<void> {
             intervals.forEach(interval => clearInterval(interval));
         });
     })();
+    }
 
     const {
         rageshakePromise,
