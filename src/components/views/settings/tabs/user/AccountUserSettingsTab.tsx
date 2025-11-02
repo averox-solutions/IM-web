@@ -19,6 +19,7 @@ import DeactivateAccountDialog from "../../../dialogs/DeactivateAccountDialog";
 import Modal from "../../../../../Modal";
 import { UIFeature } from "../../../../../settings/UIFeature";
 import ErrorDialog, { extractErrorMessageFromError } from "../../../dialogs/ErrorDialog";
+import QuestionDialog from "../../../dialogs/QuestionDialog";
 import ChangePassword from "../../ChangePassword";
 import SettingsTab from "../SettingsTab";
 import { SettingsSection } from "../../shared/SettingsSection";
@@ -78,6 +79,73 @@ const ManagementSection: React.FC<ManagementSectionProps> = ({ onDeactivateClick
                 <AccessibleButton onClick={onDeactivateClicked} kind="danger">
                     {_t("settings|general|deactivate_section")}
                 </AccessibleButton>
+            </SettingsSubsection>
+        </SettingsSection>
+    );
+};
+
+const UtilitySection: React.FC = () => {
+    // Prevent hard refresh keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent): void => {
+            // Prevent Ctrl+Shift+R (hard refresh on Chrome/Edge)
+            if (event.ctrlKey && event.shiftKey && event.key === "R") {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            // Prevent Ctrl+F5 (hard refresh)
+            if (event.ctrlKey && event.key === "F5") {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown, true);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown, true);
+        };
+    }, []);
+
+    const handleClearCookies = useCallback(() => {
+        // Clear all cookies
+        document.cookie.split(";").forEach((c) => {
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        // Also clear localStorage and sessionStorage
+        localStorage.clear();
+        sessionStorage.clear();
+        // Refresh the page after clearing
+        window.location.reload();
+    }, []);
+
+    const handleRefresh = useCallback(() => {
+        Modal.createDialog(QuestionDialog, {
+            title: "Confirm Refresh",
+            description: "Are you sure you want to refresh the page? Any unsaved changes will be lost.",
+            button: "Refresh",
+            onFinished: (confirmed: boolean) => {
+                if (confirmed) {
+                    window.location.reload();
+                }
+            },
+        });
+    }, []);
+
+    return (
+        <SettingsSection heading="Utilities">
+            <SettingsSubsection
+                heading="Browser Utilities"
+                data-testid="browser-utilities-section"
+                description="Clear browser data or refresh the page"
+            >
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                    <AccessibleButton onClick={handleClearCookies} kind="secondary">
+                        Clear Cookies
+                    </AccessibleButton>
+                    <AccessibleButton onClick={handleRefresh} kind="primary">
+                        Refresh
+                    </AccessibleButton>
+                </div>
             </SettingsSubsection>
         </SettingsSection>
     );
@@ -196,6 +264,7 @@ const AccountUserSettingsTab: React.FC<IProps> = ({ closeSettingsFn }) => {
                 />
             </SettingsSection>
             {accountManagementSection}
+            <UtilitySection />
         </SettingsTab>
     );
 };

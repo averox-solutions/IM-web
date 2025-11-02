@@ -1570,7 +1570,7 @@ const normalizeDisplayName = (name: string): string => {
         normalized = normalized.substring(1);
     }
 
-    // Remove domain part after : if present (e.g., ":ms2.beep.gov.pk")
+    // Remove domain part after : if present (e.g., ":ms.beep.gov.pk")
     const colonIndex = normalized.indexOf(":");
     if (colonIndex !== -1) {
         normalized = normalized.substring(0, colonIndex);

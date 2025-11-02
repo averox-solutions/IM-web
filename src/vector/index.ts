@@ -104,32 +104,331 @@ async function start(): Promise<void> {
         await import(/* webpackChunkName: "intl-segmenter-polyfill" */ "@formatjs/intl-segmenter/polyfill-force");
     }
 
-    if (process.env.NODE_ENV === "production") {
-        // Prevent DevTools usage
-        const detectDevTools = () => {
-            const start = performance.now();
-            debugger;
-            const end = performance.now();
-            if (end - start > 100) {
-                alert("Developer Tools are open. Please close them.");
-                window.location.reload();
+    // Prevent DevTools usage globally - comprehensive blocking including browser menus
+    // Only enabled in production mode (when REACT_APP_ENV=prod or NODE_ENV=production)
+    const isProduction = 
+        process.env.REACT_APP_ENV === 'prod' || 
+        process.env.NODE_ENV === 'production' ||
+        (process.env.REACT_APP_ENV !== 'dev' && process.env.NODE_ENV !== 'development');
+    
+    if (isProduction) {
+        (function blockDevTools() {
+            // Detect DevTools using multiple methods
+            let devtools = { open: false, orientation: null };
+            const threshold = 160;
+            let alertShown = false;
+
+        // Aggressive detection function - runs very frequently
+        const aggressiveDetection = () => {
+            // Method 1: Window size detection (fastest)
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            const isDetected = widthDiff > threshold || heightDiff > threshold;
+
+            if (isDetected && !devtools.open) {
+                devtools.open = true;
+                if (!alertShown) {
+                    alertShown = true;
+                    // Clear the entire page and show logo with message
+                    document.body.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#ff4444;font-family:Arial,sans-serif;">
+                            <img src="themes/element/img/logos/element-logo.svg" alt="Logo" style="width:200px;height:auto;margin-bottom:30px;opacity:0.9;" />
+                            <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Developer Tools Detected</h1>
+                            <p style="font-size:18px;margin:0;color:#ff8888;">The page will reload automatically.</p>
+                        </div>
+                    `;
+                    // Block all interactions
+                    document.body.style.pointerEvents = 'none';
+                    document.body.style.userSelect = 'none';
+                    // Reload immediately
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            } else if (!isDetected) {
+                devtools.open = false;
+                alertShown = false;
             }
         };
-        setInterval(detectDevTools, 1000);
 
-        // Disable right-click context menu
-        document.addEventListener("contextmenu", (e) => e.preventDefault());
+        // Method 2: Performance-based detection (catches browser menu-triggered DevTools)
+        const detectDevTools = () => {
+            try {
+                const start = performance.now();
+                // eslint-disable-next-line no-debugger
+                debugger;
+                const end = performance.now();
+                if (end - start > 100) {
+                    if (!alertShown) {
+                        alertShown = true;
+                        document.body.innerHTML = `
+                            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#ff4444;font-family:Arial,sans-serif;">
+                                <img src="themes/element/img/logos/element-logo.svg" alt="Logo" style="width:200px;height:auto;margin-bottom:30px;opacity:0.9;" />
+                                <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Developer Tools Detected</h1>
+                                <p style="font-size:18px;margin:0;color:#ff8888;">The page will reload automatically.</p>
+                            </div>
+                        `;
+                        document.body.style.pointerEvents = 'none';
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        };
 
-        // Block common DevTools shortcut keys
-        document.addEventListener("keydown", (e) => {
-            if (
-                e.key === "F12" ||
-                (e.ctrlKey && e.shiftKey && ["I", "J", "C", "K", "U"].includes(e.key))
-            ) {
-                e.preventDefault();
-                e.stopPropagation();
+        // Method 3: Focus/Blur detection (browser menu DevTools often causes focus loss)
+        let focusTime = Date.now();
+        window.addEventListener("blur", () => {
+            focusTime = Date.now();
+        });
+        window.addEventListener("focus", () => {
+            const timeDiff = Date.now() - focusTime;
+            // If window was blurred for more than 100ms, check for DevTools
+            if (timeDiff > 100) {
+                setTimeout(aggressiveDetection, 100);
             }
         });
+
+        // Method 4: Visibility API detection
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) {
+                // Page became visible, check for DevTools immediately
+                aggressiveDetection();
+            }
+        });
+
+        // Run aggressive detection very frequently to catch browser menu DevTools
+        setInterval(aggressiveDetection, 200);
+        setInterval(detectDevTools, 600);
+
+        // Block ALL context menus (right-click, shift+f10, menu key)
+        const blockContextMenu = (e: MouseEvent | KeyboardEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        };
+        document.addEventListener("contextmenu", blockContextMenu, true);
+        window.addEventListener("contextmenu", blockContextMenu, true);
+
+        // Block menu key (right-click key on keyboard)
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ContextMenu" || e.key === "Menu" || 
+                (e.shiftKey && e.key === "F10")) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // Block ALL possible DevTools keyboard shortcuts
+        document.addEventListener("keydown", (e) => {
+            const blockedKeys = [
+                "F12",                              // F12
+                "I",                                // I key (with modifiers)
+                "J",                                // J key (with modifiers)
+                "C",                                // C key (with modifiers)
+                "K",                                // K key (with modifiers)
+                "E",                                // E key (with modifiers)
+                "U",                                // U key (with modifiers)
+                "S",                                // S key (with modifiers)
+            ];
+
+            const isBlocked = 
+                // Direct F12
+                e.key === "F12" ||
+                // Ctrl+Shift combinations
+                (e.ctrlKey && e.shiftKey && blockedKeys.includes(e.key.toUpperCase())) ||
+                // Ctrl+Alt combinations
+                (e.ctrlKey && e.altKey && blockedKeys.includes(e.key.toUpperCase())) ||
+                // Ctrl combinations (for U, S)
+                (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === "U" || e.key === "S" || e.key === "u" || e.key === "s")) ||
+                // Alt combinations
+                (e.altKey && blockedKeys.includes(e.key.toUpperCase()));
+
+            if (isBlocked) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // Block ALL mouse buttons (including middle click, etc.)
+        const blockMouse = (e: MouseEvent) => {
+            // Block right-click (button 2)
+            if (e.button === 2) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+            // Block middle-click (button 1)
+            if (e.button === 1) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        };
+        document.addEventListener("mousedown", blockMouse, true);
+        document.addEventListener("mouseup", blockMouse, true);
+        document.addEventListener("click", (e) => {
+            if (e.button === 2 || e.button === 1) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // Block ALL possible popup menu triggers
+        document.addEventListener("auxclick", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }, true);
+
+        // Monitor and override console methods completely
+        if (typeof console !== "undefined") {
+            const originalConsole = window.console;
+            let consoleAccessCount = 0;
+            const noop = () => {};
+            const methods = [
+                'log', 'info', 'warn', 'error', 'debug', 'trace', 
+                'table', 'group', 'groupEnd', 'groupCollapsed',
+                'clear', 'dir', 'dirxml', 'assert', 'profile', 
+                'profileEnd', 'count', 'time', 'timeEnd', 'timeStamp'
+            ];
+            methods.forEach(method => {
+                try {
+                    // @ts-ignore
+                    originalConsole[method] = noop;
+                } catch (e) {
+                    // Ignore
+                }
+            });
+            
+            // Override console access with monitoring
+            Object.defineProperty(window, 'console', {
+                get: function() {
+                    consoleAccessCount++;
+                    if (consoleAccessCount > 5 && !alertShown) {
+                        // Multiple console accesses detected - likely DevTools
+                        aggressiveDetection();
+                    }
+                    // Return disabled console
+                    const disabledConsole: any = {};
+                    methods.forEach(method => {
+                        disabledConsole[method] = noop;
+                    });
+                    return disabledConsole;
+                },
+                configurable: false
+            });
+        }
+
+        // Prevent drag and drop completely
+        const blockDragDrop = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        };
+        document.addEventListener("dragstart", blockDragDrop, true);
+        document.addEventListener("dragend", blockDragDrop, true);
+        document.addEventListener("drag", blockDragDrop, true);
+        document.addEventListener("drop", blockDragDrop, true);
+
+        // Prevent ALL text selection
+        document.addEventListener("selectstart", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }, true);
+        document.addEventListener("select", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }, true);
+
+        // Block copy/paste operations
+        document.addEventListener("copy", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }, true);
+        document.addEventListener("cut", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }, true);
+
+        // Block view source via iframe
+        if (window.top !== window.self) {
+            window.top!.location.href = window.self.location.href;
+        }
+
+        // Hide page content when DevTools opens (CSS-based detection)
+        const style = document.createElement("style");
+        style.innerHTML = `
+            * {
+                -webkit-user-select: none !important;
+                -moz-user-select: none !important;
+                -ms-user-select: none !important;
+                user-select: none !important;
+            }
+            *::selection {
+                background: transparent !important;
+            }
+            *::-moz-selection {
+                background: transparent !important;
+            }
+            img, video, canvas {
+                pointer-events: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+
+        // Method 5: Detect DevTools via eval/Function constructor
+        const detectViaEval = () => {
+            try {
+                const start = Date.now();
+                // eslint-disable-next-line no-eval
+                eval("void 0");
+                const end = Date.now();
+                // If eval takes too long, DevTools might be open (stepping through)
+                if (end - start > 50 && !alertShown) {
+                    aggressiveDetection();
+                }
+            } catch (e) {
+                // Ignore
+            }
+        };
+        setInterval(detectViaEval, 1000);
+
+        // Store all intervals for cleanup
+        const intervals: NodeJS.Timeout[] = [];
+        
+        // Continuously check for DevTools (very frequently)
+        intervals.push(setInterval(aggressiveDetection, 200));
+        intervals.push(setInterval(detectDevTools, 600));
+
+        // Cleanup on page unload
+        window.addEventListener("beforeunload", () => {
+            intervals.forEach(interval => clearInterval(interval));
+        });
+    })();
     }
 
     const {

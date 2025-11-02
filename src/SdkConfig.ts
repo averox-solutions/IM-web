@@ -18,7 +18,7 @@ import { type DeepReadonly, type Defaultize } from "./@types/common";
 // see element-web config.md for docs, or the IConfigOptions interface for dev docs
 export const DEFAULTS: DeepReadonly<IConfigOptions> = {
     brand: "Beep Pakistan",
-    help_url: "https://im.beep.gov.pk/help",
+    help_url: "https://wa.beep.gov.pk/help",
     help_encryption_url: "https://im.beep.gov.pk/help#encryption",
     integrations_ui_url: "https://scalar.vector.im/",
     integrations_rest_url: "https://scalar.vector.im/api",

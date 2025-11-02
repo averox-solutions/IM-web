@@ -14,8 +14,14 @@ export default class IdentityAuthClient {
         if (!username) {
             throw new Error("mx_user_id not found in localStorage");
         }
-        const TWO_FA_API_KEY = "cd61775633b58a3f6c630d7a15e335f6";
-        const response = await fetch("/2fa/reset", {
+        const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
+        const TWO_FA_URL = process.env.REACT_APP_2FA_URL;
+        
+        if (!TWO_FA_API_KEY || !TWO_FA_URL) {
+            throw new Error("2FA configuration is missing. Please check environment variables.");
+        }
+        
+        const response = await fetch(`${TWO_FA_URL}/2fa/reset`, {
             method: "POST",
             headers: {
                 "api-key": TWO_FA_API_KEY,

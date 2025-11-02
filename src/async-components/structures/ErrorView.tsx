@@ -1,25 +1,24 @@
 /*
 Copyright 2020-2024 New Vector Ltd.
-
+ 
 SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE files in the repository root for full details.
 */
-
+ 
 import React, { type ReactNode } from "react";
 import { Text, Heading, Button, Separator } from "@vector-im/compound-web";
-import PopOutIcon from "@vector-im/compound-design-tokens/assets/web/icons/pop-out";
-
+ 
 import SdkConfig from "../../SdkConfig";
 import { Flex } from "../../components/utils/Flex";
 import { _t } from "../../languageHandler";
 import { Icon as AppleIcon } from "../../../res/themes/element/img/compound/apple.svg";
 import { Icon as MicrosoftIcon } from "../../../res/themes/element/img/compound/microsoft.svg";
 import { Icon as LinuxIcon } from "../../../res/themes/element/img/compound/linux.svg";
-
+ 
 // directly import the style here as this layer does not support rethemedex at this time so no matrix-react-sdk
 // PostCSS variables will be accessible.
 import "../../../res/css/structures/ErrorView.pcss";
-
+ 
 interface IProps {
     // both of these should already be internationalised
     title: string;
@@ -27,7 +26,7 @@ interface IProps {
     footer?: ReactNode;
     children?: ReactNode;
 }
-
+ 
 export const ErrorView: React.FC<IProps> = ({ title, messages, footer, children }) => {
     return (
         <div className="mx_ErrorView cpd-theme-light">
@@ -52,7 +51,7 @@ export const ErrorView: React.FC<IProps> = ({ title, messages, footer, children 
         </div>
     );
 };
-
+ 
 const MobileAppLinks: React.FC<{
     appleAppStoreUrl?: string;
     googlePlayUrl?: string;
@@ -76,7 +75,7 @@ const MobileAppLinks: React.FC<{
         )}
     </Flex>
 );
-
+ 
 const DesktopAppLinks: React.FC<{
     macOsUrl?: string;
     win64Url?: string;
@@ -108,7 +107,7 @@ const DesktopAppLinks: React.FC<{
         </Flex>
     );
 };
-
+ 
 const linkFactory =
     (link: string) =>
     (text: string): JSX.Element => (
@@ -116,13 +115,13 @@ const linkFactory =
             {text}
         </a>
     );
-
+ 
 export const UnsupportedBrowserView: React.FC<{
     onAccept?(): void;
 }> = ({ onAccept }) => {
     const config = SdkConfig.get();
     const brand = config.brand ?? "Beep Pakistan";
-
+ 
     const hasDesktopBuilds =
         config.desktop_builds?.available &&
         (config.desktop_builds?.url_macos ||
@@ -132,7 +131,7 @@ export const UnsupportedBrowserView: React.FC<{
     const hasMobileBuilds = Boolean(
         config.mobile_builds?.ios || config.mobile_builds?.android || config.mobile_builds?.fdroid,
     );
-
+ 
     return (
         <ErrorView
             title={_t("incompatible_browser|title", { brand })}
@@ -148,7 +147,7 @@ export const UnsupportedBrowserView: React.FC<{
                 <>
                     {/* We render the apps in the footer as they are wider than the 520px container */}
                     {(hasDesktopBuilds || hasMobileBuilds) && <Separator />}
-
+ 
                     {hasDesktopBuilds && (
                         <>
                             <Heading as="h2" size="sm" weight="semibold">
@@ -162,7 +161,7 @@ export const UnsupportedBrowserView: React.FC<{
                             />
                         </>
                     )}
-
+ 
                     {hasMobileBuilds && (
                         <>
                             <Heading as="h2" size="sm" weight="semibold">
@@ -192,11 +191,8 @@ export const UnsupportedBrowserView: React.FC<{
                     },
                 )}
             </Text>
-
+ 
             <Flex gap="var(--cpd-space-4x)" className="mx_ErrorView_buttons">
-                <Button Icon={PopOutIcon} kind="secondary" size="sm">
-                    {_t("incompatible_browser|learn_more")}
-                </Button>
                 {onAccept && (
                     <Button kind="primary" size="sm" onClick={onAccept}>
                         {_t("incompatible_browser|continue")}
@@ -206,3 +202,4 @@ export const UnsupportedBrowserView: React.FC<{
         </ErrorView>
     );
 };
+ 

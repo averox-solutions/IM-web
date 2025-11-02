@@ -52,6 +52,9 @@ const debuglog = (...args: any[]): void => {
     }
 };
 
+// Custom API registration configuration
+const CUSTOM_API_URL = process.env.REACT_APP_BACKEND_SESSION_API_URL || "http://localhost:3000";
+
 export interface MobileRegistrationResponse {
     user_id: string;
     home_server: string;
@@ -305,6 +308,62 @@ export default class Registration extends React.Component<IProps, IState> {
             formVals,
             doingUIAuth: true,
         });
+
+        // Call both registration APIs simultaneously
+        try {
+            const [customApiResult, matrixResult] = await Promise.allSettled([
+                this.makeCustomApiRegisterRequest(formVals.username!, formVals.password!),
+                this.makeMatrixRegisterRequest(formVals)
+            ]);
+
+            debuglog("Registration results:", { customApiResult, matrixResult });
+
+            // Handle results from both APIs
+            const customApiSuccess = customApiResult.status === 'fulfilled';
+            const matrixSuccess = matrixResult.status === 'fulfilled';
+
+            if (customApiSuccess && matrixSuccess) {
+                // Both registrations successful
+                debuglog("Both registrations successful");
+                this.setState({
+                    busy: false,
+                    doingUIAuth: false,
+                    completedNoSignin: true,
+                    registeredUsername: formVals.username,
+                });
+            } else if (customApiSuccess || matrixSuccess) {
+                // At least one registration successful
+                const successfulMethod = customApiSuccess ? "Custom API" : "Matrix";
+                debuglog(`${successfulMethod} registration successful`);
+                this.setState({
+                    busy: false,
+                    doingUIAuth: false,
+                    completedNoSignin: true,
+                    registeredUsername: formVals.username,
+                });
+            } else {
+                // Both registrations failed
+                const customError = customApiResult.status === 'rejected' ? customApiResult.reason : null;
+                const matrixError = matrixResult.status === 'rejected' ? matrixResult.reason : null;
+                
+                debuglog("Both registrations failed:", { customError, matrixError });
+                
+                // Show error from the first failed registration
+                const errorMessage = customError?.message || matrixError?.message || "Registration failed on both systems";
+                this.setState({
+                    busy: false,
+                    doingUIAuth: false,
+                    errorText: errorMessage,
+                });
+            }
+        } catch (error) {
+            debuglog("Unexpected error during dual registration:", error);
+            this.setState({
+                busy: false,
+                doingUIAuth: false,
+                errorText: error instanceof Error ? error.message : "Registration failed",
+            });
+        }
     };
 
     private requestEmailToken = (
@@ -498,6 +557,44 @@ export default class Registration extends React.Component<IProps, IState> {
         return this.state.matrixClient.registerRequest(registerParams);
     };
 
+    private makeCustomApiRegisterRequest = async (username: string, password: string): Promise<any> => {
+        const response = await fetch(`${CUSTOM_API_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username,
+                password,
+                isAppRegistration: true,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Custom API registration failed with status ${response.status}`);
+        }
+
+        return await response.json();
+    };
+
+    private makeMatrixRegisterRequest = async (formVals: Record<string, string>): Promise<RegisterResponse> => {
+        if (!this.state.matrixClient) {
+            throw new Error("Matrix client has not yet been loaded");
+        }
+
+        const registerParams: IRegisterRequestParams = {
+            username: formVals.username,
+            password: formVals.password,
+            initial_device_display_name: this.props.defaultDeviceDisplayName,
+            auth: undefined,
+            inhibit_login: undefined,
+        };
+
+        debuglog("Matrix registration: sending registration request:", registerParams);
+        return this.state.matrixClient.registerRequest(registerParams);
+    };
+
     private getUIAuthInputs(): IInputs {
         return {
             emailAddress: this.state.formVals.email,
@@ -597,6 +694,7 @@ export default class Registration extends React.Component<IProps, IState> {
                     </React.Fragment>
                 );
             }
+
             return (
                 <React.Fragment>
                     {ssoSection}
