@@ -283,7 +283,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 
 import React from "react";
 import SettingsFieldset from "./SettingsFieldset";
-import AccessibleButton from "../elements/AccessibleButton";
+
 
 // Read from process.env directly so webpack DefinePlugin can inline values at build time
 const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
@@ -344,8 +344,10 @@ export default class SetIdServer extends React.Component<{}, IState> {
             });
 
             const result = await response.json();
+            console.log("Fetch 2FA status response:", result);
 
             if (response.ok) {
+                console.log("Setting state - isEnabled:", result.isEnabled, "isConfigured:", result.isConfigured);
                 this.setState({
                     toggle2faStatus: result.isEnabled,
                     isConfigured: result.isConfigured,
@@ -452,13 +454,20 @@ export default class SetIdServer extends React.Component<{}, IState> {
             });
 
             const result = await response.json();
+            console.log("Toggle 2FA response:", result);
             if (!response.ok) throw new Error(result?.error || "Failed to toggle 2FA");
 
+            // Update both isEnabled and isConfigured from the API response
+            console.log("Setting isConfigured to:", result.isConfigured);
             this.setState({
                 toggle2faStatus: result.isEnabled,
+                isConfigured: result.isConfigured ?? this.state.isConfigured,
                 toggle2faLoading: false,
                 toggle2faError: null,
             });
+
+            // Re-fetch status to ensure UI is in sync with backend
+            await this.fetch2FAStatus();
         } catch (err: any) {
             this.setState({
                 toggle2faError: err.message || "Failed to toggle 2FA",
@@ -541,6 +550,10 @@ export default class SetIdServer extends React.Component<{}, IState> {
                 <div style={{ marginBottom: 16 }}>
                     <strong>Status:</strong>{" "}
                     {toggle2faStatus === null ? "Loading..." : toggle2faStatus ? "Enabled" : "Disabled"}
+                </div>
+                <div style={{ marginBottom: 16, fontSize: "14px", color: "#666" }}>
+                    <strong>Configuration Status:</strong>{" "}
+                    {this.state.isConfigured ? "Configured (QR verified)" : "Not Configured (QR not verified)"}
                 </div>
 
                 {/* Reset 2FA */}

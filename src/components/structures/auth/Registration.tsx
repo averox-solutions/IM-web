@@ -45,6 +45,7 @@ import { AuthHeaderProvider } from "./header/AuthHeaderProvider";
 import SettingsStore from "../../../settings/SettingsStore";
 import { type ValidatedServerConfig } from "../../../utils/ValidatedServerConfig";
 import { startOidcLogin } from "../../../utils/oidc/authorize";
+import { addDataForUser, isUserDataServiceConfigured } from "../../../utils/UserDataService";
 
 const debuglog = (...args: any[]): void => {
     if (SettingsStore.getValue("debug_registration")) {
@@ -477,6 +478,11 @@ export default class Registration extends React.Component<IProps, IState> {
                 newState.busy = false;
                 newState.completedNoSignin = true;
             } else {
+                // Send user data to backend after successful registration
+                if (isUserDataServiceConfigured() && userId) {
+                    await addDataForUser(userId);
+                }
+
                 await this.props.onLoggedIn({
                     userId,
                     deviceId: (response as RegisterResponse).device_id!,

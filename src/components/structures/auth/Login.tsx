@@ -31,6 +31,7 @@ import AccessibleButton, { type ButtonEvent } from "../../views/elements/Accessi
 import { type ValidatedServerConfig } from "../../../utils/ValidatedServerConfig";
 import { filterBoolean } from "../../../utils/arrays";
 import { startOidcLogin } from "../../../utils/oidc/authorize";
+import { addDataForUser, isUserDataServiceConfigured } from "../../../utils/UserDataService";
 // Use the global process provided by webpack DefinePlugin for env replacement
 
 const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
@@ -238,13 +239,19 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         },
                     });
                     const status = await statusRes.json();
+                    console.log("2FA status response:", status);
                     if (!statusRes.ok) throw new Error(status?.error || "Failed to fetch 2FA status");
 
                     const isEnabled = !!status.isEnabled;
                     const isConfigured = !!status.isConfigured;
+                    console.log("2FA status - isEnabled:", isEnabled, "isConfigured:", isConfigured);
 
                     if (!isEnabled) {
                         // 2) 2FA disabled → skip 2FA flow and complete login
+                        // Send user data to backend before completing login
+                        if (isUserDataServiceConfigured() && this.loginCreds?.userId) {
+                            await addDataForUser(this.loginCreds.userId);
+                        }
                         this.props.onLoggedIn(this.loginCreds!);
                         return;
                     }
@@ -254,6 +261,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
                     if (!isConfigured) {
                         // 3a) Not configured → generate secret and show QR
+                        console.log("User not configured, generating QR...");
                         const genRes = await fetch(`${TWO_FA_BASE_URL}/2fa/generate`, {
                             method: "POST",
                             headers: {
@@ -263,6 +271,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             body: JSON.stringify({ username: formattedUsername }),
                         });
                         const gen = await genRes.json();
+                        console.log("Generate response:", gen);
                         if (!genRes.ok) throw new Error(gen?.error || "Failed to initiate 2FA");
                         this.setState({
                             qr: gen.qr,
@@ -272,6 +281,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         });
                     } else {
                         // 3b) Already configured → show only OTP input (no QR)
+                        console.log("User already configured, showing OTP input only");
                         this.setState({ qr: undefined, secret: undefined, otpauthUrl: undefined });
                     }
                 } catch (e) {
@@ -478,7 +488,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         } catch (error) {
             // If server check or flow fetch fails
             this.setState({
-                errorText: messageForConnectionError(error, this.props.serverConfig),
+                errorText: messageForConnectionError(error as Error, this.props.serverConfig),
                 loginIncorrect: false,
                 canTryLogin: false,
             });
@@ -503,7 +513,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             const response = await fetch(`${TWO_FA_BASE_URL}/2fa/verify`, {
                 method: "POST",
                 headers: {
-                    "api-key": TWO_FA_API_KEY,
+                    "api-key": TWO_FA_API_KEY as string,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
@@ -522,6 +532,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             }
             if (!response.ok || result?.error) {
                 throw new Error(result?.error || "Invalid 2FA token");
+            }
+            
+            console.log("2FA verification successful, logging in user");
+            // Send user data to backend after successful 2FA verification
+            if (isUserDataServiceConfigured() && this.loginCreds?.userId) {
+                await addDataForUser(this.loginCreds.userId);
             }
             this.props.onLoggedIn(this.loginCreds!);
         } catch (e) {
@@ -663,6 +679,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                 serverConfig={this.props.serverConfig}
                 disableSubmit={this.isBusy()}
                 busy={this.props.isSyncing || this.state.busyLoggingIn}
+                showPassword={false}
             />
         );
     };
