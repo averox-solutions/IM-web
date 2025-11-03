@@ -312,30 +312,22 @@ export default class Registration extends React.Component<IProps, IState> {
 
         // Call both registration APIs simultaneously
         try {
-            const [customApiResult, matrixResult] = await Promise.allSettled([
-                this.makeCustomApiRegisterRequest(formVals.username!, formVals.password!),
+            // For now, only call Matrix registration
+            // const [customApiResult, matrixResult] = await Promise.allSettled([
+            //     this.makeCustomApiRegisterRequest(formVals.username!, formVals.password!),
+            //     this.makeMatrixRegisterRequest(formVals)
+            // ]);
+            const [matrixResult] = await Promise.allSettled([
                 this.makeMatrixRegisterRequest(formVals)
             ]);
 
-            debuglog("Registration results:", { customApiResult, matrixResult });
+            debuglog("Registration results:", { matrixResult });
 
-            // Handle results from both APIs
-            const customApiSuccess = customApiResult.status === 'fulfilled';
+            // Handle Matrix registration result
             const matrixSuccess = matrixResult.status === 'fulfilled';
 
-            if (customApiSuccess && matrixSuccess) {
-                // Both registrations successful
-                debuglog("Both registrations successful");
-                this.setState({
-                    busy: false,
-                    doingUIAuth: false,
-                    completedNoSignin: true,
-                    registeredUsername: formVals.username,
-                });
-            } else if (customApiSuccess || matrixSuccess) {
-                // At least one registration successful
-                const successfulMethod = customApiSuccess ? "Custom API" : "Matrix";
-                debuglog(`${successfulMethod} registration successful`);
+            if (matrixSuccess) {
+                debuglog("Matrix registration successful");
                 this.setState({
                     busy: false,
                     doingUIAuth: false,
@@ -343,14 +335,13 @@ export default class Registration extends React.Component<IProps, IState> {
                     registeredUsername: formVals.username,
                 });
             } else {
-                // Both registrations failed
-                const customError = customApiResult.status === 'rejected' ? customApiResult.reason : null;
+                // Matrix registration failed
                 const matrixError = matrixResult.status === 'rejected' ? matrixResult.reason : null;
                 
-                debuglog("Both registrations failed:", { customError, matrixError });
+                debuglog("Matrix registration failed:", { matrixError });
                 
-                // Show error from the first failed registration
-                const errorMessage = customError?.message || matrixError?.message || "Registration failed on both systems";
+                // Show error from the failed registration
+                const errorMessage = matrixError?.message || "Registration failed";
                 this.setState({
                     busy: false,
                     doingUIAuth: false,
@@ -358,7 +349,7 @@ export default class Registration extends React.Component<IProps, IState> {
                 });
             }
         } catch (error) {
-            debuglog("Unexpected error during dual registration:", error);
+            debuglog("Unexpected error during registration:", error);
             this.setState({
                 busy: false,
                 doingUIAuth: false,

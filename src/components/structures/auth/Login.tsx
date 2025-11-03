@@ -152,6 +152,58 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
     public componentDidMount(): void {
         this.unmounted = false;
+        
+        // Restore 2FA state from sessionStorage if it exists
+        try {
+            const saved2FAState = sessionStorage.getItem("mx_2fa_state");
+            const savedCreds = sessionStorage.getItem("mx_2fa_creds");
+            
+            if (saved2FAState && savedCreds) {
+                const state = JSON.parse(saved2FAState);
+                // Check if the state is recent (less than 1 hour old)
+                const savedTime = state.timestamp;
+                const now = Date.now();
+                if (now - savedTime < 3600000) { // 1 hour
+                    try {
+                        this.loginCreds = JSON.parse(savedCreds);
+                        // Only restore if we have valid credentials
+                        if (this.loginCreds && this.loginCreds.accessToken) {
+                            this.setState({
+                                show2FA: true,
+                                twoFAEnabled: state.twoFAEnabled,
+                                twoFAConfigured: state.twoFAConfigured,
+                                qr: state.qr,
+                                secret: state.secret,
+                                otpauthUrl: state.otpauthUrl,
+                                username: state.username || "",
+                                twoFAToken: state.twoFAToken || "",
+                            });
+                            this.formattedUsername = state.formattedUsername;
+                        } else {
+                            // Invalid credentials, clear state
+                            sessionStorage.removeItem("mx_2fa_state");
+                            sessionStorage.removeItem("mx_2fa_creds");
+                        }
+                    } catch (e) {
+                        logger.error("Failed to restore login credentials:", e);
+                        sessionStorage.removeItem("mx_2fa_state");
+                        sessionStorage.removeItem("mx_2fa_creds");
+                    }
+                } else {
+                    // State is too old, clear it
+                    sessionStorage.removeItem("mx_2fa_state");
+                    sessionStorage.removeItem("mx_2fa_creds");
+                }
+            } else if (saved2FAState && !savedCreds) {
+                // Have state but no credentials, clear state
+                sessionStorage.removeItem("mx_2fa_state");
+            }
+        } catch (e) {
+            logger.error("Failed to restore 2FA state:", e);
+            sessionStorage.removeItem("mx_2fa_state");
+            sessionStorage.removeItem("mx_2fa_creds");
+        }
+        
         this.initLoginLogic(this.props.serverConfig);
     }
 
@@ -218,6 +270,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             }
         }
 
+        // Clear any previously saved 2FA state when starting a new login attempt
+        sessionStorage.removeItem("mx_2fa_state");
+        sessionStorage.removeItem("mx_2fa_creds");
+        
         this.setState({
             busy: true,
             busyLoggingIn: true,
@@ -248,6 +304,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
                     if (!isEnabled) {
                         // 2) 2FA disabled → skip 2FA flow and complete login
+                        // Clear any saved 2FA state since we're not using it
+                        sessionStorage.removeItem("mx_2fa_state");
+                        sessionStorage.removeItem("mx_2fa_creds");
+                        
                         // Send user data to backend before completing login
                         if (isUserDataServiceConfigured() && this.loginCreds?.userId) {
                             await addDataForUser(this.loginCreds.userId);
@@ -257,8 +317,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     }
 
                     // 3) 2FA enabled → show 2FA UI
-                    this.setState({ show2FA: true, twoFAEnabled: true, twoFAConfigured: isConfigured });
-
+                    let qrValue: string | undefined;
+                    let secretValue: string | undefined;
+                    let otpauthUrlValue: string | undefined;
+                    
                     if (!isConfigured) {
                         // 3a) Not configured → generate secret and show QR
                         console.log("User not configured, generating QR...");
@@ -273,16 +335,51 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         const gen = await genRes.json();
                         console.log("Generate response:", gen);
                         if (!genRes.ok) throw new Error(gen?.error || "Failed to initiate 2FA");
+                        qrValue = gen.qr;
+                        secretValue = gen.secret;
+                        otpauthUrlValue = gen.otpauth_url;
                         this.setState({
-                            qr: gen.qr,
-                            secret: gen.secret,
-                            otpauthUrl: gen.otpauth_url,
+                            show2FA: true,
+                            twoFAEnabled: true,
+                            twoFAConfigured: isConfigured,
+                            qr: qrValue,
+                            secret: secretValue,
+                            otpauthUrl: otpauthUrlValue,
                             twoFAMessage: gen.message,
                         });
                     } else {
                         // 3b) Already configured → show only OTP input (no QR)
                         console.log("User already configured, showing OTP input only");
-                        this.setState({ qr: undefined, secret: undefined, otpauthUrl: undefined });
+                        this.setState({
+                            show2FA: true,
+                            twoFAEnabled: true,
+                            twoFAConfigured: isConfigured,
+                            qr: undefined,
+                            secret: undefined,
+                            otpauthUrl: undefined,
+                        });
+                    }
+                    
+                    // Save 2FA state to sessionStorage for persistence across refreshes
+                    try {
+                        sessionStorage.setItem("mx_2fa_state", JSON.stringify({
+                            show2FA: true,
+                            twoFAEnabled: true,
+                            twoFAConfigured: isConfigured,
+                            qr: qrValue,
+                            secret: secretValue,
+                            otpauthUrl: otpauthUrlValue,
+                            username: this.state.username,
+                            formattedUsername: formattedUsername,
+                            twoFAToken: this.state.twoFAToken || "",
+                            timestamp: Date.now(),
+                        }));
+                        // Also save login credentials temporarily
+                        if (this.loginCreds) {
+                            sessionStorage.setItem("mx_2fa_creds", JSON.stringify(this.loginCreds));
+                        }
+                    } catch (e) {
+                        logger.error("Failed to save 2FA state:", e);
                     }
                 } catch (e) {
                     this.setState({ errorText: "Failed to load 2FA setup. Please try again." });
@@ -535,6 +632,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             }
             
             console.log("2FA verification successful, logging in user");
+            // Clear saved 2FA state since login is successful
+            sessionStorage.removeItem("mx_2fa_state");
+            sessionStorage.removeItem("mx_2fa_creds");
+            
             // Send user data to backend after successful 2FA verification
             if (isUserDataServiceConfigured() && this.loginCreds?.userId) {
                 await addDataForUser(this.loginCreds.userId);
@@ -542,6 +643,35 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             this.props.onLoggedIn(this.loginCreds!);
         } catch (e) {
             this.setState({ errorText: "Invalid 2FA code. Please try again." });
+        }
+    };
+
+    private handleCopySecret = async (): Promise<void> => {
+        if (this.state.secret) {
+            try {
+                // Try modern Clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(this.state.secret);
+                } else {
+                    // Fallback: Create temporary textarea and select
+                    const textarea = document.createElement("textarea");
+                    textarea.value = this.state.secret;
+                    textarea.style.position = "fixed";
+                    textarea.style.opacity = "0";
+                    textarea.style.pointerEvents = "none";
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    textarea.setSelectionRange(0, 99999); // For mobile devices
+                    try {
+                        document.execCommand("copy");
+                    } catch (err) {
+                        logger.error("execCommand copy failed:", err);
+                    }
+                    document.body.removeChild(textarea);
+                }
+            } catch (err) {
+                logger.error("Failed to copy secret:", err);
+            }
         }
     };
 
@@ -582,20 +712,28 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             <p style={{ fontSize: "14px", marginTop: 12, color: "black" }}>
                                 Scan this QR code with your authenticator app.
                             </p>
-                            <p style={{ fontSize: "13px", color: "black", wordBreak: "break-word" }}>
-                                Or use this secret:{" "}
+                            <div style={{ fontSize: "13px", color: "black", wordBreak: "break-word", display: "flex", alignItems: "center", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                                <span>Or use this secret (double-click to copy):</span>
                                 <code
+                                    id="2fa-secret-code"
+                                    onDoubleClick={this.handleCopySecret}
                                     style={{
                                         backgroundColor: "#f4f4f4",
                                         padding: "4px 6px",
                                         borderRadius: "4px",
                                         fontFamily: "monospace",
                                         fontSize: "13px",
+                                        userSelect: "text",
+                                        WebkitUserSelect: "text",
+                                        MozUserSelect: "text",
+                                        msUserSelect: "text",
+                                        cursor: "text",
+                                        display: "inline-block",
                                     }}
                                 >
                                     {this.state.secret}
                                 </code>
-                            </p>
+                            </div>
                         </div>
                     )}
         
@@ -609,7 +747,23 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         type="text"
                         placeholder="Enter 6-digit OTP"
                         value={this.state.twoFAToken || ""}
-                        onChange={(e) => this.setState({ twoFAToken: e.target.value })}
+                        onChange={(e) => {
+                            const newToken = e.target.value;
+                            this.setState({ twoFAToken: newToken });
+                            // Update saved state with new token
+                            if (this.state.show2FA) {
+                                try {
+                                    const savedState = sessionStorage.getItem("mx_2fa_state");
+                                    if (savedState) {
+                                        const state = JSON.parse(savedState);
+                                        state.twoFAToken = newToken;
+                                        sessionStorage.setItem("mx_2fa_state", JSON.stringify(state));
+                                    }
+                                } catch (err) {
+                                    logger.error("Failed to update 2FA token in storage:", err);
+                                }
+                            }
+                        }}
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={6}
@@ -622,7 +776,8 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             borderRadius: "17px",
                             marginBottom: "20px",
                             boxSizing: "border-box",
-                            color:"black",
+                            color: "black",
+                            textAlign: "center",
                         }}
                     />
         

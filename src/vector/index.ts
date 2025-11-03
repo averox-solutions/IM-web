@@ -318,8 +318,23 @@ async function start(): Promise<void> {
             Object.defineProperty(window, 'console', {
                 get: function() {
                     consoleAccessCount++;
+                    const now = Date.now();
+                    consoleAccessTimestamps.push(now);
+                    // Keep only last 50 accesses
+                    if (consoleAccessTimestamps.length > 50) {
+                        consoleAccessTimestamps = consoleAccessTimestamps.slice(-50);
+                    }
+                    // Detect frequent console access (even from separate window)
+                    if (consoleAccessTimestamps.length >= 10) {
+                        const timeSpan = consoleAccessTimestamps[consoleAccessTimestamps.length - 1] - 
+                                        consoleAccessTimestamps[0];
+                        if (timeSpan < 2000 && !alertShown) {
+                            // 10+ accesses in < 2 seconds = likely DevTools (even in separate window)
+                            aggressiveDetection();
+                        }
+                    }
+                    // Also check total access count
                     if (consoleAccessCount > 5 && !alertShown) {
-                        // Multiple console accesses detected - likely DevTools
                         aggressiveDetection();
                     }
                     // Return disabled console
@@ -345,54 +360,17 @@ async function start(): Promise<void> {
         document.addEventListener("drag", blockDragDrop, true);
         document.addEventListener("drop", blockDragDrop, true);
 
-        // Prevent ALL text selection
-        document.addEventListener("selectstart", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        }, true);
-        document.addEventListener("select", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        }, true);
-
-        // Block copy/paste operations
-        document.addEventListener("copy", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        }, true);
-        document.addEventListener("cut", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        }, true);
+        // Note: Text selection and copy/paste are NOT blocked to allow legitimate use cases
+        // like copying 2FA secrets. DevTools detection still works via other methods.
 
         // Block view source via iframe
         if (window.top !== window.self) {
             window.top!.location.href = window.self.location.href;
         }
 
-        // Hide page content when DevTools opens (CSS-based detection)
+        // CSS-based protections (text selection allowed for legitimate use cases like copying 2FA secrets)
         const style = document.createElement("style");
         style.innerHTML = `
-            * {
-                -webkit-user-select: none !important;
-                -moz-user-select: none !important;
-                -ms-user-select: none !important;
-                user-select: none !important;
-            }
-            *::selection {
-                background: transparent !important;
-            }
-            *::-moz-selection {
-                background: transparent !important;
-            }
             img, video, canvas {
                 pointer-events: none !important;
             }
@@ -415,7 +393,142 @@ async function start(): Promise<void> {
                 // Ignore
             }
         };
-        setInterval(detectViaEval, 1000);
+
+        // Method 6: Detect DevTools via Function.toString() interception
+        // When DevTools inspects a function, toString() may be intercepted
+        let functionToStringCallCount = 0;
+        const originalToString = Function.prototype.toString;
+        Function.prototype.toString = function() {
+            functionToStringCallCount++;
+            // If toString is called excessively, DevTools might be inspecting
+            if (functionToStringCallCount > 20 && !alertShown) {
+                aggressiveDetection();
+            }
+            return originalToString.apply(this, arguments as any);
+        };
+
+        // Method 7: Detect DevTools APIs (chrome.devtools, etc.)
+        const detectDevToolsAPIs = () => {
+            try {
+                // Check for Chrome DevTools API
+                if ((window as any).chrome && (window as any).chrome.runtime && 
+                    (window as any).chrome.runtime.getManifest) {
+                    const manifest = (window as any).chrome.runtime.getManifest();
+                    if (manifest && manifest.name && manifest.name.toLowerCase().includes('devtools')) {
+                        if (!alertShown) {
+                            aggressiveDetection();
+                        }
+                    }
+                }
+                // Check for Firefox DevTools
+                if ((window as any).InspectorFrontendHost || (window as any).DevToolsAPI) {
+                    if (!alertShown) {
+                        aggressiveDetection();
+                    }
+                }
+                // Check for Safari/WebKit DevTools
+                if ((window as any).WebInspector || (window as any).__webkitDevTools) {
+                    if (!alertShown) {
+                        aggressiveDetection();
+                    }
+                }
+            } catch (e) {
+                // Ignore
+            }
+        };
+
+        // Method 8: Detect separate window DevTools via timing attacks
+        // When DevTools is open (even in separate window), certain operations slow down
+        const detectSeparateWindowDevTools = () => {
+            try {
+                const iterations = 1000;
+                const start = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    const obj = {};
+                    JSON.stringify(obj);
+                    delete (obj as any).prop;
+                }
+                const end = performance.now();
+                const duration = end - start;
+                // If operations take longer than expected, DevTools might be monitoring
+                // Threshold adjusted for different systems (usually < 1ms for 1000 iterations)
+                if (duration > 5 && !alertShown) {
+                    aggressiveDetection();
+                }
+            } catch (e) {
+                // Ignore
+            }
+        };
+
+        // Method 9: Detect element inspection via DOM mutation observation
+        let elementInspectionCount = 0;
+        const observer = new MutationObserver(() => {
+            elementInspectionCount++;
+            // Rapid DOM mutations might indicate DevTools inspection
+            if (elementInspectionCount > 100 && !alertShown) {
+                aggressiveDetection();
+            }
+        });
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeOldValue: true,
+        });
+
+        // Reset counters periodically to avoid false positives
+        setInterval(() => {
+            functionToStringCallCount = Math.max(0, functionToStringCallCount - 5);
+            elementInspectionCount = Math.max(0, elementInspectionCount - 10);
+        }, 2000);
+
+        // Method 10: Monitor window.open for separate DevTools windows
+        const originalWindowOpen = window.open;
+        window.open = function(...args: any[]) {
+            // If a window is opened, check if it might be DevTools
+            const newWindow = originalWindowOpen.apply(this, args as any);
+            if (newWindow) {
+                setTimeout(() => {
+                    try {
+                        // Try to detect DevTools-related properties
+                        if ((newWindow as any).chrome || (newWindow as any).devtools) {
+                            if (!alertShown) {
+                                aggressiveDetection();
+                            }
+                        }
+                    } catch (e) {
+                        // Cross-origin restrictions, but attempt was made
+                    }
+                }, 100);
+            }
+            return newWindow;
+        };
+
+        // Method 11: Detect responsive mode via media queries and screen size anomalies
+        const detectResponsiveModeDevTools = () => {
+            try {
+                // In responsive mode, window.innerWidth might differ from expected
+                // Check if media queries are being manipulated
+                const mediaQuery = window.matchMedia('(max-width: 9999px)');
+                if (mediaQuery && mediaQuery.matches) {
+                    // Check for unexpected screen size patterns
+                    const expectedRatio = window.screen.width / window.screen.height;
+                    const actualRatio = window.innerWidth / window.innerHeight;
+                    // If ratios differ significantly and not due to normal zoom
+                    if (Math.abs(expectedRatio - actualRatio) > 0.3 && 
+                        window.innerWidth < window.screen.width && 
+                        !alertShown) {
+                        // Might be responsive mode, trigger additional check
+                        detectSeparateWindowDevTools();
+                    }
+                }
+            } catch (e) {
+                // Ignore
+            }
+        };
+
+        // Enhanced console monitoring for separate window DevTools
+        let consoleAccessTimestamps: number[] = [];
 
         // Store all intervals for cleanup
         const intervals: NodeJS.Timeout[] = [];
@@ -423,10 +536,18 @@ async function start(): Promise<void> {
         // Continuously check for DevTools (very frequently)
         intervals.push(setInterval(aggressiveDetection, 200));
         intervals.push(setInterval(detectDevTools, 600));
+        intervals.push(setInterval(detectViaEval, 1000));
+        intervals.push(setInterval(detectDevToolsAPIs, 1500));
+        intervals.push(setInterval(detectSeparateWindowDevTools, 2000));
+        intervals.push(setInterval(detectResponsiveModeDevTools, 2500));
 
         // Cleanup on page unload
         window.addEventListener("beforeunload", () => {
             intervals.forEach(interval => clearInterval(interval));
+            observer.disconnect();
+            // Restore original functions
+            Function.prototype.toString = originalToString;
+            window.open = originalWindowOpen;
         });
     })();
     }

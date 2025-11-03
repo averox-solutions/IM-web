@@ -95,13 +95,13 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         });
     };
 
-    // Ensure topic length between 6-26 and name length between 1-15 characters
+    // Ensure topic length between 6-60 and name length between 1-50 characters
     private isSaveEnabled = (): boolean => {
         const { displayName, topic, profileFieldsTouched } = this.state;
 
         const hasChanges = Object.values(profileFieldsTouched).some(Boolean);
 
-        const nameValid = displayName.trim().length > 0 && displayName.trim().length <= 15;
+        const nameValid = displayName.trim().length > 0 && displayName.trim().length <= 50;
         const topicValid = topic.trim().length >= 6 && topic.trim().length <= 60;
 
         return hasChanges && nameValid && topicValid;
@@ -129,7 +129,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         const { displayName, topic } = this.state;
         if (
             displayName.trim().length === 0 ||
-            displayName.trim().length > 15 ||
+            displayName.trim().length > 50 ||
             topic.trim().length < 6 ||
             topic.trim().length > 60
         ) {
@@ -231,7 +231,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
                             type="text"
                             value={this.state.displayName}
                             autoComplete="off"
-                            maxLength={15} // ✅ Added maxLength for name
+                            maxLength={50}
                             onChange={this.onDisplayNameChanged}
                             disabled={!this.state.canSetName}
                         />

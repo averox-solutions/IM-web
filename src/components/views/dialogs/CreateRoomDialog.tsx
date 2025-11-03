@@ -806,7 +806,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
                           onValidate={this.onNameValidate}
                           value={this.state.name}
                           className="mx_CreateRoomDialog_name"
-                          maxLength={15}
+                          maxLength={50}
                         />
                         <Field
                              label={_t("create_room|topic_label")}
