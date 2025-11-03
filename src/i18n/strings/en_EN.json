@@ -3501,7 +3501,7 @@
         },
         "m.sticker": "%(senderDisplayName)s sent a sticker.",
         "m.video": {
-            "error_decrypting": "Error decrypting video"
+            "error_decrypting": "Network error,please reload the page."
         },
         "m.widget": {
             "added": "%(widgetName)s widget added by %(senderName)s",
