@@ -16,7 +16,7 @@ import { type PermalinkParts } from "../utils/permalinks/PermalinkConstructor";
 /**
  * Tries to determine the initial room.
  * Initial here means it should be possible to load the room without sending API requests.
- * For an @room or a user mention it is the permalinkRoom.
+ * For an @all or a user mention it is the permalinkRoom.
  * If the parse result contains a room Id or alias try to find it with {@link findRoom}.
  * Otherwise returns null.
  *
@@ -67,7 +67,7 @@ const findRoom = (roomIdOrAlias: string): Room | null => {
  * @param parseResult - Permalink parse result
  * @param permalinkRoom - Room in which the permalink is rendered
  * @returns Returns the target room:
- *          - The permalinkRoom for an @room or user mention
+ *          - The permalinkRoom for an @all or user mention
  *          - The room of the parse result for a room mention
  *          - The room of the event for an event permalink
  *          - Null in other cases or if the room cannot be found

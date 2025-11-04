@@ -74,6 +74,8 @@ import { VideoRoomChatButton } from "./VideoRoomChatButton.tsx";
 import { isVideoRoom as calcIsVideoRoom } from "../../../../utils/video-rooms.ts";
 import { MainSplitContentType } from "../../../structures/RoomView.tsx";
 import { useScopedRoomContext } from "../../../../contexts/ScopedRoomContext.tsx";
+import Modal from "../../../../Modal";
+import SetupEncryptionBody from "../../../structures/auth/SetupEncryptionBody";
 
 
 
@@ -384,6 +386,30 @@ export default function RoomHeader({
 
     const notificationsEnabled = useFeatureEnabled("feature_notifications");
     const askToJoinEnabled = useFeatureEnabled("feature_ask_to_join");
+    
+    // Check if session is verified
+    const [isSessionVerified, setIsSessionVerified] = useState<boolean>(() => {
+        return localStorage.getItem("sessionVerified") === "true";
+    });
+    
+    // Listen for changes to sessionVerified in localStorage
+    useEffect(() => {
+        const checkSessionVerified = (): void => {
+            setIsSessionVerified(localStorage.getItem("sessionVerified") === "true");
+        };
+        
+        // Check on mount and listen for storage events
+        checkSessionVerified();
+        window.addEventListener("storage", checkSessionVerified);
+        
+        // Also check periodically in case localStorage is updated in same window
+        const interval = setInterval(checkSessionVerified, 1000);
+        
+        return () => {
+            window.removeEventListener("storage", checkSessionVerified);
+            clearInterval(interval);
+        };
+    }, []);
     const openRightPanelProfile = (): void => {
         RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
       };
@@ -391,6 +417,19 @@ export default function RoomHeader({
         defaultDispatcher.dispatch({
             action: "open_room_settings",
             initial_tab_id: RoomSettingsTab.General,
+        });
+    };
+
+    // Handler to open verification dialog
+    const onOpenVerifyUsingKeyOrPhrase = (ev: React.MouseEvent): void => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        
+        Modal.createDialog(SetupEncryptionBody, {
+            onFinished: () => {
+                // Check if session is now verified after dialog closes
+                setIsSessionVerified(localStorage.getItem("sessionVerified") === "true");
+            },
         });
     };
 
@@ -842,9 +881,21 @@ export default function RoomHeader({
                                 </button>
                             
                                 <button
-  onClick={GroupCallVoice}
+  onClick={(e) => {
+    if (!isSessionVerified) {
+      onOpenVerifyUsingKeyOrPhrase(e);
+    } else {
+      GroupCallVoice();
+    }
+  }}
   disabled={isLiveKitCallActive || !!activeCallData}
-  title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start voice call"}
+  title={
+    !isSessionVerified 
+      ? "Please verify your session to start calls" 
+      : isLiveKitCallActive || activeCallData 
+        ? "Call in progress" 
+        : "Start voice call"
+  }
   style={{
     background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
     border: "none",
@@ -855,13 +906,13 @@ export default function RoomHeader({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+    cursor: isLiveKitCallActive || activeCallData || !isSessionVerified ? "not-allowed" : "pointer",
+    opacity: isLiveKitCallActive || activeCallData || !isSessionVerified ? 0.5 : 1,
     transition: "all 0.3s ease",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
   }}
   onMouseOver={(e) => {
-    if (!(isLiveKitCallActive || activeCallData)) {
+    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
       e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
       e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
       e.currentTarget.style.transform = "translateY(-2px)";
@@ -873,12 +924,12 @@ export default function RoomHeader({
     e.currentTarget.style.transform = "translateY(0)";
   }}
   onMouseDown={(e) => {
-    if (!(isLiveKitCallActive || activeCallData)) {
+    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
       e.currentTarget.style.transform = "scale(0.95)";
     }
   }}
   onMouseUp={(e) => {
-    if (!(isLiveKitCallActive || activeCallData)) {
+    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
       e.currentTarget.style.transform = "scale(1)";
     }
   }}
@@ -887,9 +938,21 @@ export default function RoomHeader({
 </button>
 
 <button
-  onClick={GroupCallVideo}
+  onClick={(e) => {
+    if (!isSessionVerified) {
+      onOpenVerifyUsingKeyOrPhrase(e);
+    } else {
+      GroupCallVideo();
+    }
+  }}
   disabled={isLiveKitCallActive || !!activeCallData}
-  title={isLiveKitCallActive || activeCallData ? "Call in progress" : "Start video call"}
+  title={
+    !isSessionVerified 
+      ? "Please verify your session to start calls" 
+      : isLiveKitCallActive || activeCallData 
+        ? "Call in progress" 
+        : "Start video call"
+  }
   style={{
     background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
     border: "none",
@@ -900,13 +963,13 @@ export default function RoomHeader({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    cursor: isLiveKitCallActive || activeCallData ? "not-allowed" : "pointer",
-    opacity: isLiveKitCallActive || activeCallData ? 0.5 : 1,
+    cursor: isLiveKitCallActive || activeCallData || !isSessionVerified ? "not-allowed" : "pointer",
+    opacity: isLiveKitCallActive || activeCallData || !isSessionVerified ? 0.5 : 1,
     transition: "all 0.3s ease",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
   }}
   onMouseOver={(e) => {
-    if (!(isLiveKitCallActive || activeCallData)) {
+    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
       e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
       e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
       e.currentTarget.style.transform = "translateY(-2px)";
@@ -918,12 +981,12 @@ export default function RoomHeader({
     e.currentTarget.style.transform = "translateY(0)";
   }}
   onMouseDown={(e) => {
-    if (!(isLiveKitCallActive || activeCallData)) {
+    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
       e.currentTarget.style.transform = "scale(0.95)";
     }
   }}
   onMouseUp={(e) => {
-    if (!(isLiveKitCallActive || activeCallData)) {
+    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
       e.currentTarget.style.transform = "scale(1)";
     }
   }}

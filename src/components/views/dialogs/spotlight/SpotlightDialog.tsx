@@ -338,8 +338,11 @@ const SpotlightDialog: React.FC<IProps> = ({ initialText = "", initialFilter = n
         ],
         [trimmedQuery, filter],
     );
+    // Search public rooms when:
+    // 1. Filter is explicitly set to PublicRooms or PublicSpaces, OR
+    // 2. There's a query (for general searches to include public rooms)
     useDebouncedCallback(
-        filter === Filter.PublicRooms || filter === Filter.PublicSpaces,
+        filter === Filter.PublicRooms || filter === Filter.PublicSpaces || !!trimmedQuery,
         searchPublicRooms,
         searchParams,
     );
@@ -807,9 +810,13 @@ const SpotlightDialog: React.FC<IProps> = ({ initialText = "", initialFilter = n
         }
 
         let publicRoomsSection: JSX.Element | undefined;
-        if (filter === Filter.PublicRooms || filter === Filter.PublicSpaces) {
+        // Show public rooms section if:
+        // 1. Filter is explicitly set to PublicRooms or PublicSpaces, OR
+        // 2. There's a query and public rooms match the search (for general searches)
+        if (filter === Filter.PublicRooms || filter === Filter.PublicSpaces || 
+            (trimmedQuery && results[Section.PublicRoomsAndSpaces].length > 0)) {
             let content: JSX.Element | JSX.Element[];
-            if (publicRoomsError) {
+            if (publicRoomsError && (filter === Filter.PublicRooms || filter === Filter.PublicSpaces)) {
                 content = (
                     <div className="mx_SpotlightDialog_otherSearches_messageSearchText">
                         {filter === Filter.PublicRooms

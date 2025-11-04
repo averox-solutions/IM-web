@@ -112,7 +112,7 @@ const nameToLocalpart = (name: string): string => {
     return name
         .trim()
         .toLowerCase()
-        .replace(/\s+/g, "-")
+        .replace(/\s+/g, "_")
         .replace(/[^a-z0-9_-]+/gi, "");
 };
 
@@ -167,8 +167,10 @@ export const SpaceCreateForm: React.FC<ISpaceCreateFormProps> = ({
                 value={name}
                 onChange={(ev: ChangeEvent<HTMLInputElement>) => {
                     const newName = ev.target.value;
-                    if (!alias || alias === `#${nameToLocalpart(name)}:${domain}`) {
-                        setAlias(`#${nameToLocalpart(newName)}:${domain}`);
+                    // Always auto-generate alias from name (hidden from UI)
+                    const generatedAlias = newName ? `#${nameToLocalpart(newName)}:${domain}` : "";
+                    if (!alias || alias === `#${nameToLocalpart(name)}:${domain}` || alias === "") {
+                        setAlias(generatedAlias);
                         aliasFieldRef.current?.validate({ allowEmpty: true });
                     }
                     setName(newName);
@@ -246,16 +248,13 @@ const SpaceCreateMenu: React.FC<{
             return;
         }
 
-        if (
-            spaceAliasField.current &&
-            visibility === Visibility.Public &&
-            !(await spaceAliasField.current.validate({ allowEmpty: false }))
-        ) {
-            spaceAliasField.current.focus();
-            spaceAliasField.current.validate({ allowEmpty: false, focused: true });
-            setBusy(false);
-            return;
+        // Skip alias validation since field is hidden, but ensure alias is generated if name exists
+        if (name && !alias) {
+            const domain = cli.getDomain() ?? undefined;
+            setAlias(`#${nameToLocalpart(name)}:${domain}`);
         }
+        
+        // Note: Alias field validation is skipped since the field is hidden from UI
 
         try {
             await createSpace(cli, name, visibility === Visibility.Public, alias, topic, avatar);
@@ -329,7 +328,7 @@ const SpaceCreateMenu: React.FC<{
                     setTopic={setTopic}
                     alias={alias}
                     setAlias={setAlias}
-                    showAliasField={visibility === Visibility.Public}
+                    showAliasField={false}
                     aliasFieldRef={spaceAliasField}
                 />
 

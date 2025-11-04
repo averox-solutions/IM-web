@@ -22,18 +22,18 @@ import { _t } from "../../../languageHandler";
 export enum PillType {
     UserMention = "TYPE_USER_MENTION",
     RoomMention = "TYPE_ROOM_MENTION",
-    AtRoomMention = "TYPE_AT_ROOM_MENTION", // '@room' mention
+    AtRoomMention = "TYPE_AT_ROOM_MENTION", // '@all' mention
     EventInSameRoom = "TYPE_EVENT_IN_SAME_ROOM",
     EventInOtherRoom = "TYPE_EVENT_IN_OTHER_ROOM",
     Keyword = "TYPE_KEYWORD", // Used to highlight keywords that triggered a notification rule
 }
 
 export const pillRoomNotifPos = (text: string | null): number => {
-    return text?.indexOf("@room") ?? -1;
+    return text?.indexOf("@all") ?? -1;
 };
 
 export const pillRoomNotifLen = (): number => {
-    return "@room".length;
+    return "@all".length;
 };
 
 const linkIcon = <LinkIcon className="mx_Pill_LinkIcon mx_BaseAvatar" />;

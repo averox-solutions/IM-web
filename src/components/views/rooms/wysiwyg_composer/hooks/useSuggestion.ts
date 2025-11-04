@@ -79,7 +79,7 @@ export function useSuggestion(
         processMention(href, displayName, attributes, suggestionData, setSuggestionData, setText);
 
     const handleAtRoomMention = (attributes: AllowedMentionAttributes): void =>
-        processMention("#", "@room", attributes, suggestionData, setSuggestionData, setText);
+        processMention("#", "@all", attributes, suggestionData, setSuggestionData, setText);
 
     const handleCommand = (replacementText: string): void =>
         processCommand(replacementText, suggestionData, setSuggestionData, setText);

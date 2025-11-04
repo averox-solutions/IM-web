@@ -509,19 +509,20 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
                     );
                 }
                 
+                // React button removed - no longer showing in toolbar
                 // We hide the react button in search results as we don't show reactions in results
-                if (this.context.canReact && !this.context.search) {
-                    toolbarOpts.splice(
-                        0,
-                        0,
-                        <ReactButton
-                            mxEvent={this.props.mxEvent}
-                            reactions={this.props.reactions}
-                            onFocusChange={this.onFocusChange}
-                            key="react"
-                        />,
-                    );
-                }
+                // if (this.context.canReact && !this.context.search) {
+                //     toolbarOpts.splice(
+                //         0,
+                //         0,
+                //         <ReactButton
+                //             mxEvent={this.props.mxEvent}
+                //             reactions={this.props.reactions}
+                //             onFocusChange={this.onFocusChange}
+                //             key="react"
+                //         />,
+                //     );
+                // }
 
                 // XXX: Assuming that the underlying tile will be a media event if it is eligible media.
                 if (MediaEventHelper.isEligible(this.props.mxEvent)) {
@@ -575,18 +576,19 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
                 
             }
 
+            // Options button (3-dot menu) removed - no longer showing in toolbar
             // The menu button should be last, so dump it there.
-            toolbarOpts.push(
-                <OptionsButton
-                    mxEvent={this.props.mxEvent}
-                    getReplyChain={this.props.getReplyChain}
-                    getTile={this.props.getTile}
-                    permalinkCreator={this.props.permalinkCreator}
-                    onFocusChange={this.onFocusChange}
-                    key="menu"
-                    getRelationsForEvent={this.props.getRelationsForEvent}
-                />,
-            );
+            // toolbarOpts.push(
+            //     <OptionsButton
+            //         mxEvent={this.props.mxEvent}
+            //         getReplyChain={this.props.getReplyChain}
+            //         getTile={this.props.getTile}
+            //         permalinkCreator={this.props.permalinkCreator}
+            //         onFocusChange={this.onFocusChange}
+            //         key="menu"
+            //         getRelationsForEvent={this.props.getRelationsForEvent}
+            //     />,
+            // );
         }
 
         // aria-live=off to not have this read out automatically as navigating around timeline, gets repetitive.

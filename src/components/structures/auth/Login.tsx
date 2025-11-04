@@ -273,7 +273,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         // Clear any previously saved 2FA state when starting a new login attempt
         sessionStorage.removeItem("mx_2fa_state");
         sessionStorage.removeItem("mx_2fa_creds");
-        
+
         this.setState({
             busy: true,
             busyLoggingIn: true,
@@ -325,21 +325,21 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         // 3a) Not configured → generate secret and show QR
                         console.log("User not configured, generating QR...");
                         const genRes = await fetch(`${TWO_FA_BASE_URL}/2fa/generate`, {
-                            method: "POST",
-                            headers: {
+                        method: "POST",
+                        headers: {
                                 "api-key": TWO_FA_API_KEY as string,
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({ username: formattedUsername }),
-                        });
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ username: formattedUsername }),
+                    });
                         const gen = await genRes.json();
                         console.log("Generate response:", gen);
                         if (!genRes.ok) throw new Error(gen?.error || "Failed to initiate 2FA");
                         qrValue = gen.qr;
                         secretValue = gen.secret;
                         otpauthUrlValue = gen.otpauth_url;
-                        this.setState({
-                            show2FA: true,
+                    this.setState({
+                        show2FA: true,
                             twoFAEnabled: true,
                             twoFAConfigured: isConfigured,
                             qr: qrValue,

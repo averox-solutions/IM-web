@@ -106,7 +106,7 @@ export const VectorPushRulesDefinitions: Record<string, VectorPushRuleDefinition
         syncedRuleIds: [RuleId.IsUserMention],
     }),
 
-    // Messages containing @room
+    // Messages containing @all
     ".m.rule.roomnotif": new VectorPushRuleDefinition({
         description: _td("settings|notifications|rule_roomnotif"), // passed through _t() translation in src/components/views/settings/Notifications.js
         vectorStateToActions: {

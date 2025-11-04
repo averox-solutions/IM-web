@@ -195,20 +195,21 @@ export async function loadSession(opts: ILoadSessionOpts = {}): Promise<boolean>
             enableGuest = false;
         }
 
-        if (enableGuest && guestHsUrl && fragmentQueryParams.guest_user_id && fragmentQueryParams.guest_access_token) {
-            logger.log("Using guest access credentials");
-            return doSetLoggedIn(
-                {
-                    userId: fragmentQueryParams.guest_user_id as string,
-                    accessToken: fragmentQueryParams.guest_access_token as string,
-                    homeserverUrl: guestHsUrl,
-                    identityServerUrl: guestIsUrl,
-                    guest: true,
-                },
-                true,
-                false,
-            ).then(() => true);
-        }
+        // Guest access token handling disabled - removed from registration flow
+        // if (enableGuest && guestHsUrl && fragmentQueryParams.guest_user_id && fragmentQueryParams.guest_access_token) {
+        //     logger.log("Using guest access credentials");
+        //     return doSetLoggedIn(
+        //         {
+        //             userId: fragmentQueryParams.guest_user_id as string,
+        //             accessToken: fragmentQueryParams.guest_access_token as string,
+        //             homeserverUrl: guestHsUrl,
+        //             identityServerUrl: guestIsUrl,
+        //             guest: true,
+        //         },
+        //         true,
+        //         false,
+        //     ).then(() => true);
+        // }
         const success = await restoreSessionFromStorage({
             ignoreGuest: Boolean(opts.ignoreGuest),
         });
@@ -219,9 +220,10 @@ export async function loadSession(opts: ILoadSessionOpts = {}): Promise<boolean>
             return false;
         }
 
-        if (enableGuest && guestHsUrl) {
-            return registerAsGuest(guestHsUrl, guestIsUrl, defaultDeviceDisplayName);
-        }
+        // Guest registration disabled - removed from registration flow
+        // if (enableGuest && guestHsUrl) {
+        //     return registerAsGuest(guestHsUrl, guestIsUrl, defaultDeviceDisplayName);
+        // }
 
         // fall back to welcome screen
         return false;

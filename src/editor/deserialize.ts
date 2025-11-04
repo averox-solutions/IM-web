@@ -46,15 +46,15 @@ function isListChild(n: Node): boolean {
 }
 
 function parseAtRoomMentions(text: string, pc: PartCreator, opts: IParseOptions): Part[] {
-    const ATROOM = "@room";
+    const ATROOM = "@all";
     const parts: Part[] = [];
     text.split(ATROOM).forEach((textPart, i, arr) => {
         if (textPart.length) {
             parts.push(...pc.plainWithEmoji(opts.shouldEscape ? escape(textPart) : textPart));
         }
-        // it's safe to never append @room after the last textPart
+        // it's safe to never append @all after the last textPart
         // as split will report an empty string at the end if
-        // `text` ended in @room.
+        // `text` ended in @all.
         const isLast = i === arr.length - 1;
         if (!isLast) {
             parts.push(pc.atRoomPill(ATROOM));

@@ -340,8 +340,12 @@ export default class Registration extends React.Component<IProps, IState> {
                 
                 debuglog("Matrix registration failed:", { matrixError });
                 
-                // Show error from the failed registration
-                const errorMessage = matrixError?.message || "Registration failed";
+                // Show error from the failed registration, but filter out "unknown message"
+                let errorMessage = matrixError?.message || "Registration failed";
+                // Remove "unknown message" text from error messages
+                if (errorMessage && typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('unknown')) {
+                    errorMessage = "Registration failed";
+                }
                 this.setState({
                     busy: false,
                     doingUIAuth: false,
@@ -350,10 +354,15 @@ export default class Registration extends React.Component<IProps, IState> {
             }
         } catch (error) {
             debuglog("Unexpected error during registration:", error);
+            let errorMsg = error instanceof Error ? error.message : "Registration failed";
+            // Remove "unknown message" text from error messages
+            if (errorMsg && errorMsg.toLowerCase().includes('unknown')) {
+                errorMsg = "Registration failed";
+            }
             this.setState({
                 busy: false,
                 doingUIAuth: false,
-                errorText: error instanceof Error ? error.message : "Registration failed",
+                errorText: errorMsg,
             });
         }
     };
@@ -374,6 +383,10 @@ export default class Registration extends React.Component<IProps, IState> {
         debuglog("Registration: ui authentication finished: ", { success, response });
         if (!success) {
             let errorText: ReactNode = (response as Error).message || (response as Error).toString();
+            // Filter out "unknown message" text
+            if (typeof errorText === 'string' && errorText.toLowerCase().includes('unknown')) {
+                errorText = "Registration failed";
+            }
             // can we give a better error message?
             if (response instanceof MatrixError && response.errcode === "M_RESOURCE_LIMIT_EXCEEDED") {
                 const errorTop = messageForResourceLimitError(

@@ -1143,7 +1143,8 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
             />
         );
 
-        const timestamp = showTimestamp && ts ? messageTimestamp : null;
+        // Don't show timestamp for info messages (empty state, join/leave events, etc.)
+        const timestamp = showTimestamp && ts && !isInfoMessage ? messageTimestamp : null;
 
         let pinnedMessageBadge: JSX.Element | undefined;
         if (PinningUtils.isPinned(MatrixClientPeg.safeGet(), this.props.mxEvent)) {
@@ -1164,7 +1165,8 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         // If we have reactions or a pinned message badge, we need a footer
         const hasFooter = Boolean((reactionsRow && this.state.reactions) || pinnedMessageBadge);
 
-        const linkedTimestamp = !this.props.hideTimestamp ? (
+        // Don't show timestamp link for info messages
+        const linkedTimestamp = !this.props.hideTimestamp && !isInfoMessage ? (
             <a
                 href={permalink}
                 onClick={this.onPermalinkClicked}
@@ -1178,7 +1180,8 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         const useIRCLayout = this.props.layout === Layout.IRC;
         const groupTimestamp = !useIRCLayout ? linkedTimestamp : null;
         const ircTimestamp = useIRCLayout ? linkedTimestamp : null;
-        const bubbleTimestamp = this.props.layout === Layout.Bubble ? messageTimestamp : undefined;
+        // Don't show bubble timestamp for info messages
+        const bubbleTimestamp = this.props.layout === Layout.Bubble && !isInfoMessage ? messageTimestamp : undefined;
         const groupPadlock = !useIRCLayout && !isBubbleMessage && this.renderE2EPadlock();
         const ircPadlock = useIRCLayout && !isBubbleMessage && this.renderE2EPadlock();
 
@@ -1264,9 +1267,11 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                                 this.context.showHiddenEvents,
                             )}
                             {actionBar}
-                            <a href={permalink} onClick={this.onPermalinkClicked}>
-                                {timestamp}
-                            </a>
+                            {!isInfoMessage && (
+                                <a href={permalink} onClick={this.onPermalinkClicked}>
+                                    {timestamp}
+                                </a>
+                            )}
                             {msgOption}
                         </div>,
                         hasFooter && (
@@ -1332,7 +1337,7 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                             ) : (
                                 ""
                             )}
-                            {timestamp}
+                            {!isInfoMessage && timestamp}
                             <UnreadNotificationBadge
                                 room={room || undefined}
                                 threadId={this.props.mxEvent.getId()}

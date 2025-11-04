@@ -31,52 +31,10 @@ interface IProps {
 }
 
 export default class DisambiguatedProfile extends React.Component<IProps> {
-    // Helper function to clean display name if it contains user ID
-    private cleanDisplayName(displayName: string, userId?: string): { cleaned: string; hadUserId: boolean } {
-        if (!userId || !displayName) return { cleaned: displayName, hadUserId: false };
-        
-        // Check if display name already contains the user ID
-        // Pattern: "Display Name @user:domain.com" or "Display Name user:domain.com"
-        const userIdPattern = userId.replace(/^@/, ""); // Remove @ if present
-        const userIdWithAt = `@${userIdPattern}`;
-        
-        // Remove user ID from display name if it's appended
-        let cleaned = displayName;
-        let hadUserId = false;
-        
-        // Check for pattern at the end: "name @user:domain" or "name user:domain"
-        // Also check in the middle or beginning
-        const escapedUserIdWithAt = userIdWithAt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const escapedUserIdPattern = userIdPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        
-        // Check if display name contains user ID with @
-        if (cleaned.includes(userIdWithAt)) {
-            hadUserId = true;
-            // Remove from end first (most common case)
-            cleaned = cleaned.replace(new RegExp(`\\s+${escapedUserIdWithAt}\\s*$`), "").trim();
-            // Remove from middle or beginning
-            cleaned = cleaned.replace(new RegExp(`\\s*${escapedUserIdWithAt}\\s+`), " ").trim();
-            cleaned = cleaned.replace(new RegExp(`^${escapedUserIdWithAt}\\s+`), "").trim();
-        } else if (cleaned.includes(userIdPattern)) {
-            hadUserId = true;
-            // Remove from end first (most common case)
-            cleaned = cleaned.replace(new RegExp(`\\s+${escapedUserIdPattern}\\s*$`), "").trim();
-            // Remove from middle or beginning
-            cleaned = cleaned.replace(new RegExp(`\\s*${escapedUserIdPattern}\\s+`), " ").trim();
-            cleaned = cleaned.replace(new RegExp(`^${escapedUserIdPattern}\\s+`), "").trim();
-        }
-        
-        return { cleaned: cleaned || displayName, hadUserId }; // Return original if cleaned is empty
-    }
-    
     public render(): React.ReactNode {
         const { fallbackName, member, colored, emphasizeDisplayName, withTooltip, onClick } = this.props;
+        const rawDisplayName = member?.rawDisplayName || fallbackName;
         const mxid = member?.userId;
-        let rawDisplayName = member?.rawDisplayName || fallbackName;
-        
-        // Clean the display name if it contains the user ID
-        const { cleaned: cleanedDisplayName, hadUserId } = this.cleanDisplayName(rawDisplayName, mxid);
-        rawDisplayName = cleanedDisplayName;
 
         let colorClass: string | undefined;
         if (colored) {
@@ -92,8 +50,7 @@ export default class DisambiguatedProfile extends React.Component<IProps> {
                     withDisplayName: true,
                     roomId: member.roomId,
                 }) ?? mxid;
-            // Only show mxidElement if disambiguate is true AND the display name didn't already contain the user ID
-            if (member?.disambiguate && !hadUserId) {
+            if (member?.disambiguate) {
                 mxidElement = <span className="mx_DisambiguatedProfile_mxid">{identifier}</span>;
             }
             title = _t("timeline|disambiguated_profile", {

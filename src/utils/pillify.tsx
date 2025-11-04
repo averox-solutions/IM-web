@@ -94,14 +94,14 @@ export function pillifyLinks(
         } else if (
             node.nodeType === Node.TEXT_NODE &&
             // as applying pills happens outside of react, make sure we're not doubly
-            // applying @room pills here, as a rerender with the same content won't touch the DOM
+            // applying @all pills here, as a rerender with the same content won't touch the DOM
             // to clear the pills from the last run of pillifyLinks
             !node.parentElement?.classList.contains("mx_AtRoomPill")
         ) {
             let currentTextNode = node as Node as Text | null;
             const roomNotifTextNodes: Text[] = [];
 
-            // Take a textNode and break it up to make all the instances of @room their
+            // Take a textNode and break it up to make all the instances of @all their
             // own textNode, adding those nodes to roomNotifTextNodes
             while (currentTextNode !== null) {
                 const roomNotifPos = pillRoomNotifPos(currentTextNode.textContent);

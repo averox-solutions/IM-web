@@ -365,7 +365,6 @@ export default class UserMenu extends React.Component<IProps, IState> {
                         />
                     );
                 })()}
-
                 <IconizedContextMenuOption
                     iconClassName="mx_UserMenu_iconSettings"
                     label={_t("user_menu|settings")}

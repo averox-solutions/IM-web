@@ -113,7 +113,7 @@ export async function loadApp(fragParams: QueryDict, matrixChatRef: React.Ref<Ma
                     config={config}
                     realQueryParams={params}
                     startingFragmentQueryParams={fragParams}
-                    enableGuest={!config.disable_guests}
+                    enableGuest={false}
                     onTokenLoginCompleted={onTokenLoginCompleted}
                     initialScreenAfterLogin={initialScreenAfterLogin}
                     defaultDeviceDisplayName={defaultDeviceName}

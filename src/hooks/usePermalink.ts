@@ -52,7 +52,7 @@ interface HookResult {
     resourceId: string | null;
     /**
      * Target room of the permalink:
-     * For an @room mention, this is the room where the permalink should be displayed.
+     * For an @all mention, this is the room where the permalink should be displayed.
      * For a room permalink, it is the room from the permalink.
      * null for other links or if the room cannot be found.
      */
@@ -141,7 +141,7 @@ export const usePermalink: (args: Args) => HookResult = ({
     let text = resourceId;
 
     if (type === PillType.AtRoomMention && permalinkRoom) {
-        text = "@room";
+        text = "@all";
     } else if (type === PillType.UserMention && member) {
         text = member.name || resourceId;
         onClick = (e: ButtonEvent): void => {

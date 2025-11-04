@@ -118,7 +118,7 @@ function convertPlainTextToBody(content: string): string {
         const mentionType = mention.getAttribute("data-mention-type");
         switch (mentionType) {
             case "at-room": {
-                mention.replaceWith("@room");
+                mention.replaceWith("@all");
                 break;
             }
             case "user": {
