@@ -3308,14 +3308,14 @@ const RoomContent = ({ isVideo }: { isVideo: boolean }): JSX.Element => {
                     </div>
 
                     {/* Debug info in development */}
-                    {process.env.NODE_ENV === "development" && (
+                    {/* {process.env.NODE_ENV === "development" && (
                         <div className="status-indicator" style={{ fontSize: "12px", opacity: 0.7 }}>
                             <span>🔧</span>
                             <span>
                                 Grid: {currentCount} | Tracks: {allTracks.length}
                             </span>
                         </div>
-                    )}
+                    )} */}
                 </div>
 
                 {/* Show connection quality or other indicators */}
