@@ -81,6 +81,7 @@ interface IState {
     password: string;
     passwordConfirm: string;
     passwordComplexity?: number;
+    acceptedTerms: boolean;
 }
 
 /*
@@ -109,6 +110,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             phoneNumber: this.props.defaultPhoneNumber || "",
             password: this.props.defaultPassword || "",
             passwordConfirm: this.props.defaultPassword || "",
+            acceptedTerms: false,
         };
     }
 
@@ -119,6 +121,11 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
         ev.persist();
 
         if (!this.props.canSubmit) return;
+
+        // Check if terms are accepted
+        if (!this.state.acceptedTerms) {
+            return;
+        }
 
         const allFieldsValid = await this.verifyFieldsBeforeSubmit();
         if (!allFieldsValid) {
@@ -551,15 +558,6 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
     
 
     public render(): ReactNode {
-        const registerButton = (
-            <input
-                className="mx_Login_submit"
-                type="submit"
-                value={_t("action|register")}
-                disabled={!this.props.canSubmit}
-            />
-        );
-
         let emailHelperText: JSX.Element | undefined;
         if (this.showEmail()) {
             if (this.showPhoneNumber()) {
@@ -604,7 +602,48 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                         {this.renderPhoneNumber()}
                     </div>
                     {emailHelperText}
-                    {registerButton}
+                    
+                    {/* Terms and Conditions Acceptance */}
+                    <div className="mx_AuthBody_fieldRow" style={{ marginTop: "16px", marginBottom: "16px" }}>
+                        <label style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer" }}>
+                            <input
+                                type="checkbox"
+                                checked={this.state.acceptedTerms}
+                                onChange={(e) => this.setState({ acceptedTerms: e.target.checked })}
+                                disabled={!this.props.canSubmit}
+                                style={{ marginTop: "4px" }}
+                            />
+                            <span style={{ fontSize: "14px" }}>
+                                I accept the{" "}
+                                <a
+                                    href="https://wa.beep.gov.pk/info/privacy_policy.html"
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ color: "var(--primary-color)" }}
+                                >
+                                    Privacy Policy
+                                </a>
+                                {" and "}
+                                <a
+                                    href="https://wa.beep.gov.pk/info/terms_and_conditions.html"
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ color: "var(--primary-color)" }}
+                                >
+                                    Terms & Conditions
+                                </a>
+                            </span>
+                        </label>
+                    </div>
+
+                    <input
+                        className="mx_Login_submit"
+                        type="submit"
+                        value={_t("action|register")}
+                        disabled={!this.props.canSubmit || !this.state.acceptedTerms}
+                    />
                 </form>
             </div>
         );

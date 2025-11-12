@@ -48,6 +48,7 @@ interface IState {
     loginType: LoginField.Email | LoginField.MatrixId | LoginField.Phone;
     password: string;
     showPassword: boolean;
+    acceptedTerms: boolean;
 }
 
 const enum LoginField {
@@ -84,6 +85,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             loginType: LoginField.MatrixId,
             password: "",
             showPassword: false,
+            acceptedTerms: false,
         };
     }
 
@@ -95,6 +97,11 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
 
     private onSubmitForm = async (ev: SyntheticEvent): Promise<void> => {
         ev.preventDefault();
+
+        // Check if terms are accepted
+        if (!this.state.acceptedTerms) {
+            return;
+        }
 
         const allFieldsValid = await this.verifyFieldsBeforeSubmit();
         if (!allFieldsValid) {
@@ -451,12 +458,48 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                     />
 
                     {forgotPasswordJsx}
+                    
+                    {/* Terms and Conditions Acceptance */}
+                    <div className="mx_AuthBody_fieldRow" style={{ marginTop: "16px", marginBottom: "16px" }}>
+                        <label style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer" }}>
+                            <input
+                                type="checkbox"
+                                checked={this.state.acceptedTerms}
+                                onChange={(e) => this.setState({ acceptedTerms: e.target.checked })}
+                                disabled={this.props.busy}
+                                style={{ marginTop: "4px" }}
+                            />
+                            <span style={{ fontSize: "14px" }}>
+                                I accept the{" "}
+                                <a
+                                    href="https://wa.beep.gov.pk/info/privacy_policy.html"
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ color: "var(--primary-color)" }}
+                                >
+                                    Privacy Policy
+                                </a>
+                                {" and "}
+                                <a
+                                    href="https://wa.beep.gov.pk/info/terms_and_conditions.html"
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ color: "var(--primary-color)" }}
+                                >
+                                    Terms & Conditions
+                                </a>
+                            </span>
+                        </label>
+                    </div>
+
                     {!this.props.busy && (
                         <input
                             className="mx_Login_submit"
                             type="submit"
                             value={_t("action|sign_in")}
-                            disabled={this.props.disableSubmit}
+                            disabled={this.props.disableSubmit || !this.state.acceptedTerms}
                         />
                     )}
                 </form>

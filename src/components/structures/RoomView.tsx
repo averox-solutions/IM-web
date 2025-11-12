@@ -2605,12 +2605,12 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
                                 data-layout={this.state.layout}
                             >
                                 <RoomHeader
-  room={this.state.room}
-  additionalButtons={this.state.viewRoomOpts.buttons}
-  onSearchChange={this.onSearchChange}
-  onSearchCancel={this.onCancelSearchClick}
-  focusRoomSearch={this.state.timelineRenderingType === TimelineRenderingType.Search}
-/>
+                                    room={this.state.room}
+                                    additionalButtons={this.state.viewRoomOpts.buttons}
+                                    onSearchChange={this.onSearchChange}
+                                    onSearchCancel={this.onCancelSearchClick}
+                                    focusRoomSearch={this.state.timelineRenderingType === TimelineRenderingType.Search}
+                                    />
                                 {mainSplitBody}
                             </div>
                         </MainSplit>

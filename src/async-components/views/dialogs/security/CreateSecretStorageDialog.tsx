@@ -462,6 +462,10 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
                             /* ignore */
                         }
                         this.props.onFinished(true);
+                        // Refresh the page in the background after dialog closes
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 100);
                     }}
                     hasCancel={false}
                 />
@@ -602,3 +606,4 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
         );
     }
 }
+

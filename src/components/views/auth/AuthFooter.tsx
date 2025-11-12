@@ -29,9 +29,20 @@ const AuthFooter = (): ReactElement => {
         );
     }
 
+    // Beep information links for login/registration pages
+    const beepLinks = [
+        { text: "Privacy Policy", url: "https://wa.beep.gov.pk/info/privacy_policy.html" },
+        { text: "Terms & Conditions", url: "https://wa.beep.gov.pk/info/terms_and_conditions.html" },
+    ];
+
     return (
         <footer className="mx_AuthFooter" role="contentinfo">
             {authFooterLinks}
+            {beepLinks.map((link) => (
+                <a href={link.url} key={link.text} target="_blank" rel="noreferrer noopener">
+                    {link.text}
+                </a>
+            ))}
             <a href="https://matrix.org" target="_blank" rel="noreferrer noopener">
                 {_t("powered_by_matrix")}
             </a>

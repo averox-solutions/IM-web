@@ -127,8 +127,10 @@ export default class SetupEncryptionBody extends React.Component<IProps, IState>
         SetupEncryptionStore.sharedInstance().reset();
     };
 
-    private onResetConfirmClick = (): void => {
-        SetupEncryptionStore.sharedInstance().resetConfirm();
+    private onResetConfirmClick = async (): Promise<void> => {
+        await SetupEncryptionStore.sharedInstance().resetConfirm();
+        // Wait for phase to transition to Finished before calling onFinished
+        // The resetConfirm will set phase to Finished when complete
         this.props.onFinished();
     };
 

@@ -220,7 +220,7 @@ export default function RoomHeader({
                 // Get room members excluding the current user
                 const otherUsers = members.filter((member) => member.userId !== currentUserId);
                 if (otherUsers.length === 0) {
-                    console.warn("⚠️ No other users found in room for calling");
+                    // console.warn("⚠️ No other users found in room for calling");
                     return;
                 }
 
@@ -546,7 +546,7 @@ export default function RoomHeader({
             const otherUsers = members.filter((member) => member.userId !== currentUserId);
 
             if (otherUsers.length === 0) {
-                console.warn("⚠️ No other users found in room for calling");
+                // console.warn("⚠️ No other users found in room for calling");
                 return null;
             }
 

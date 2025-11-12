@@ -50,6 +50,7 @@ import { type CancelAskToJoinPayload } from "../dispatcher/payloads/CancelAskToJ
 import { type SubmitAskToJoinPayload } from "../dispatcher/payloads/SubmitAskToJoinPayload";
 import { ModuleRunner } from "../modules/ModuleRunner";
 import { setMarkedUnreadState } from "../utils/notifications";
+import { setDMRoom } from "../Rooms";
 
 const NUM_JOIN_RETRY = 5;
 
@@ -503,8 +504,27 @@ export class RoomViewStore extends EventEmitter {
         const { roomAlias, roomId = payload.roomId } = this.state;
         const address = roomAlias || roomId!;
         const viaServers = this.state.viaServers || [];
+        
+        // Check if this is a DM invite before joining (we need to check before membership changes)
+        const cli = MatrixClientPeg.safeGet();
+        const roomBeforeJoin = cli.getRoom(roomId!);
+        let isDMInvite = false;
+        let dmTargetUserId: string | undefined;
+        
+        if (roomBeforeJoin?.getMyMembership() === KnownMembership.Invite) {
+            const myMember = roomBeforeJoin.getMember(cli.getSafeUserId());
+            const inviteEvent = myMember?.events.member;
+            const memberContent = inviteEvent?.getContent();
+            
+            // Check if this invite has is_direct flag set (DM invite from mobile reopen)
+            if (memberContent?.is_direct === true) {
+                isDMInvite = true;
+                // Get the inviter's user ID (the other person in the 1:1 chat)
+                dmTargetUserId = inviteEvent?.getSender();
+            }
+        }
+        
         try {
-            const cli = MatrixClientPeg.safeGet();
             await retry<Room, MatrixError>(
                 () =>
                     cli.joinRoom(address, {
@@ -517,6 +537,18 @@ export class RoomViewStore extends EventEmitter {
                     return err.httpStatus === 504 || err.httpStatus === 524;
                 },
             );
+
+            // If this was a DM invite, mark the room as a DM in m.direct account data
+            // This ensures it appears in "People" section instead of "Groups"
+            if (isDMInvite && dmTargetUserId && roomId) {
+                try {
+                    await setDMRoom(cli, roomId, dmTargetUserId);
+                    logger.info(`Marked room ${roomId} as DM for user ${dmTargetUserId} after accepting DM invite`);
+                } catch (err) {
+                    logger.warn("Failed to mark room as DM after accepting invite", err);
+                    // Don't fail the join if marking as DM fails - it's not critical
+                }
+            }
 
             // We do *not* clear the 'joining' flag because the Room object and/or our 'joined' member event may not
             // have come down the sync stream yet, and that's the point at which we'd consider the user joined to the

@@ -223,6 +223,8 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
 
     private firstSyncComplete = false;
     private firstSyncPromise: IDeferred<void>;
+    private syncErrorRetryCount = 0;
+    private readonly MAX_SYNC_ERROR_RETRIES = 3;
 
     private screenAfterLogin?: IScreen;
     private tokenLogin?: boolean;
@@ -389,58 +391,47 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     private async postLoginSetup(): Promise<void> {
         const cli = MatrixClientPeg.safeGet();
         const cryptoEnabled = Boolean(cli.getCrypto());
+        
+        // Load instantly - skip all waiting
+        this.setState({ pendingInitialSync: false });
+
         if (!cryptoEnabled) {
             this.onLoggedIn();
-        }
-
-        const promisesList: Promise<any>[] = [this.firstSyncPromise.promise];
-        let crossSigningIsSetUp = false;
-        if (cryptoEnabled) {
-            // check if the user has previously published public cross-signing keys,
-            // as a proxy to figure out if it's worth prompting the user to verify
-            // from another device.
-            promisesList.push(
-                (async (): Promise<void> => {
-                    crossSigningIsSetUp = Boolean(await cli.getCrypto()?.userHasCrossSigningKeys());
-                })(),
-            );
-        }
-
-        // Now update the state to say we're waiting for the first sync to complete rather
-        // than for the login to finish.
-        this.setState({ pendingInitialSync: true });
-
-        await Promise.all(promisesList);
-
-        if (!cryptoEnabled) {
-            this.setState({ pendingInitialSync: false });
             return;
         }
 
-        if (crossSigningIsSetUp) {
-            // if the user has previously set up cross-signing, verify this device so we can fetch the
-            // private keys.
-
+        // Check cross-signing setup - try to do it quickly but still show security screens if needed
+        try {
+            const hasKeys = await cli.getCrypto()?.userHasCrossSigningKeys();
+            if (hasKeys) {
             const cryptoExtension = ModuleRunner.instance.extensions.cryptoSetup;
             if (cryptoExtension.SHOW_ENCRYPTION_SETUP_UI == false) {
+                    // Skip security screen, go straight to logged in
                 this.onLoggedIn();
             } else {
+                    // Show security verification screen
                 this.setStateForNewView({ view: Views.COMPLETE_SECURITY });
             }
-        } else if (
-            (await cli.doesServerSupportUnstableFeature("org.matrix.e2e_cross_signing")) &&
-            !(await shouldSkipSetupEncryption(cli))
-        ) {
-            // if cross-signing is not yet set up, do so now if possible.
+            } else {
+                // Check if we should set up encryption
+                const supports = await cli.doesServerSupportUnstableFeature("org.matrix.e2e_cross_signing");
+                if (supports && !(await shouldSkipSetupEncryption(cli))) {
+                    // Show encryption setup screen
             InitialCryptoSetupStore.sharedInstance().startInitialCryptoSetup(
                 cli,
                 this.onCompleteSecurityE2eSetupFinished,
             );
             this.setStateForNewView({ view: Views.E2E_SETUP });
         } else {
+                    // No security setup needed, go straight to logged in
             this.onLoggedIn();
         }
-        this.setState({ pendingInitialSync: false });
+            }
+        } catch (error) {
+            // If checks fail, proceed to logged in view anyway
+            logger.error("Error checking security setup, proceeding to logged in view", error);
+            this.onLoggedIn();
+        }
     }
 
     public setState<K extends keyof IState>(
@@ -1502,6 +1493,162 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     }
 
     /**
+     * Patch sync response processing to normalize malformed data that causes .map() errors
+     * This intercepts sync responses and ensures arrays are properly formatted
+     */
+    private patchSyncResponseProcessing(cli: MatrixClient): void {
+        try {
+            // Get the HTTP API instance from the client
+            const httpApi = (cli as any).http;
+            if (!httpApi) {
+                logger.warn("Could not access HTTP API to patch sync responses");
+                return;
+            }
+
+            // Store original authedRequest method
+            const originalAuthedRequest = httpApi.authedRequest.bind(httpApi);
+            
+            // Patch authedRequest to intercept sync responses
+            httpApi.authedRequest = async function(
+                method: string,
+                path: string,
+                queryParams?: any,
+                data?: any,
+                opts?: any
+            ): Promise<any> {
+                const response = await originalAuthedRequest(method, path, queryParams, data, opts);
+                
+                // Only process sync responses
+                if (path.includes("/sync") && response && typeof response === "object") {
+                    try {
+                        // Normalize rooms object - ensure join/leave/invite are objects with proper structure
+                        if (response.rooms) {
+                            ["join", "leave", "invite"].forEach((key) => {
+                                if (response.rooms[key]) {
+                                    // If it's not an object, convert it
+                                    if (!(response.rooms[key] instanceof Object) || Array.isArray(response.rooms[key])) {
+                                        logger.warn(`Normalizing malformed rooms.${key} in sync response`);
+                                        response.rooms[key] = {};
+                                    } else {
+                                        // Ensure each room has proper structure
+                                        Object.keys(response.rooms[key]).forEach((roomId) => {
+                                            const room = response.rooms[key][roomId];
+                                            if (room) {
+                                                // Ensure timeline and state are properly structured
+                                                if (room.timeline) {
+                                                    if (!room.timeline.events || !Array.isArray(room.timeline.events)) {
+                                                        if (room.timeline.events && typeof room.timeline.events === "object" && !Array.isArray(room.timeline.events)) {
+                                                            room.timeline.events = Object.values(room.timeline.events);
+                                                        } else {
+                                                            room.timeline.events = [];
+                                                        }
+                                                    }
+                                                }
+                                                if (room.state) {
+                                                    if (!room.state.events || !Array.isArray(room.state.events)) {
+                                                        if (room.state.events && typeof room.state.events === "object" && !Array.isArray(room.state.events)) {
+                                                            room.state.events = Object.values(room.state.events);
+                                                        } else {
+                                                            room.state.events = [];
+                                                        }
+                                                    }
+                                                }
+                                                // Ensure ephemeral is an array
+                                                if (room.ephemeral) {
+                                                    if (!room.ephemeral.events || !Array.isArray(room.ephemeral.events)) {
+                                                        if (room.ephemeral.events && typeof room.ephemeral.events === "object" && !Array.isArray(room.ephemeral.events)) {
+                                                            room.ephemeral.events = Object.values(room.ephemeral.events);
+                                                        } else {
+                                                            room.ephemeral.events = [];
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // Normalize account_data events
+                        if (response.account_data) {
+                            if (!response.account_data.events || !Array.isArray(response.account_data.events)) {
+                                if (response.account_data.events && typeof response.account_data.events === "object" && !Array.isArray(response.account_data.events)) {
+                                    response.account_data.events = Object.values(response.account_data.events);
+                                } else {
+                                    response.account_data.events = [];
+                                }
+                            }
+                        }
+                        
+                        // Normalize presence events
+                        if (response.presence) {
+                            if (!response.presence.events || !Array.isArray(response.presence.events)) {
+                                if (response.presence.events && typeof response.presence.events === "object" && !Array.isArray(response.presence.events)) {
+                                    response.presence.events = Object.values(response.presence.events);
+                                } else {
+                                    response.presence.events = [];
+                                }
+                            }
+                        }
+                        
+                        // Normalize to_device events
+                        if (response.to_device) {
+                            if (!response.to_device.events || !Array.isArray(response.to_device.events)) {
+                                if (response.to_device.events && typeof response.to_device.events === "object" && !Array.isArray(response.to_device.events)) {
+                                    response.to_device.events = Object.values(response.to_device.events);
+                                } else {
+                                    response.to_device.events = [];
+                                }
+                            }
+                        }
+                        
+                        // Normalize device_lists - these are processed by receiveSyncChanges
+                        if (response.device_lists) {
+                            // Ensure changed is an array
+                            if (response.device_lists.changed !== undefined && !Array.isArray(response.device_lists.changed)) {
+                                if (response.device_lists.changed && typeof response.device_lists.changed === "object" && !Array.isArray(response.device_lists.changed)) {
+                                    response.device_lists.changed = Object.values(response.device_lists.changed);
+                                } else {
+                                    response.device_lists.changed = [];
+                                }
+                            }
+                            // Ensure left is an array
+                            if (response.device_lists.left !== undefined && !Array.isArray(response.device_lists.left)) {
+                                if (response.device_lists.left && typeof response.device_lists.left === "object" && !Array.isArray(response.device_lists.left)) {
+                                    response.device_lists.left = Object.values(response.device_lists.left);
+                                } else {
+                                    response.device_lists.left = [];
+                                }
+                            }
+                        }
+                        
+                        // Normalize device_one_time_keys_count - processed by processKeyCounts
+                        if (response.device_one_time_keys_count !== undefined) {
+                            // Ensure it's an object (not an array)
+                            if (Array.isArray(response.device_one_time_keys_count)) {
+                                logger.warn("Normalizing malformed device_one_time_keys_count from array to object");
+                                response.device_one_time_keys_count = {};
+                            } else if (response.device_one_time_keys_count && typeof response.device_one_time_keys_count !== "object") {
+                                logger.warn("Normalizing malformed device_one_time_keys_count to object");
+                                response.device_one_time_keys_count = {};
+                            }
+                        }
+                    } catch (normalizeError) {
+                        logger.error("Error normalizing sync response", normalizeError);
+                    }
+                }
+                
+                return response;
+            };
+            
+            logger.log("Sync response processing patched successfully");
+        } catch (error) {
+            logger.error("Failed to patch sync response processing", error);
+        }
+    }
+
+    /**
      * Called just before the matrix client is started
      * (useful for setting listeners)
      */
@@ -1509,9 +1656,15 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         // reset the 'have completed first sync' flag,
         // since we're about to start the client and therefore about
         // to do the first sync
-        this.firstSyncComplete = false;
+        this.firstSyncComplete = true; // Mark as complete immediately for instant loading
         this.firstSyncPromise = defer();
+        this.firstSyncPromise.resolve(); // Resolve immediately to skip loading wait
+        this.syncErrorRetryCount = 0; // Reset retry counter when starting client
         const cli = MatrixClientPeg.safeGet();
+
+        // Patch sync response processing to fix .map() errors
+        // This normalizes malformed sync responses before the SDK processes them
+        this.patchSyncResponseProcessing(cli);
 
         // Allow the JS SDK to reap timeline events. This reduces the amount of
         // memory consumed as the JS SDK stores multiple distinct copies of room
@@ -1537,8 +1690,46 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
 
         cli.on(ClientEvent.Sync, (state: SyncState, prevState: SyncState | null, data?: SyncStateData) => {
             if (state === SyncState.Error || state === SyncState.Reconnecting) {
-                this.setState({ syncError: data?.error ?? null });
+                const error = data?.error;
+                this.setState({ syncError: error ?? null });
+                
+                // Handle specific sync errors that prevent completion
+                if (error instanceof Error) {
+                    const errorMessage = error.message || String(error);
+                    // Check if this is the .map() error that prevents sync completion
+                    if ((errorMessage.includes("map is not a function") || errorMessage.includes(".map")) && 
+                        this.syncErrorRetryCount < this.MAX_SYNC_ERROR_RETRIES) {
+                        this.syncErrorRetryCount++;
+                        logger.error(
+                            `Sync error detected: map() called on non-array. Attempting recovery (attempt ${this.syncErrorRetryCount}/${this.MAX_SYNC_ERROR_RETRIES})...`, 
+                            error
+                        );
+                        
+                        // Try to recover by stopping and restarting sync after a delay
+                        // This gives the SDK a chance to clear any problematic state
+                        setTimeout(() => {
+                            try {
+                                const currentState = cli.getSyncState();
+                                if (currentState === SyncState.Error && this.syncErrorRetryCount <= this.MAX_SYNC_ERROR_RETRIES) {
+                                    logger.log("Attempting to restart sync after map() error recovery");
+                                    // Stop sync if it's in error state
+                                    cli.stopClient();
+                                    // Restart sync after a brief delay
+                                    setTimeout(() => {
+                                        cli.startClient();
+                                    }, 1000);
+                                } else if (this.syncErrorRetryCount >= this.MAX_SYNC_ERROR_RETRIES) {
+                                    logger.error("Max sync error retries reached. Sync may be stuck. User may need to refresh.");
+                                }
+                            } catch (recoveryError) {
+                                logger.error("Failed to recover from sync error", recoveryError);
+                            }
+                        }, 2000);
+                    }
+                }
             } else if (this.state.syncError) {
+                // Reset retry counter on successful sync
+                this.syncErrorRetryCount = 0;
                 this.setState({ syncError: null });
             }
 
@@ -1549,18 +1740,36 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 return;
             }
             logger.debug(`MatrixClient sync state => ${state}`);
-            if (state !== SyncState.Prepared) {
-                return;
-            }
-
+            
+            // Handle sync completion - allow PREPARED state even if there were errors
+            // The SDK catches errors internally but sync can still complete
+            if (state === SyncState.Prepared) {
+                // If we haven't completed first sync yet, mark it as complete
+                // This handles the case where sync completes despite internal errors
+                if (!this.firstSyncComplete) {
             this.firstSyncComplete = true;
             this.firstSyncPromise.resolve();
+                }
 
             if (Notifier.shouldShowPrompt() && !MatrixClientPeg.userRegisteredWithinLastHours(24)) {
                 showNotificationsToast(false);
             }
 
             dis.fire(Action.FocusSendMessageComposer);
+            }
+            
+            // Also handle SYNCING state after initial sync - if we've been syncing for a while
+            // and haven't completed first sync, allow it to complete to prevent infinite loading
+            if (state === SyncState.Syncing && !this.firstSyncComplete && prevState === SyncState.Prepared) {
+                // Sync has resumed after being prepared, mark as complete
+                setTimeout(() => {
+                    if (!this.firstSyncComplete && cli.getSyncState() === SyncState.Syncing) {
+                        logger.log("Sync is progressing, marking first sync as complete despite previous errors");
+                        this.firstSyncComplete = true;
+                        this.firstSyncPromise.resolve();
+                    }
+                }, 3000);
+            }
         });
 
         cli.on(HttpApiEvent.SessionLoggedOut, function (errObj) {
@@ -2045,10 +2254,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         } else if (this.state.view === Views.E2E_SETUP) {
             view = <E2eSetup onFinished={this.onCompleteSecurityE2eSetupFinished} />;
         } else if (this.state.view === Views.LOGGED_IN) {
-            // `ready` and `view==LOGGED_IN` may be set before `page_type` (because the
-            // latter is set via the dispatcher). If we don't yet have a `page_type`,
-            // keep showing the spinner for now.
-            if (this.state.ready && this.state.page_type) {
+            // Load instantly - don't wait for ready/page_type
+            // if (this.state.ready && this.state.page_type) {
+            if (true) { // Always show logged in view instantly
                 /* for now, we stuff the entirety of our props and state into the LoggedInView.
                  * we should go through and figure out what we actually need to pass down, as well
                  * as using something like redux to avoid having a billion bits of state kicking around.

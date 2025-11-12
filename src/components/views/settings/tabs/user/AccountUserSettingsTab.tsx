@@ -132,6 +132,7 @@ const UtilitySection: React.FC = () => {
     }, []);
 
     return (
+        <>
         <SettingsSection heading="Utilities">
             <SettingsSubsection
                 heading="Browser Utilities"
@@ -148,6 +149,41 @@ const UtilitySection: React.FC = () => {
                 </div>
             </SettingsSubsection>
         </SettingsSection>
+            <SettingsSection heading="Help & Information">
+                <SettingsSubsection
+                    heading="Information Links"
+                    data-testid="information-links-section"
+                    description="Access helpful resources and information"
+                >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <a
+                            href="https://wa.beep.gov.pk/info/beep_user_guide.html"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            style={{ color: "var(--primary-color)", textDecoration: "none" }}
+                        >
+                            User Guide
+                        </a>
+                        <a
+                            href="https://wa.beep.gov.pk/info/privacy_policy.html"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            style={{ color: "var(--primary-color)", textDecoration: "none" }}
+                        >
+                            Privacy Policy
+                        </a>
+                        <a
+                            href="https://wa.beep.gov.pk/info/beep_faqs.html"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            style={{ color: "var(--primary-color)", textDecoration: "none" }}
+                        >
+                            FAQs
+                        </a>
+                    </div>
+                </SettingsSubsection>
+            </SettingsSection>
+        </>
     );
 };
 

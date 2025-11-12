@@ -230,24 +230,32 @@ export class SetupEncryptionStore extends EventEmitter {
 
     public async resetConfirm(): Promise<void> {
         try {
+            // Set phase to Busy while resetting
+            this.phase = Phase.Busy;
+            this.emit("update");
+            
             // If we've gotten here, the user presumably lost their
             // secret storage key if they had one. Start by resetting
             // secret storage and setting up a new recovery key, then
             // create new cross-signing keys once that succeeds.
             await accessSecretStorage(
                 async (): Promise<void> => {
-                    this.phase = Phase.Finished;
+                    // Phase will be set to Finished after accessSecretStorage completes
                 },
                 {
                     forceReset: true,
                     resetCrossSigning: true,
                 },
             );
+            
+            // After accessSecretStorage completes successfully, set phase to Finished
+            this.phase = Phase.Finished;
+            this.emit("update");
         } catch (e) {
             logger.error("Error resetting cross-signing", e);
             this.phase = Phase.Intro;
+            this.emit("update");
         }
-        this.emit("update");
     }
 
     public returnAfterReset(): void {
