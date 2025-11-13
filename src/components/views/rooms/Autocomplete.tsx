@@ -10,7 +10,7 @@ import React, { createRef, type RefObject } from "react";
 import classNames from "classnames";
 import { flatMap } from "lodash";
 import { type Room } from "matrix-js-sdk/src/matrix";
-import { defer } from "matrix-js-sdk/src/utils";
+import { defer } from "../../../utils/defer-polyfill";
 
 import Autocompleter, {
     type ICompletion,

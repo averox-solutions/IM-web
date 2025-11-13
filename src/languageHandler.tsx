@@ -428,7 +428,9 @@ export function replaceByRegexes(text: string, mapping: IVariables | Tags): stri
                 regexpString !== "%\\(count\\)s" &&
                 // Ignore the `locale` option which can be used to override the locale
                 // in counterpart
-                regexpString !== "%\\(locale\\)s"
+                regexpString !== "%\\(locale\\)s" &&
+                // Don't log warnings for missing translations - they're already handled
+                !text.startsWith("missing translation:")
             ) {
                 logger.log(`Could not find ${regexp} in ${text}`);
             }

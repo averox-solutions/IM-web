@@ -1707,16 +1707,35 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
 
     private onSearch = (term: string, scope = SearchScope.Room): void => {
         const roomId = scope === SearchScope.Room ? this.getRoomId() : undefined;
+        console.log("🔍 [SEARCH] onSearch called");
+        console.log("🔍 [SEARCH] Search term:", term);
+        console.log("🔍 [SEARCH] Room ID:", roomId);
+        console.log("🔍 [SEARCH] Scope:", scope);
+        console.log("🔍 [SEARCH] Client available:", !!this.context.client);
+        
+        if (!term || term.trim().length === 0) {
+            console.log("🔍 [SEARCH] Empty term, clearing search");
+            this.setState({
+                timelineRenderingType: TimelineRenderingType.Room,
+                search: undefined,
+            });
+            return;
+        }
+        
         debuglog("sending search request");
         const abortController = new AbortController();
+        console.log("🔍 [SEARCH] Creating search promise...");
         const promise = eventSearch(this.context.client!, term, roomId, abortController.signal);
+        console.log("🔍 [SEARCH] Search promise created:", promise);
 
+        const searchId = new Date().getTime();
+        console.log("🔍 [SEARCH] Setting state with searchId:", searchId);
         this.setState({
             timelineRenderingType: TimelineRenderingType.Search,
             search: {
                 // make sure that we don't end up showing results from
                 // an aborted search by keeping a unique id.
-                searchId: new Date().getTime(),
+                searchId,
                 roomId,
                 term,
                 scope,
@@ -1724,6 +1743,7 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
                 abortController,
             },
         });
+        console.log("🔍 [SEARCH] State updated, search should be visible");
     };
 
     private onSearchScopeChange = (scope: SearchScope): void => {
@@ -1731,6 +1751,12 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
     };
 
     private onSearchUpdate = (inProgress: boolean, searchResults: ISearchResults | null): void => {
+        console.log("🔍 [SEARCH] onSearchUpdate called");
+        console.log("🔍 [SEARCH] inProgress:", inProgress);
+        console.log("🔍 [SEARCH] searchResults:", searchResults);
+        console.log("🔍 [SEARCH] Results count:", searchResults?.count);
+        console.log("🔍 [SEARCH] Results length:", searchResults?.results?.length);
+        
         this.setState({
             search: {
                 ...this.state.search!,
@@ -1738,6 +1764,7 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
                 inProgress,
             },
         });
+        console.log("🔍 [SEARCH] State updated with search results");
     };
 
     private onForgetClick = (): void => {
@@ -1816,8 +1843,11 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
         defaultDispatcher.fire(Action.ViewRoomDirectory);
     };
 
-    private onSearchChange = debounce((e: ChangeEvent<HTMLInputElement>): void => {
-        const term = e.target.value;
+    private onSearchChange = debounce((e: ChangeEvent<HTMLInputElement | Element>): void => {
+        const target = e.target as HTMLInputElement;
+        const term = target.value;
+        console.log("🔍 [SEARCH] onSearchChange called with term:", term);
+        console.log("🔍 [SEARCH] Term length:", term.length);
         this.onSearch(term);
       }, 300);
 
@@ -2414,6 +2444,8 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
         let hideMessagePanel = false;
 
         if (this.state.search) {
+            console.log("🔍 [ROOM_VIEW] Rendering RoomSearchView");
+            console.log("🔍 [ROOM_VIEW] Search state:", this.state.search);
             searchResultsPanel = (
                 <RoomSearchView
                     key={this.state.search.searchId}
@@ -2429,6 +2461,8 @@ export class RoomView extends React.Component<IRoomProps, IRoomState> {
                 />
             );
             hideMessagePanel = true;
+        } else {
+            console.log("🔍 [ROOM_VIEW] No search state, not rendering RoomSearchView");
         }
 
         let highlightedEventId: string | undefined;

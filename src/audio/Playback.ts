@@ -9,7 +9,7 @@ Please see LICENSE files in the repository root for full details.
 import EventEmitter from "events";
 import { SimpleObservable } from "matrix-widget-api";
 import { logger } from "matrix-js-sdk/src/logger";
-import { defer } from "matrix-js-sdk/src/utils";
+import { defer } from "../utils/defer-polyfill";
 
 import { UPDATE_EVENT } from "../stores/AsyncStore";
 import { arrayFastResample } from "../utils/arrays";

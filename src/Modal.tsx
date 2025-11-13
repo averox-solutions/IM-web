@@ -10,7 +10,7 @@ Please see LICENSE files in the repository root for full details.
 import React, { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import classNames from "classnames";
-import { type IDeferred, defer } from "matrix-js-sdk/src/utils";
+import { type IDeferred, defer } from "./utils/defer-polyfill";
 import { TypedEventEmitter } from "matrix-js-sdk/src/matrix";
 import { Glass, TooltipProvider } from "@vector-im/compound-web";
 

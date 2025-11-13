@@ -46,7 +46,8 @@ import {
     SlidingSync,
 } from "matrix-js-sdk/src/sliding-sync";
 import { logger } from "matrix-js-sdk/src/logger";
-import { defer, sleep } from "matrix-js-sdk/src/utils";
+import { defer } from "./utils/defer-polyfill";
+import { sleep } from "matrix-js-sdk/src/utils";
 
 import SettingsStore from "./settings/SettingsStore";
 import SlidingSyncController from "./settings/controllers/SlidingSyncController";

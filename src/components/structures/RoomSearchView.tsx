@@ -26,7 +26,7 @@ import ErrorDialog from "../views/dialogs/ErrorDialog";
 import type ResizeNotifier from "../../utils/ResizeNotifier";
 import MatrixClientContext from "../../contexts/MatrixClientContext";
 import { RoomPermalinkCreator } from "../../utils/permalinks/Permalinks";
-import { useScopedRoomContext } from "../../contexts/ScopedRoomContext.tsx";
+import { useScopedRoomContext } from "../../contexts/ScopedRoomContext";
 
 const DEBUG = false;
 let debuglog = function (msg: string): void {};
@@ -70,85 +70,171 @@ export const RoomSearchView = forwardRef<ScrollPanel, Props>(
 
         const handleSearchResult = useCallback(
             (searchPromise: Promise<ISearchResults>): Promise<boolean> => {
+                console.log("🔍 [ROOM_SEARCH_VIEW] handleSearchResult called");
+                console.log("🔍 [ROOM_SEARCH_VIEW] Setting inProgress to true");
                 onUpdate(true, null);
 
-                return searchPromise.then(
-                    async (results): Promise<boolean> => {
-                        debuglog("search complete");
-                        if (aborted.current) {
-                            logger.error("Discarding stale search results");
-                            return false;
-                        }
+                return searchPromise
+                    .then(
+                        async (results): Promise<boolean> => {
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Search promise resolved");
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Results:", results);
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Results count:", results?.count);
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Results array length:", results?.results?.length);
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Results array:", results?.results);
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Highlights:", results?.highlights);
+                            
+                            debuglog("search complete");
+                            if (aborted.current) {
+                                console.log("🔍 [ROOM_SEARCH_VIEW] Search was aborted, discarding results");
+                                logger.error("Discarding stale search results");
+                                return false;
+                            }
 
-                        // postgres on synapse returns us precise details of the strings
-                        // which actually got matched for highlighting.
-                        //
-                        // In either case, we want to highlight the literal search term
-                        // whether it was used by the search engine or not.
+                            // Validate results
+                            if (!results) {
+                                console.error("🔍 [ROOM_SEARCH_VIEW] ERROR: Search returned no results object");
+                                throw new Error("Search returned no results");
+                            }
 
-                        let highlights = results.highlights;
-                        if (!highlights.includes(term)) {
-                            highlights = highlights.concat(term);
-                        }
+                            // postgres on synapse returns us precise details of the strings
+                            // which actually got matched for highlighting.
+                            //
+                            // In either case, we want to highlight the literal search term
+                            // whether it was used by the search engine or not.
 
-                        // For overlapping highlights,
-                        // favour longer (more specific) terms first
-                        highlights = highlights.sort(function (a, b) {
-                            return b.length - a.length;
-                        });
+                            let highlights = results.highlights || [];
+                            if (!highlights.includes(term)) {
+                                highlights = highlights.concat(term);
+                            }
 
-                        for (const result of results.results) {
-                            for (const event of result.context.getTimeline()) {
-                                const bundledRelationship =
-                                    event.getServerAggregatedRelation<IThreadBundledRelationship>(
-                                        THREAD_RELATION_TYPE.name,
-                                    );
-                                if (!bundledRelationship || event.getThread()) continue;
-                                const room = client.getRoom(event.getRoomId());
-                                const thread = room?.findThreadForEvent(event);
-                                if (thread) {
-                                    event.setThread(thread);
-                                } else {
-                                    room?.createThread(event.getId()!, event, [], true);
+                            // For overlapping highlights,
+                            // favour longer (more specific) terms first
+                            highlights = highlights.sort(function (a, b) {
+                                return b.length - a.length;
+                            });
+
+                            for (const result of results.results || []) {
+                                for (const event of result.context.getTimeline()) {
+                                    const bundledRelationship =
+                                        event.getServerAggregatedRelation<IThreadBundledRelationship>(
+                                            THREAD_RELATION_TYPE.name,
+                                        );
+                                    if (!bundledRelationship || event.getThread()) continue;
+                                    const room = client.getRoom(event.getRoomId());
+                                    const thread = room?.findThreadForEvent(event);
+                                    if (thread) {
+                                        event.setThread(thread);
+                                    } else {
+                                        room?.createThread(event.getId()!, event, [], true);
+                                    }
                                 }
                             }
-                        }
 
-                        setHighlights(highlights);
-                        setResults({ ...results }); // copy to force a refresh
-                        onUpdate(false, results);
-                        return false;
-                    },
-                    (error) => {
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Setting highlights:", highlights);
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Setting results state");
+                            setHighlights(highlights);
+                            setResults({ ...results }); // copy to force a refresh
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Calling onUpdate(false, results)");
+                            onUpdate(false, results);
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Search result handling complete");
+                            return false;
+                        },
+                        (error) => {
+                            // Re-throw to be caught by outer catch
+                            throw error;
+                        },
+                    )
+                    .catch((error) => {
+                        console.error("🔍 [ROOM_SEARCH_VIEW] ERROR in search promise:", error);
+                        console.error("🔍 [ROOM_SEARCH_VIEW] Error name:", error?.name);
+                        console.error("🔍 [ROOM_SEARCH_VIEW] Error message:", error?.message);
+                        console.error("🔍 [ROOM_SEARCH_VIEW] Error stack:", error?.stack);
+                        
                         if (aborted.current) {
-                            logger.error("Discarding stale search results");
+                            console.log("🔍 [ROOM_SEARCH_VIEW] Search was aborted, discarding error");
+                            // Component is unmounting, discard results
                             return false;
                         }
+                        
+                        // Check if this is an AbortError (expected during component cleanup/unmount)
+                        const isAbortError =
+                            error?.name === "AbortError" ||
+                            error?.message?.includes("aborted") ||
+                            error?.message?.includes("signal is aborted");
+                        
+                        console.log("🔍 [ROOM_SEARCH_VIEW] Is AbortError:", isAbortError);
+                        
+                        if (isAbortError) {
+                            console.log("🔍 [ROOM_SEARCH_VIEW] AbortError detected, updating UI state");
+                            // AbortError is expected when search is cancelled (e.g., during unmount or new search)
+                            // Don't show error dialog, but still update UI state
+                            onUpdate(false, null);
+                            return false;
+                        }
+                        
+                        // Log and show error for actual search failures
+                        const errorMessage = error?.message || error?.toString() || "Unknown error occurred";
+                        console.error("🔍 [ROOM_SEARCH_VIEW] Search failed with error:", errorMessage);
                         logger.error("Search failed", error);
+                        
+                        // Show error dialog with detailed message
                         Modal.createDialog(ErrorDialog, {
                             title: _t("error_dialog|search_failed|title"),
-                            description: error?.message ?? _t("error_dialog|search_failed|server_unavailable"),
+                            description: errorMessage || _t("error_dialog|search_failed|server_unavailable"),
                         });
+                        
+                        // Update UI to show search failed state
+                        console.log("🔍 [ROOM_SEARCH_VIEW] Updating UI to show search failed state");
                         onUpdate(false, null);
+                        setResults(null);
+                        setHighlights(null);
                         return false;
-                    },
-                );
+                    });
             },
             [client, term, onUpdate],
         );
 
-        // Mount & unmount effect
+        // Mount & unmount effect - re-run when promise changes (new search initiated)
+        // Store previous abortController to cancel it when a new search starts
+        const prevAbortControllerRef = useRef<AbortController | undefined>();
+        
         useEffect(() => {
+            console.log("🔍 [ROOM_SEARCH_VIEW] useEffect triggered - new search starting");
+            console.log("🔍 [ROOM_SEARCH_VIEW] Search term:", term);
+            console.log("🔍 [ROOM_SEARCH_VIEW] Promise:", promise);
+            console.log("🔍 [ROOM_SEARCH_VIEW] AbortController:", abortController);
+            
+            // Abort previous search if a new one is starting
+            const prevController = prevAbortControllerRef.current;
+            if (prevController && prevController !== abortController) {
+                console.log("🔍 [ROOM_SEARCH_VIEW] Aborting previous search");
+                prevController.abort();
+            }
+            prevAbortControllerRef.current = abortController;
+            
             aborted.current = false;
+            // Reset results when starting a new search
+            console.log("🔍 [ROOM_SEARCH_VIEW] Resetting results and highlights");
+            setResults(null);
+            setHighlights(null);
+            console.log("🔍 [ROOM_SEARCH_VIEW] Calling handleSearchResult");
             handleSearchResult(promise);
+            
             return () => {
+                console.log("🔍 [ROOM_SEARCH_VIEW] useEffect cleanup - aborting search");
                 aborted.current = true;
-                abortController?.abort();
+                // Only abort if this is still the current search (not replaced by a new one)
+                if (abortController && abortController === prevAbortControllerRef.current) {
+                    abortController.abort();
+                }
             };
-        }, []); // eslint-disable-line react-hooks/exhaustive-deps
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [promise, abortController]); // Removed handleSearchResult from deps to prevent premature aborts when term changes
 
         // show searching spinner
         if (results === null) {
+            console.log("🔍 [ROOM_SEARCH_VIEW] Rendering: results is null, showing spinner");
             return (
                 <div
                     className="mx_RoomView_messagePanel mx_RoomView_messagePanelSearchSpinner"
@@ -156,6 +242,10 @@ export const RoomSearchView = forwardRef<ScrollPanel, Props>(
                 />
             );
         }
+        
+        console.log("🔍 [ROOM_SEARCH_VIEW] Rendering: results available");
+        console.log("🔍 [ROOM_SEARCH_VIEW] Results count:", results?.results?.length);
+        console.log("🔍 [ROOM_SEARCH_VIEW] In progress:", inProgress);
 
         const onSearchResultsFillRequest = async (backwards: boolean): Promise<boolean> => {
             if (!backwards) {

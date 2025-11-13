@@ -8,7 +8,7 @@ Please see LICENSE files in the repository root for full details.
 
 import { MatrixError, type MatrixClient, EventType, type EmptyObject } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
-import { defer, type IDeferred } from "matrix-js-sdk/src/utils";
+import { defer, type IDeferred } from "./defer-polyfill";
 import { logger } from "matrix-js-sdk/src/logger";
 
 import { AddressType, getAddressType } from "../UserAddress";
