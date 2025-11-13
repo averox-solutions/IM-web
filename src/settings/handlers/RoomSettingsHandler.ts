@@ -14,7 +14,7 @@ import {
     RoomStateEvent,
     type StateEvents,
 } from "matrix-js-sdk/src/matrix";
-import { defer } from "matrix-js-sdk/src/utils";
+import { defer } from "../../utils/defer-polyfill";
 
 import MatrixClientBackedSettingsHandler from "./MatrixClientBackedSettingsHandler";
 import { objectClone, objectKeyChanges } from "../../utils/objects";

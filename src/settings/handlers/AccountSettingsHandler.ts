@@ -8,7 +8,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { type AccountDataEvents, ClientEvent, type MatrixClient, type MatrixEvent } from "matrix-js-sdk/src/matrix";
-import { defer } from "matrix-js-sdk/src/utils";
+import { defer } from "../../utils/defer-polyfill";
 import { isEqual } from "lodash";
 
 import MatrixClientBackedSettingsHandler from "./MatrixClientBackedSettingsHandler";

@@ -9,7 +9,7 @@ Please see LICENSE files in the repository root for full details.
 import React, { lazy, Suspense, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { type MatrixClient } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
-import { defer } from "matrix-js-sdk/src/utils";
+import { defer } from "../../../../../utils/defer-polyfill";
 
 import { _t } from "../../../../../languageHandler";
 import Modal from "../../../../../Modal";

@@ -67,9 +67,10 @@ function roomTimelinePrefixFallback(
     if (hits.length === 0) return;
 
     // Build a minimal IResultRoomEvents the sdk can process
-    const results = hits.map(mxEv => ({
+    const results = hits.map((mxEv, index) => ({
         result: mxEv.event,
-        // minimal context with getTimeline so restoreEncryptionInfo() won’t choke
+        rank: index,
+        // minimal context with getTimeline so restoreEncryptionInfo() won't choke
         context: { getTimeline: () => [mxEv] } as unknown as SearchResult["context"],
     }));
 
@@ -88,34 +89,71 @@ async function serverSideSearch(
     roomId?: string,
     abortSignal?: AbortSignal,
 ): Promise<{ response: ISearchResponse; query: ISearchRequestBody }> {
-    const filter: IRoomEventFilter = {
-        limit: SEARCH_LIMIT,
-    };
+    console.log("🔍 [SEARCHING] serverSideSearch called");
+    console.log("🔍 [SEARCHING] Term:", term);
+    console.log("🔍 [SEARCHING] RoomId:", roomId);
+    console.log("🔍 [SEARCHING] SEARCH_LIMIT:", SEARCH_LIMIT);
+    
+    try {
+        const filter: IRoomEventFilter = {
+            limit: SEARCH_LIMIT,
+        };
 
-    if (roomId !== undefined) filter.rooms = [roomId];
+        if (roomId !== undefined) filter.rooms = [roomId];
 
-    // Try prefix-expanded term; Synapse may ignore wildcard but it's safe to send.
-    const expanded = makePrefixQuery(term);
+        // Try prefix-expanded term; Synapse may ignore wildcard but it's safe to send.
+        const expanded = makePrefixQuery(term);
+        console.log("🔍 [SEARCHING] Expanded query term:", expanded);
 
-    const body: ISearchRequestBody = {
-        search_categories: {
-            room_events: {
-                // NOTE: Synapse might still treat this as plain tokens (no prefix).
-                // Local Seshat will honor the '*' in our combined flow.
-                search_term: expanded,
-                filter,
-                order_by: SearchOrderBy.Recent,
-                event_context: {
-                    before_limit: 1,
-                    after_limit: 1,
-                    include_profile: true,
+        const body: ISearchRequestBody = {
+            search_categories: {
+                room_events: {
+                    // NOTE: Synapse might still treat this as plain tokens (no prefix).
+                    // Local Seshat will honor the '*' in our combined flow.
+                    search_term: expanded,
+                    filter,
+                    order_by: SearchOrderBy.Recent,
+                    event_context: {
+                        before_limit: 1,
+                        after_limit: 1,
+                        include_profile: true,
+                    },
                 },
             },
-        },
-    };
+        };
+        console.log("🔍 [SEARCHING] Search request body:", JSON.stringify(body, null, 2));
 
-    const response = await client.search({ body }, abortSignal);
-    return { response, query: body };
+        console.log("🔍 [SEARCHING] Sending search request to server...");
+        const response = await client.search({ body }, abortSignal);
+        console.log("🔍 [SEARCHING] Search request completed");
+        console.log("🔍 [SEARCHING] Response received:", !!response);
+        console.log("🔍 [SEARCHING] Response structure:", response);
+        
+        if (!response) {
+            console.error("🔍 [SEARCHING] ERROR: Search request returned no response");
+            throw new Error("Search request returned no response");
+        }
+        
+        console.log("🔍 [SEARCHING] Response search_categories:", response.search_categories);
+        console.log("🔍 [SEARCHING] Room events results:", response.search_categories?.room_events?.results?.length);
+        console.log("🔍 [SEARCHING] Room events count:", response.search_categories?.room_events?.count);
+        
+        return { response, query: body };
+    } catch (error: unknown) {
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        
+        // Check if it's a network/fetch error and provide a clearer error message
+        if (err?.message?.includes("Fetch failed") || err?.message?.includes("NetworkError") || 
+            err?.message?.includes("Failed to fetch") || err?.name === "NetworkError") {
+            throw new Error(`Search request failed: Unable to connect to server. ${err?.message || "Network error"}`);
+        }
+        
+        throw new Error(`Server search failed: ${err?.message || err?.toString() || "Unknown error"}`);
+    }
 }
 
 async function serverSideSearchProcess(
@@ -124,29 +162,75 @@ async function serverSideSearchProcess(
     roomId?: string,
     abortSignal?: AbortSignal,
 ): Promise<ISearchResults> {
-    const result = await serverSideSearch(client, term, roomId, abortSignal);
+    console.log("🔍 [SEARCHING] serverSideSearchProcess called");
+    console.log("🔍 [SEARCHING] Term:", term);
+    console.log("🔍 [SEARCHING] RoomId:", roomId);
+    
+    try {
+        console.log("🔍 [SEARCHING] Calling serverSideSearch...");
+        const result = await serverSideSearch(client, term, roomId, abortSignal);
+        console.log("🔍 [SEARCHING] serverSideSearch completed");
+        console.log("🔍 [SEARCHING] Raw response:", result.response);
+        console.log("🔍 [SEARCHING] Response search_categories:", result.response?.search_categories);
+        console.log("🔍 [SEARCHING] Room events:", result.response?.search_categories?.room_events);
 
-    const base: ISearchResults = {
-        abortSignal,
-        _query: result.query,
-        results: [],
-        highlights: [],
-    };
+        const base: ISearchResults = {
+            abortSignal,
+            _query: result.query,
+            results: [],
+            highlights: [],
+        };
 
-    // First, let SDK shape the response
-    let processed = client.processRoomEventsSearch(base, result.response);
+        // First, let SDK shape the response
+        console.log("🔍 [SEARCHING] Processing room events search...");
+        let processed = client.processRoomEventsSearch(base, result.response);
+        console.log("🔍 [SEARCHING] Processed results count:", processed.results?.length);
+        console.log("🔍 [SEARCHING] Processed results:", processed.results);
+        console.log("🔍 [SEARCHING] Processed highlights:", processed.highlights);
+        console.log("🔍 [SEARCHING] Processed count:", processed.count);
 
-    // Fallback only for single-room searches with 0 results
-    if (roomId && processed.results.length === 0) {
-        const fallback = roomTimelinePrefixFallback(client, roomId, term);
-        if (fallback) {
-            const resp: ISearchResponse = { search_categories: { room_events: fallback } };
-            processed = client.processRoomEventsSearch(base, resp);
-            // no need to set _query/next_batch for fallback (non-paginating)
+        // Fallback only for single-room searches with 0 results
+        if (roomId && processed.results.length === 0) {
+            console.log("🔍 [SEARCHING] No results, trying timeline prefix fallback...");
+            const fallback = roomTimelinePrefixFallback(client, roomId, term);
+            if (fallback) {
+                console.log("🔍 [SEARCHING] Fallback found results:", fallback.results?.length);
+                const resp: ISearchResponse = { search_categories: { room_events: fallback } };
+                processed = client.processRoomEventsSearch(base, resp);
+                console.log("🔍 [SEARCHING] Fallback processed results:", processed.results?.length);
+                // no need to set _query/next_batch for fallback (non-paginating)
+            } else {
+                console.log("🔍 [SEARCHING] No fallback results found");
+            }
         }
-    }
 
-    return processed;
+        console.log("🔍 [SEARCHING] Returning processed results:", processed.results?.length);
+        return processed;
+    } catch (error: unknown) {
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        
+        // Check if it's a network/fetch error and try local search fallback
+        if ((err?.message?.includes("Fetch failed") || err?.message?.includes("NetworkError") || 
+             err?.message?.includes("Failed to fetch") || err?.message?.includes("Unable to connect to server") ||
+             err?.name === "NetworkError") && roomId) {
+            // Try fallback to local search if available (only for room-specific searches)
+            const eventIndex = EventIndexPeg.get();
+            if (eventIndex !== null) {
+                try {
+                    return await localSearchProcess(client, term, roomId);
+                } catch (localError) {
+                    // If local search also fails, throw the original network error
+                    throw new Error(`Search request failed: Unable to connect to server. ${err?.message || "Network error"}`);
+                }
+            }
+        }
+        
+        throw new Error(`Server search processing failed: ${err?.message || err?.toString() || "Unknown error"}`);
+    }
 }
 
 
@@ -165,61 +249,70 @@ async function combinedSearch(
     searchTerm: string,
     abortSignal?: AbortSignal,
 ): Promise<ISearchResults> {
-    // Create two promises, one for the local search, one for the
-    // server-side search.
-    const serverSidePromise = serverSideSearch(client, searchTerm, undefined, abortSignal);
-    const localPromise = localSearch(searchTerm);
+    try {
+        // Create two promises, one for the local search, one for the
+        // server-side search.
+        const serverSidePromise = serverSideSearch(client, searchTerm, undefined, abortSignal);
+        const localPromise = localSearch(searchTerm);
 
-    // Wait for both promises to resolve.
-    await Promise.all([serverSidePromise, localPromise]);
+        // Wait for both promises to resolve.
+        await Promise.all([serverSidePromise, localPromise]);
 
-    // Get both search results.
-    const localResult = await localPromise;
-    const serverSideResult = await serverSidePromise;
+        // Get both search results.
+        const localResult = await localPromise;
+        const serverSideResult = await serverSidePromise;
 
-    const serverQuery = serverSideResult.query;
-    const serverResponse = serverSideResult.response;
+        const serverQuery = serverSideResult.query;
+        const serverResponse = serverSideResult.response;
 
-    const localQuery = localResult.query;
-    const localResponse = localResult.response;
+        const localQuery = localResult.query;
+        const localResponse = localResult.response;
 
-    // Store our queries for later on so we can support pagination.
-    //
-    // We're reusing _query here again to not introduce separate code paths and
-    // concepts for our different pagination methods. We're storing the
-    // server-side next batch separately since the query is the json body of
-    // the request and next_batch needs to be a query parameter.
-    //
-    // We can't put it in the final result that _processRoomEventsSearch()
-    // returns since that one can be either a server-side one, a local one or a
-    // fake one to fetch the remaining cached events. See the docs for
-    // combineEvents() for an explanation why we need to cache events.
-    const emptyResult: ISeshatSearchResults = {
-        seshatQuery: localQuery,
-        _query: serverQuery,
-        serverSideNextBatch: serverResponse.search_categories.room_events.next_batch,
-        cachedEvents: [],
-        oldestEventFrom: "server",
-        results: [],
-        highlights: [],
-    };
+        // Store our queries for later on so we can support pagination.
+        //
+        // We're reusing _query here again to not introduce separate code paths and
+        // concepts for our different pagination methods. We're storing the
+        // server-side next batch separately since the query is the json body of
+        // the request and next_batch needs to be a query parameter.
+        //
+        // We can't put it in the final result that _processRoomEventsSearch()
+        // returns since that one can be either a server-side one, a local one or a
+        // fake one to fetch the remaining cached events. See the docs for
+        // combineEvents() for an explanation why we need to cache events.
+        const emptyResult: ISeshatSearchResults = {
+            seshatQuery: localQuery,
+            _query: serverQuery,
+            serverSideNextBatch: serverResponse.search_categories.room_events.next_batch,
+            cachedEvents: [],
+            oldestEventFrom: "server",
+            results: [],
+            highlights: [],
+        };
 
-    // Combine our results.
-    const combinedResult = combineResponses(emptyResult, localResponse, serverResponse.search_categories.room_events);
+        // Combine our results.
+        const combinedResult = combineResponses(emptyResult, localResponse, serverResponse.search_categories.room_events);
 
-    // Let the client process the combined result.
-    const response: ISearchResponse = {
-        search_categories: {
-            room_events: combinedResult,
-        },
-    };
+        // Let the client process the combined result.
+        const response: ISearchResponse = {
+            search_categories: {
+                room_events: combinedResult,
+            },
+        };
 
-    const result = client.processRoomEventsSearch(emptyResult, response);
+        const result = client.processRoomEventsSearch(emptyResult, response);
 
-    // Restore our encryption info so we can properly re-verify the events.
-    restoreEncryptionInfo(result.results);
+        // Restore our encryption info so we can properly re-verify the events.
+        restoreEncryptionInfo(result.results);
 
-    return result;
+        return result;
+    } catch (error: unknown) {
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        throw new Error(`Combined search failed: ${err?.message || err?.toString() || "Unknown error"}`);
+    }
 }
 
 // --- Replace your existing localSearch with this ---
@@ -228,35 +321,57 @@ async function localSearch(
     roomId?: string,
     processResult = true,
 ): Promise<{ response: IResultRoomEvents; query: ISearchArgs }> {
-    const eventIndex = EventIndexPeg.get();
+    try {
+        const eventIndex = EventIndexPeg.get();
+        
+        if (!eventIndex) {
+            throw new Error("Local search index is not available");
+        }
 
-    // Expand to prefix query for FTS5 (Seshat). Example: "h" -> "h*"
-    const expanded = makePrefixQuery(searchTerm);
+        // Expand to prefix query for FTS5 (Seshat). Example: "h" -> "h*"
+        const expanded = makePrefixQuery(searchTerm);
 
-    const searchArgs: ISearchArgs = {
-        search_term: expanded,
-        before_limit: 1,
-        after_limit: 1,
-        limit: SEARCH_LIMIT,
-        order_by_recency: true,
-        room_id: undefined,
-    };
+        const searchArgs: ISearchArgs = {
+            search_term: expanded,
+            before_limit: 1,
+            after_limit: 1,
+            limit: SEARCH_LIMIT,
+            order_by_recency: true,
+            room_id: undefined,
+        };
 
-    if (roomId !== undefined) {
-        searchArgs.room_id = roomId;
+        if (roomId !== undefined) {
+            searchArgs.room_id = roomId;
+        }
+
+        const localResult = await eventIndex.search(searchArgs);
+        if (!localResult) {
+            // Return empty result instead of throwing - let caller decide if fallback is needed
+            return {
+                response: {
+                    results: [],
+                    highlights: [],
+                    count: 0,
+                    next_batch: undefined,
+                },
+                query: searchArgs,
+            };
+        }
+
+        searchArgs.next_batch = localResult.next_batch;
+
+        return {
+            response: localResult,
+            query: searchArgs,
+        };
+    } catch (error: unknown) {
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        throw new Error(`Local search failed: ${err?.message || err?.toString() || "Unknown error"}`);
     }
-
-    const localResult = await eventIndex!.search(searchArgs);
-    if (!localResult) {
-        throw new Error("Local search failed");
-    }
-
-    searchArgs.next_batch = localResult.next_batch;
-
-    return {
-        response: localResult,
-        query: searchArgs,
-    };
 }
 
 
@@ -272,28 +387,37 @@ async function localSearchProcess(
     searchTerm: string,
     roomId?: string,
 ): Promise<ISeshatSearchResults> {
-    const emptyResult = {
-        results: [],
-        highlights: [],
-    } as ISeshatSearchResults;
+    try {
+        const emptyResult = {
+            results: [],
+            highlights: [],
+        } as ISeshatSearchResults;
 
-    if (searchTerm === "") return emptyResult;
+        if (searchTerm === "") return emptyResult;
 
-    const result = await localSearch(searchTerm, roomId);
+        const result = await localSearch(searchTerm, roomId);
 
-    emptyResult.seshatQuery = result.query;
+        emptyResult.seshatQuery = result.query;
 
-    const response: ISearchResponse = {
-        search_categories: {
-            room_events: result.response,
-        },
-    };
+        const response: ISearchResponse = {
+            search_categories: {
+                room_events: result.response,
+            },
+        };
 
-    const processedResult = client.processRoomEventsSearch(emptyResult, response);
-    // Restore our encryption info so we can properly re-verify the events.
-    restoreEncryptionInfo(processedResult.results);
+        const processedResult = client.processRoomEventsSearch(emptyResult, response);
+        // Restore our encryption info so we can properly re-verify the events.
+        restoreEncryptionInfo(processedResult.results);
 
-    return processedResult;
+        return processedResult;
+    } catch (error: unknown) {
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        throw new Error(`Local search processing failed: ${err?.message || err?.toString() || "Unknown error"}`);
+    }
 }
 
 async function localPagination(
@@ -677,21 +801,62 @@ async function eventIndexSearch(
     roomId?: string,
     abortSignal?: AbortSignal,
 ): Promise<ISearchResults> {
-    const hasIndex = EventIndexPeg.get() !== null;
-    if (roomId !== undefined) {
-        // Prefer local index for prefix behavior when present
-        if (hasIndex) return localSearchProcess(client, term, roomId);
+    try {
+        const hasIndex = EventIndexPeg.get() !== null;
+        if (roomId !== undefined) {
+            // Prefer local index for prefix behavior when present
+            if (hasIndex) {
+                try {
+                    const localResult = await localSearchProcess(client, term, roomId);
+                    // If local search returns results, use them
+                    if (localResult && localResult.results && localResult.results.length > 0) {
+                        return localResult;
+                    }
+                    // If local search returns empty results, fall back to server search
+                    // This handles cases where the local index doesn't have the content yet
+                } catch (localError: unknown) {
+                    // If local search fails (e.g., index not ready, no results), fall back to server search
+                    // Don't fall back on AbortError - let it propagate
+                    const localErr = localError as Error;
+                    if (localErr?.name === "AbortError" || localErr?.message?.includes("aborted")) {
+                        throw localError;
+                    }
+                    // Fall through to server-side search
+                }
+                // Fallback to server-side search if local search failed or returned no results
+                return serverSideSearchProcess(client, term, roomId, abortSignal);
+            }
 
-        // fallback to existing logic
-        if (await client.getCrypto()?.isEncryptionEnabledInRoom(roomId)) {
-            return localSearchProcess(client, term, roomId);
-        } else {
-            return serverSideSearchProcess(client, term, roomId, abortSignal);
+            // fallback to existing logic
+            if (await client.getCrypto()?.isEncryptionEnabledInRoom(roomId)) {
+                try {
+                    const localResult = await localSearchProcess(client, term, roomId);
+                    if (localResult && localResult.results && localResult.results.length > 0) {
+                        return localResult;
+                    }
+                } catch (localError: unknown) {
+                    const localErr = localError as Error;
+                    if (localErr?.name === "AbortError" || localErr?.message?.includes("aborted")) {
+                        throw localError;
+                    }
+                    // Fall through to server-side search
+                }
+                return serverSideSearchProcess(client, term, roomId, abortSignal);
+            } else {
+                return serverSideSearchProcess(client, term, roomId, abortSignal);
+            }
         }
+        return hasIndex
+            ? combinedSearch(client, term, abortSignal)
+            : serverSideSearchProcess(client, term, undefined, abortSignal);
+    } catch (error: unknown) {
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        throw new Error(`Event index search failed: ${err?.message || err?.toString() || "Unknown error"}`);
     }
-    return hasIndex
-        ? combinedSearch(client, term, abortSignal)
-        : serverSideSearchProcess(client, term, undefined, abortSignal);
 }
 
 
@@ -737,12 +902,45 @@ export default function eventSearch(
     roomId?: string,
     abortSignal?: AbortSignal,
 ): Promise<ISearchResults> {
-    const eventIndex = EventIndexPeg.get();
+    console.log("🔍 [SEARCHING] eventSearch called");
+    console.log("🔍 [SEARCHING] Term:", term);
+    console.log("🔍 [SEARCHING] RoomId:", roomId);
+    console.log("🔍 [SEARCHING] Client:", !!client);
+    
+    try {
+        // Handle empty search term gracefully - return empty results instead of throwing
+        if (!term || term.trim().length === 0) {
+            console.log("🔍 [SEARCHING] Empty term, returning empty results");
+            return Promise.resolve({
+                results: [],
+                highlights: [],
+                count: 0,
+            } as ISearchResults);
+        }
+        
+        if (!client) {
+            console.error("🔍 [SEARCHING] ERROR: Matrix client is not available");
+            throw new Error("Matrix client is not available");
+        }
 
-    if (eventIndex === null) {
-        return serverSideSearchProcess(client, term, roomId, abortSignal);
-    } else {
-        return eventIndexSearch(client, term, roomId, abortSignal);
+        const eventIndex = EventIndexPeg.get();
+        console.log("🔍 [SEARCHING] EventIndex available:", eventIndex !== null);
+
+        if (eventIndex === null) {
+            console.log("🔍 [SEARCHING] Using server-side search only");
+            return serverSideSearchProcess(client, term, roomId, abortSignal);
+        } else {
+            console.log("🔍 [SEARCHING] Using event index search (local + server)");
+            return eventIndexSearch(client, term, roomId, abortSignal);
+        }
+    } catch (error: unknown) {
+        console.error("🔍 [SEARCHING] ERROR in eventSearch:", error);
+        // Re-throw with more context if it's not already an AbortError
+        const err = error as Error;
+        if (err?.name === "AbortError" || err?.message?.includes("aborted")) {
+            throw error;
+        }
+        throw new Error(`Search failed: ${err?.message || err?.toString() || "Unknown error"}`);
     }
 }
 

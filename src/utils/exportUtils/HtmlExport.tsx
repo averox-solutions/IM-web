@@ -13,7 +13,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { logger } from "matrix-js-sdk/src/logger";
 import escapeHtml from "escape-html";
 import { TooltipProvider } from "@vector-im/compound-web";
-import { defer } from "matrix-js-sdk/src/utils";
+import { defer } from "../defer-polyfill";
 
 import Exporter from "./Exporter";
 import { mediaFromMxc } from "../../customisations/Media";

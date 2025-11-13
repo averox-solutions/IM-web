@@ -7,44 +7,64 @@
  */
 
 
+import React, { forwardRef } from 'react';
 import { target } from 'modernizr';
 import FrameIcon from '../../../../../res/img/element-icons/Frame (1).svg';
-export const ThreadsActivityCentreButton = () => {
+import { type NotificationLevel } from '../../../../stores/notifications/NotificationLevel';
 
-  return (
-<>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',  // Center horizontally
-          alignItems: 'center',      // Center vertically
-          width: '100%',           // Take up the full viewport height
-          marginTop: '0',            // Remove any top margin
-        }}
-      >
-      <button
-        style={{
-          border: 'none',
-          background: 'none',
-          display: 'flex',
-          cursor: 'pointer',
-        }}
-        onClick={() => window.open("https://beep.gov.pk", "_blank")} // Opens in new tab
-        aria-label="Navigate to video call"
-      >
-        <img
-          src={FrameIcon}
-          alt="Video Call Icon"
-          style={{
-            height: '24px',
-            width: '24px',
-            marginRight: '5px',
-          }}
-        />
-      </button>
+interface ThreadsActivityCentreButtonProps {
+    disableTooltip?: boolean;
+    displayLabel?: boolean;
+    notificationLevel?: NotificationLevel;
+    onClick?: () => void | Promise<void>;
+}
 
-      </div>
-    </>
+export const ThreadsActivityCentreButton = forwardRef<HTMLDivElement, ThreadsActivityCentreButtonProps>(
+    ({ onClick, ...props }, ref) => {
+        const handleClick = () => {
+            if (onClick) {
+                onClick();
+            } else {
+                window.open("https://beep.gov.pk", "_blank");
+            }
+        };
 
-  );
-};
+        return (
+            <>
+                <div
+                    ref={ref}
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',  // Center horizontally
+                        alignItems: 'center',      // Center vertically
+                        width: '100%',           // Take up the full viewport height
+                        marginTop: '0',            // Remove any top margin
+                    }}
+                >
+                    <button
+                        style={{
+                            border: 'none',
+                            background: 'none',
+                            display: 'flex',
+                            cursor: 'pointer',
+                        }}
+                        onClick={handleClick}
+                        aria-label="Navigate to video call"
+                    >
+                        <img
+                            src={FrameIcon}
+                            alt="Video Call Icon"
+                            style={{
+                                height: '24px',
+                                width: '24px',
+                                marginRight: '5px',
+                            }}
+                        />
+                    </button>
+                </div>
+            </>
+        );
+    }
+);
+
+ThreadsActivityCentreButton.displayName = 'ThreadsActivityCentreButton';

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import { defer, type IDeferred } from "matrix-js-sdk/src/utils";
+import { defer, type IDeferred } from "../../utils/defer-polyfill";
 import { logger } from "matrix-js-sdk/src/logger";
 
 import { type ElectronChannel } from "../../@types/global";
