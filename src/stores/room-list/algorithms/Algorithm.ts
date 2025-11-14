@@ -883,6 +883,7 @@ import { logger } from "matrix-js-sdk/src/logger";
 import DMRoomMap from "../../../utils/DMRoomMap";
 import { arrayDiff, arrayHasDiff } from "../../../utils/arrays";
 import { DefaultTagID, RoomUpdateCause, type TagID } from "../models";
+import { setDMRoom } from "../../../Rooms";
 import {
     type IListOrderingMap,
     type IOrderingAlgorithmMap,
@@ -1015,7 +1016,7 @@ export class Algorithm extends EventEmitter {
      */
     private onRoomNameChange = (): void => {
         // Check all rooms for chat ended names
-        this.checkForChatEndedRooms();
+        // this.checkForChatEndedRooms();
     };
 
     public start(): void {
@@ -1573,7 +1574,24 @@ export class Algorithm extends EventEmitter {
                 if (DMRoomMap.shared().getUserIdForRoomId(room.roomId)) {
                     newTags[DefaultTagID.DM].push(room);
                 } else {
-                    newTags[DefaultTagID.Untagged].push(room);
+                    // Check if it's a 1-1 chat based on member count
+                    const joinedCount = room.getJoinedMemberCount();
+                    if (joinedCount === 2) {
+                        // It's a 1-1 chat - find the other user and mark it as DM
+                        const myUserId = room.client.getSafeUserId();
+                        const otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId);
+                        if (otherMember) {
+                            // Automatically mark this room as a DM
+                            setDMRoom(room.client, room.roomId, otherMember.userId).catch(err => {
+                                logger.warn(`Failed to auto-mark room ${room.roomId} as DM`, err);
+                            });
+                            newTags[DefaultTagID.DM].push(room);
+                        } else {
+                            newTags[DefaultTagID.Untagged].push(room);
+                        }
+                    } else {
+                        newTags[DefaultTagID.Untagged].push(room);
+                    }
                 }
             }
         }
@@ -1626,6 +1644,21 @@ export class Algorithm extends EventEmitter {
             // Check to see if it's a DM if it isn't anything else
             if (DMRoomMap.shared().getUserIdForRoomId(room.roomId)) {
                 tags = [DefaultTagID.DM];
+            } else {
+                // If not marked as DM, check if it's a 1-1 chat based on member count
+                const joinedCount = room.getJoinedMemberCount();
+                if (joinedCount === 2) {
+                    // It's a 1-1 chat - find the other user and mark it as DM
+                    const myUserId = room.client.getSafeUserId();
+                    const otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId);
+                    if (otherMember) {
+                        // Automatically mark this room as a DM
+                        setDMRoom(room.client, room.roomId, otherMember.userId).catch(err => {
+                            logger.warn(`Failed to auto-mark room ${room.roomId} as DM`, err);
+                        });
+                        tags = [DefaultTagID.DM];
+                    }
+                }
             }
         }
         if (room.isCallRoom() && (room.getJoinRule() === JoinRule.Public || room.getJoinRule() === JoinRule.Knock)) {
