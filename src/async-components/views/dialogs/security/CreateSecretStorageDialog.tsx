@@ -44,6 +44,7 @@ import InteractiveAuthDialog from "../../../../components/views/dialogs/Interact
 import { type IValidationResult } from "../../../../components/views/elements/Validation";
 import PassphraseConfirmField from "../../../../components/views/auth/PassphraseConfirmField";
 import { initialiseDehydration } from "../../../../utils/device/dehydration";
+import { SdkContextClass } from "../../../../contexts/SDKContext";
 
 // I made a mistake while converting this and it has to be fixed!
 enum Phase {
@@ -463,9 +464,13 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
                         }
                         this.props.onFinished(true);
                         // Refresh the page in the background after dialog closes
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 100);
+                        // Only reload if not on home screen
+                        const currentRoomId = SdkContextClass.instance.roomViewStore.getRoomId();
+                        if (currentRoomId !== null) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 100);
+                        }
                     }}
                     hasCancel={false}
                 />

@@ -510,6 +510,7 @@ export class RoomViewStore extends EventEmitter {
         const roomBeforeJoin = cli.getRoom(roomId!);
         let isDMInvite = false;
         let dmTargetUserId: string | undefined;
+        let wasPreviouslyDM = false;
         
         if (roomBeforeJoin?.getMyMembership() === KnownMembership.Invite) {
             const myMember = roomBeforeJoin.getMember(cli.getSafeUserId());
@@ -521,6 +522,32 @@ export class RoomViewStore extends EventEmitter {
                 isDMInvite = true;
                 // Get the inviter's user ID (the other person in the 1:1 chat)
                 dmTargetUserId = inviteEvent?.getSender();
+            }
+            
+            // Check if this room was previously a DM (in m.direct account data)
+            const directMap = cli.getAccountData("m.direct")?.getContent() || {};
+            for (const [userId, roomIds] of Object.entries(directMap)) {
+                if (Array.isArray(roomIds) && roomIds.includes(roomId!)) {
+                    wasPreviouslyDM = true;
+                    dmTargetUserId = userId;
+                    break;
+                }
+            }
+            
+            // If not explicitly marked, check if room has exactly 2 members (joined + invited) = DM
+            if (!isDMInvite && !wasPreviouslyDM) {
+                const joinedCount = roomBeforeJoin.getJoinedMemberCount();
+                const invitedCount = roomBeforeJoin.getInvitedMemberCount();
+                const totalMembers = joinedCount + invitedCount;
+                
+                // If exactly 2 members (the inviter and the invitee), it's likely a DM
+                if (totalMembers === 2) {
+                    isDMInvite = true;
+                    // Get the inviter's user ID (the other person in the 1:1 chat)
+                    if (!dmTargetUserId) {
+                        dmTargetUserId = inviteEvent?.getSender();
+                    }
+                }
             }
         }
         
@@ -538,15 +565,36 @@ export class RoomViewStore extends EventEmitter {
                 },
             );
 
-            // If this was a DM invite, mark the room as a DM in m.direct account data
+            // If this was a DM invite or was previously a DM, mark the room as a DM in m.direct account data
             // This ensures it appears in "People" section instead of "Groups"
-            if (isDMInvite && dmTargetUserId && roomId) {
+            if ((isDMInvite || wasPreviouslyDM) && dmTargetUserId && roomId) {
                 try {
                     await setDMRoom(cli, roomId, dmTargetUserId);
-                    logger.info(`Marked room ${roomId} as DM for user ${dmTargetUserId} after accepting DM invite`);
+                    logger.info(`Marked room ${roomId} as DM for user ${dmTargetUserId} after accepting invite`);
                 } catch (err) {
                     logger.warn("Failed to mark room as DM after accepting invite", err);
                     // Don't fail the join if marking as DM fails - it's not critical
+                }
+            } else {
+                // After joining, check if the room should be a DM based on member count
+                // This handles cases where the room wasn't detected as a DM before joining
+                const roomAfterJoin = cli.getRoom(roomId!);
+                if (roomAfterJoin) {
+                    const joinedCount = roomAfterJoin.getJoinedMemberCount();
+                    // If exactly 2 joined members, it's a DM
+                    if (joinedCount === 2) {
+                        // Find the other user (not ourselves)
+                        const myUserId = cli.getSafeUserId();
+                        const otherMember = roomAfterJoin.getJoinedMembers().find(m => m.userId !== myUserId);
+                        if (otherMember) {
+                            try {
+                                await setDMRoom(cli, roomId, otherMember.userId);
+                                logger.info(`Marked room ${roomId} as DM for user ${otherMember.userId} based on member count`);
+                            } catch (err) {
+                                logger.warn("Failed to mark room as DM based on member count", err);
+                            }
+                        }
+                    }
                 }
             }
 
