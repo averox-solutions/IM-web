@@ -104,6 +104,8 @@ declare module "matrix-js-sdk/src/types" {
             duration: number;
             // https://github.com/matrix-org/matrix-doc/pull/3246
             waveform?: number[];
+            codec?: string;
+            container?: string;
         };
         "org.matrix.msc3245.voice"?: EmptyObject;
     }

@@ -29,7 +29,7 @@ interface IProps {
     phoneNumber: string;
 
     serverConfig: ValidatedServerConfig;
-    loginIncorrect: boolean;
+    loginIncorrect?: boolean;
     disableSubmit?: boolean;
     busy?: boolean;
 
@@ -68,13 +68,18 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
     private [LoginField.MatrixId]: Field | null = null;
     private [LoginField.Password]: Field | null = null;
 
-    public static defaultProps = {
-        onUsernameChanged: function () {},
-        onUsernameBlur: function () {},
-        onPhoneCountryChanged: function () {},
-        onPhoneNumberChanged: function () {},
-        loginIncorrect: false,
-        disableSubmit: false,
+    private get loginIncorrect(): boolean {
+        return this.props.loginIncorrect ?? false;
+    }
+
+    private get disableSubmit(): boolean {
+        return this.props.disableSubmit ?? false;
+    }
+
+    private onForgotPasswordClick = (ev: ButtonEvent): void => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.props.onForgotPasswordClick?.();
     };
 
     public constructor(props: IProps) {
@@ -88,12 +93,6 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             acceptedTerms: false,
         };
     }
-
-    private onForgotPasswordClick = (ev: ButtonEvent): void => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        this.props.onForgotPasswordClick?.();
-    };
 
     private onSubmitForm = async (ev: SyntheticEvent): Promise<void> => {
         ev.preventDefault();
@@ -284,9 +283,10 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
 
         switch (loginType) {
             case LoginField.Email:
-                classes.error = this.props.loginIncorrect && !this.props.username;
+                classes.error = this.loginIncorrect && !this.props.username;
                 return (
                     <EmailField
+                        element="input"
                         id="mx_LoginForm_email"
                         className={classNames(classes)}
                         name="username" // make it a little easier for browser's remember-password
@@ -306,9 +306,10 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                     />
                 );
             case LoginField.MatrixId:
-                classes.error = this.props.loginIncorrect && !this.props.username;
+                classes.error = this.loginIncorrect && !this.props.username;
                 return (
                     <Field
+                        element="input"
                         id="mx_LoginForm_username"
                         className={classNames(classes)}
                         name="username" // make it a little easier for browser's remember-password
@@ -329,7 +330,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                     />
                 );
             case LoginField.Phone: {
-                classes.error = this.props.loginIncorrect && !this.props.phoneNumber;
+                classes.error = this.loginIncorrect && !this.props.phoneNumber;
 
                 const phoneCountry = (
                     <CountryDropdown
@@ -342,6 +343,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
 
                 return (
                     <Field
+                        element="input"
                         id="mx_LoginForm_phone"
                         className={classNames(classes)}
                         name="phoneNumber"
@@ -375,24 +377,8 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
     }
 
     public render(): React.ReactNode {
-        let forgotPasswordJsx: JSX.Element | undefined;
-
-        if (this.props.onForgotPasswordClick) {
-            forgotPasswordJsx = (
-                // <AccessibleButton
-                //     className="mx_Login_forgot"
-                //     disabled={this.props.busy}
-                //     kind="link"
-                //     onClick={this.onForgotPasswordClick}
-                // >
-                //     {_t("auth|reset_password_button")}
-                // </AccessibleButton>
-                <></>
-            );
-        }
-
         const pwFieldClass = classNames({
-            error: this.props.loginIncorrect && !this.isLoginEmpty(), // only error password if error isn't top field
+            error: this.loginIncorrect && !this.isLoginEmpty(), // only error password if error isn't top field
         });
 
         // If login is empty, autoFocus login, otherwise autoFocus password.
@@ -431,6 +417,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                     {loginType}
                     {loginField}
                     <Field
+                        element="input"
                         id="mx_LoginForm_password"
                         className={pwFieldClass}
                         autoComplete="current-password"
@@ -457,8 +444,17 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                         }
                     />
 
-                    {forgotPasswordJsx}
-                    
+                    {this.props.onForgotPasswordClick && (
+                        <AccessibleButton
+                            className="mx_Login_forgot"
+                            disabled={this.props.busy}
+                            kind="link"
+                            onClick={this.onForgotPasswordClick}
+                        >
+                            {_t("auth|reset_password_button")}
+                        </AccessibleButton>
+                    )}
+
                     {/* Terms and Conditions Acceptance */}
                     <div className="mx_AuthBody_fieldRow" style={{ marginTop: "16px", marginBottom: "16px" }}>
                         <label style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer" }}>
@@ -499,7 +495,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                             className="mx_Login_submit"
                             type="submit"
                             value={_t("action|sign_in")}
-                            disabled={this.props.disableSubmit || !this.state.acceptedTerms}
+                            disabled={this.disableSubmit || !this.state.acceptedTerms}
                         />
                     )}
                 </form>

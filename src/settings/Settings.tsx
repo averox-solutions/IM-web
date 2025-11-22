@@ -11,7 +11,7 @@ import React, { type ReactNode } from "react";
 import { UNSTABLE_MSC4133_EXTENDED_PROFILES } from "matrix-js-sdk/src/matrix";
 
 import { _t, _td, type TranslationKey } from "../languageHandler";
-import DeviceIsolationModeController from "./controllers/DeviceIsolationModeController.ts";
+import DeviceIsolationModeController from "./controllers/DeviceIsolationModeController";
 import {
     NotificationBodyEnabledController,
     NotificationsEnabledController,
@@ -38,11 +38,11 @@ import { WatchManager } from "./WatchManager";
 import { type CustomTheme } from "../theme";
 import AnalyticsController from "./controllers/AnalyticsController";
 import FallbackIceServerController from "./controllers/FallbackIceServerController";
-import { type IRightPanelForRoomStored } from "../stores/right-panel/RightPanelStoreIPanelState.ts";
-import { type ReleaseAnnouncementData } from "../stores/ReleaseAnnouncementStore.ts";
-import { type Json, type JsonValue } from "../@types/json.ts";
-import { type RecentEmojiData } from "../emojipicker/recent.ts";
-import { type Assignable } from "../@types/common.ts";
+import { type IRightPanelForRoomStored } from "../stores/right-panel/RightPanelStoreIPanelState";
+import { type ReleaseAnnouncementData } from "../stores/ReleaseAnnouncementStore";
+import { type Json, type JsonValue } from "../@types/json";
+import { type RecentEmojiData } from "../emojipicker/recent";
+import { type Assignable } from "../@types/common";
 
 export const defaultWatchManager = new WatchManager();
 
@@ -320,7 +320,7 @@ export interface Settings {
     "showChatEffects": IBaseSetting<boolean>;
     "Performance.addSendMessageTimingMetadata": IBaseSetting<boolean>;
     "Widgets.pinned": IBaseSetting<{ [widgetId: string]: boolean }>;
-    // "Widgets.layout": IBaseSetting<ILayoutSettings | null>;
+    "Widgets.layout": IBaseSetting<Record<string, unknown>>;
     "Spaces.allRoomsInHome": IBaseSetting<boolean>;
     "Spaces.enabledMetaSpaces": IBaseSetting<Partial<Record<MetaSpace, boolean>>>;
     "Spaces.showPeopleInSpace": IBaseSetting<boolean>;

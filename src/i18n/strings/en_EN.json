@@ -498,7 +498,7 @@
         "lobby": "Lobby",
         "location": "Location",
         "low_priority": "Archive",
-        "matrix": "Matrix",
+        "matrix": "Beep Pakistan",
         "message": "Message",
         "message_layout": "Message layout",
         "message_timestamp_invalid": "Invalid timestamp",
@@ -636,6 +636,9 @@
         "replying_title": "Replying",
         "room_upgraded_link": "The conversation continues here.",
         "room_upgraded_notice": "This Groups has been replaced and is no longer active.",
+        "user_left_chat_message": "This user has left the chat",
+        "delete_chat": "Delete Chat",
+        "reopen_chat": "Reopen Chat",
         "send_button_title": "Send message",
         "send_button_voice_message": "Send voice message",
         "send_voice_message": "Send voice message",
@@ -875,8 +878,8 @@
     "emoji_picker": {
         "cancel_search_label": "Cancel search"
     },
-    "empty_room": "chat ended",
-    "empty_room_was_name": "chat ended by %(oldName)s",
+    "empty_room": "",
+    "empty_room_was_name": "%(oldName)s",
     "encryption": {
         "access_secret_storage_dialog": {
             "enter_phrase_or_key_prompt": "Enter your Security Phrase or <button>use your Security Key</button> to continue.",
@@ -1739,8 +1742,8 @@
         "moderator": "Moderator",
         "restricted": "Restricted"
     },
-    "powered_by_matrix": "Powered by Matrix",
-    "powered_by_matrix_with_logo": "Decentralised, encrypted chat &amp; collaboration powered by $matrixLogo",
+    "powered_by_matrix": "Powered by Beep Pakistan",
+    "powered_by_matrix_with_logo": "Decentralised, encrypted chat &amp; collaboration powered by Beep Pakistan",
     "presence": {
         "away": "Away",
         "busy": "Busy",
@@ -2742,7 +2745,7 @@
             "time_heading": "Displaying time",
             "user_timezone": "Set timezone"
         },
-        "prompt_invite": "Prompt before sending invites to potentially invalid matrix IDs",
+        "prompt_invite": "Prompt before sending invites to potentially invalid User IDs",
         "replace_plain_emoji": "Automatically replace plain text Emoji",
         "security": {
             "4s_public_key_in_account_data": "in account data",
@@ -2971,7 +2974,7 @@
             "connection_section": "Connection",
             "dialog_title": "<strong>Settings:</strong> Voice & Video",
             "echo_cancellation": "Echo cancellation",
-            "enable_fallback_ice_server": "Allow fallback call assist server (%(server)s)",
+            "enable_fallback_ice_server": "Allow fallback call assist server",
             "enable_fallback_ice_server_description": "Only applies if your homeserver does not offer one. Your IP address would be shared during a call.",
             "mirror_local_feed": "Mirror local video feed",
             "missing_permissions_prompt": "Missing media permissions, click the button below to request.",
@@ -3293,8 +3296,8 @@
         "creation_summary_room": "%(creator)s created and configured the Group.",
         "decryption_failure": {
             "blocked": "The sender has blocked you from receiving this message because your device is unverified",
-            "historical_event_no_key_backup": "Historical messages are not available on this device",
-            "historical_event_unverified_device": "You need to verify this device for access to historical messages",
+            "historical_event_no_key_backup": "🔒 Encrypted",
+            "historical_event_unverified_device": "🔒 Encrypted",
             "historical_event_user_not_joined": "You don't have access to this message",
             "sender_identity_previously_verified": "Sender's verified identity has changed",
             "sender_unsigned_device": "Sent from an insecure device.",

@@ -20,6 +20,7 @@ import AccessibleButton from "../elements/AccessibleButton";
 import BaseAvatar from "../avatars/BaseAvatar";
 import Modal from "../../../Modal.tsx";
 import ErrorDialog from "../dialogs/ErrorDialog.tsx";
+import { isLikelyImageFile } from "../../../utils/avatar-upload";
 
 interface MenuProps {
     trigger: ReactNode;
@@ -107,7 +108,7 @@ interface IProps {
 export function getFileChanged(e: React.ChangeEvent<HTMLInputElement>): File | null {
     if (!e.target.files?.length) return null;
     const file = e.target.files[0];
-    if (file.type.startsWith("image/")) return file;
+    if (isLikelyImageFile(file)) return file;
 
     Modal.createDialog(ErrorDialog, {
         title: _t("upload_failed_title"),

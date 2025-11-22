@@ -66,6 +66,8 @@ export default class RightPanel extends React.Component<Props, IState> {
 
     public constructor(props: Props, context: React.ContextType<typeof MatrixClientContext>) {
         super(props, context);
+        // Initialize state to ensure getDerivedStateFromProps has consistent shape
+        this.state = RightPanel.getDerivedStateFromProps(props) as IState;
     }
 
     private readonly delayedUpdate = throttle(

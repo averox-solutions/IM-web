@@ -406,14 +406,25 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
     }
 
     public setTagSorting(tagId: TagID, sort: SortAlgorithm): void {
+        if (this.isSortLocked(tagId) && sort !== SortAlgorithm.Recent) {
+            logger.info(`Ignoring attempt to change sorting on locked tag ${tagId}`);
+            return;
+        }
         this.setAndPersistTagSorting(tagId, sort);
         this.updateFn.trigger();
     }
 
     private setAndPersistTagSorting(tagId: TagID, sort: SortAlgorithm): void {
+        if (this.isSortLocked(tagId)) {
+            sort = SortAlgorithm.Recent;
+        }
         this.algorithm.setTagSorting(tagId, sort);
         // TODO: Per-account? https://github.com/vector-im/element-web/issues/14114
-        localStorage.setItem(`mx_tagSort_${tagId}`, sort);
+        if (!this.isSortLocked(tagId)) {
+            localStorage.setItem(`mx_tagSort_${tagId}`, sort);
+        } else {
+            localStorage.removeItem(`mx_tagSort_${tagId}`);
+        }
     }
 
     public getTagSorting(tagId: TagID): SortAlgorithm | null {
@@ -428,6 +439,9 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
 
     // logic must match calculateListOrder
     private calculateTagSorting(tagId: TagID): SortAlgorithm {
+        if (this.isSortLocked(tagId)) {
+            return SortAlgorithm.Recent;
+        }
         const definedSort = this.getTagSorting(tagId);
         const storedSort = this.getStoredTagSorting(tagId);
 
@@ -442,6 +456,9 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         } // else default (already set)
 
         return tagSort;
+    }
+    private isSortLocked(tagId: TagID): boolean {
+        return tagId === DefaultTagID.DM || tagId === DefaultTagID.Favourite || tagId === DefaultTagID.Untagged;
     }
 
     public setListOrder(tagId: TagID, order: ListAlgorithm): void {

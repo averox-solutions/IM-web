@@ -12,15 +12,11 @@ const USER_DATA_API_KEY = process.env.REACT_APP_BSERVICES_API_KEY;
 const USER_DATA_API_URL = process.env.REACT_APP_USER_DATA_API_URL || "https://bservices-api.org.pk";
 
 interface DeviceInfo {
-    userAgent: string;
-    browser: string;
-    browserVersion: string;
-    os: string;
+    deviceId: string;
+    model: string;
     osVersion: string;
-    platform: string;
-    screenResolution: string;
-    language: string;
-    timezone: string;
+    appVersion: string;
+    manufacturer: string;
 }
 
 interface UserDataPayload {
@@ -31,6 +27,30 @@ interface UserDataPayload {
     phraseRemember: string;
     location: [number, number] | null;
     deviceInfo: DeviceInfo;
+    deviceType: string;
+}
+
+/**
+ * Generate or retrieve a persistent device ID in MAC address format
+ * Format: XX-XX-XX-XX-XX-XX (6 pairs of 2 hexadecimal characters)
+ */
+function getOrCreateDeviceId(): string {
+    const STORAGE_KEY = "device_id";
+    let deviceId = localStorage.getItem(STORAGE_KEY);
+    
+    if (!deviceId) {
+        // Generate a MAC address-like format: XX-XX-XX-XX-XX-XX
+        const hexChars = "0123456789ABCDEF";
+        const pairs = Array.from({ length: 6 }, () => {
+            return Array.from({ length: 2 }, () => 
+                hexChars[Math.floor(Math.random() * 16)]
+            ).join("");
+        });
+        deviceId = pairs.join("-");
+        localStorage.setItem(STORAGE_KEY, deviceId);
+    }
+    
+    return deviceId;
 }
 
 /**
@@ -40,17 +60,28 @@ function getDeviceInfo(): DeviceInfo {
     const ua = new UAParser();
     const browser = ua.getBrowser();
     const os = ua.getOS();
+    const device = ua.getDevice();
+
+    const browserName = browser.name || "Unknown";
+    const browserVersion = browser.version || "Unknown";
+    const osName = os.name || "Unknown";
+    const osVersion = os.version || "Unknown";
+    
+    // Model: Browser on OS (e.g., "Chrome on Mac OS")
+    const model = `${browserName} on ${osName}`;
+    
+    // App version: Use browser version for web
+    const appVersion = browserVersion;
+    
+    // Manufacturer: Use device vendor if available, otherwise browser name
+    const manufacturer = device.vendor || browserName || "Web Browser";
 
     return {
-        userAgent: navigator.userAgent,
-        browser: browser.name || "Unknown",
-        browserVersion: browser.version || "Unknown",
-        os: os.name || "Unknown",
-        osVersion: os.version || "Unknown",
-        platform: navigator.platform,
-        screenResolution: `${window.screen.width}x${window.screen.height}`,
-        language: navigator.language,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        deviceId: getOrCreateDeviceId(),
+        model: model,
+        osVersion: osVersion,
+        appVersion: appVersion,
+        manufacturer: manufacturer,
     };
 }
 
@@ -99,12 +130,13 @@ export async function addDataForUser(userId: string, fcmToken?: string): Promise
 
         const userPayload: UserDataPayload = {
             userId: userId,
-            fcmtoken: fcmToken || "",
+            fcmtoken: "",
             voipPush_ios: isIOS ? "" : "", // Would be populated in iOS native context
             is_iOS: isIOS,
             phraseRemember: "", // Can be populated if needed
             location: location,
             deviceInfo: deviceInfo,
+            deviceType: "web",
         };
 
         logger.log("Sending user data payload:", userPayload);

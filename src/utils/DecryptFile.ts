@@ -15,18 +15,24 @@ import { mediaFromContent } from "../customisations/Media";
 import { getBlobSafeMimeType } from "./blobs";
 
 export class DownloadError extends Error {
+    public readonly cause: Error;
+
     public constructor(e: Error) {
         super(e.message);
         this.name = "DownloadError";
         this.stack = e.stack;
+        this.cause = e;
     }
 }
 
 export class DecryptError extends Error {
+    public readonly cause: Error;
+
     public constructor(e: Error) {
         super(e.message);
         this.name = "DecryptError";
         this.stack = e.stack;
+        this.cause = e;
     }
 }
 

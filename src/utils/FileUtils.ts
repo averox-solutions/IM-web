@@ -49,8 +49,11 @@ export function presentableTextForFile(
     shortened = false,
 ): string {
     let text = fallbackText;
+    const voiceFileName = content["org.matrix.msc1767.file"]?.name;
     if (content.filename?.length) {
         text = content.filename;
+    } else if (voiceFileName?.length) {
+        text = voiceFileName;
     } else if (content.body?.length) {
         // The content body should be the name of the file including a
         // file extension.

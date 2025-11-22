@@ -119,6 +119,8 @@ export default class VoiceRecordComposerTile extends React.PureComponent<IProps,
                 this.state.recorder.contentLength,
                 upload.encrypted,
                 this.state.recorder.getPlayback().thumbnailWaveform.map((v) => Math.round(v * 1024)),
+                this.state.recorder.codec,
+                this.state.recorder.container,
             );
 
             // Attach mentions, which really only applies if there's a replyToEvent.

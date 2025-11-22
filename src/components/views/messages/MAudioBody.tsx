@@ -61,8 +61,10 @@ export default class MAudioBody extends React.PureComponent<IBodyProps, IState> 
         const content = this.props.mxEvent.getContent<MediaEventContent & IContent>();
         const waveform = content?.["org.matrix.msc1767.audio"]?.waveform?.map((p: number) => p / 1024);
 
-        // We should have a buffer to work with now: let's set it up
-        const playback = PlaybackManager.instance.createPlaybackInstance(buffer, waveform);
+        // Clone the buffer before passing to Playback to avoid detachment issues
+        // decodeAudioData and decodeOgg may detach/transfer the buffer
+        const clonedBuffer = buffer.slice(0);
+        const playback = PlaybackManager.instance.createPlaybackInstance(clonedBuffer, waveform);
         playback.clockInfo.populatePlaceholdersFrom(this.props.mxEvent);
         this.setState({ playback });
 
@@ -84,7 +86,9 @@ export default class MAudioBody extends React.PureComponent<IBodyProps, IState> 
             const buffer = await blob.arrayBuffer();
             const content = this.props.mxEvent.getContent<MediaEventContent & IContent>();
             const waveform = content?.["org.matrix.msc1767.audio"]?.waveform?.map((p: number) => p / 1024);
-            const playback = PlaybackManager.instance.createPlaybackInstance(buffer, waveform);
+            // Clone the buffer before passing to Playback to avoid detachment issues
+            const clonedBuffer = buffer.slice(0);
+            const playback = PlaybackManager.instance.createPlaybackInstance(clonedBuffer, waveform);
             playback.clockInfo.populatePlaceholdersFrom(this.props.mxEvent);
             this.setState({ error: false, playback });
         } catch (e) {

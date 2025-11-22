@@ -31,7 +31,6 @@ import { makeUserPermalink } from "../utils/permalinks/Permalinks";
 import { type ICompletion, type ISelectionRange } from "./Autocompleter";
 import MemberAvatar from "../components/views/avatars/MemberAvatar";
 import { type TimelineRenderingType } from "../contexts/RoomContext";
-import UserIdentifierCustomisations from "../customisations/UserIdentifier";
 
 const USER_REGEX = /\B@\S*/g;
 
@@ -113,10 +112,6 @@ export default class UserProvider extends AutocompleteProvider {
             // Don't include the '@' in our search query - it's only used as a way to trigger completion
             const query = fullMatch.startsWith("@") ? fullMatch.substring(1) : fullMatch;
             return this.matcher.match(query, limit).map((user) => {
-                const description = UserIdentifierCustomisations.getDisplayUserIdentifier?.(user.userId, {
-                    roomId: this.room.roomId,
-                    withDisplayName: true,
-                });
                 const displayName = user.name || user.userId || "";
                 return {
                     // Length of completion should equal length of text in decorator. draft-js
@@ -127,7 +122,7 @@ export default class UserProvider extends AutocompleteProvider {
                     suffix: selection.beginning && range!.start === 0 ? ": " : " ",
                     href: makeUserPermalink(user.userId),
                     component: (
-                        <PillCompletion title={displayName} description={description}>
+                        <PillCompletion title={displayName}>
                             <MemberAvatar member={user} size="24px" />
                         </PillCompletion>
                     ),
