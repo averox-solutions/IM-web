@@ -2,14 +2,14 @@
 
 exports[`createVoiceMessageContent should create a voice message content 1`] = `
 {
-  "body": "Voice message",
+  "body": "recording1763841425563.wav",
   "file": {},
   "info": {
     "duration": 23000,
     "mimetype": "ogg/opus",
     "size": 42000,
   },
-  "msgtype": undefined,
+  "msgtype": "m.audio",
   "org.matrix.msc1767.audio": {
     "codec": "opus",
     "container": "OGG",
@@ -23,7 +23,7 @@ exports[`createVoiceMessageContent should create a voice message content 1`] = `
   "org.matrix.msc1767.file": {
     "file": {},
     "mimetype": "ogg/opus",
-    "name": "recording1763841090406.wav",
+    "name": "recording1763841425563.wav",
     "size": 42000,
     "url": "mxc://example.com/file",
   },

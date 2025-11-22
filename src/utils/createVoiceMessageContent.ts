@@ -30,8 +30,8 @@ export const createVoiceMessageContent = (
     container?: string,
 ): RoomMessageEventContent => {
     return {
-        "body": "Voice message",
-        "msgtype": MsgType.voice, // Use m.audio for voice messages per Matrix spec
+        "body": `recording${Date.now()}.wav`, // Filename as body for file display
+        "msgtype": MsgType.Audio, // Use m.audio so it's playable
         "url": mxc,
         "file": file,
         "info": {
