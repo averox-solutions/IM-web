@@ -22,27 +22,19 @@ import classNames from "classnames";
 import CheckmarkIcon from "@vector-im/compound-design-tokens/assets/web/icons/check";
 
 import { MatrixClientPeg } from "../../../../MatrixClientPeg";
-import { _t, _td } from "../../../../languageHandler";
+import { _t } from "../../../../languageHandler";
 import Modal from "../../../../Modal";
 import { copyNode } from "../../../../utils/strings";
 import { SSOAuthEntry } from "../../../../components/views/auth/InteractiveAuthEntryComponents";
-import PassphraseField from "../../../../components/views/auth/PassphraseField";
 import StyledRadioButton from "../../../../components/views/elements/StyledRadioButton";
 import AccessibleButton from "../../../../components/views/elements/AccessibleButton";
 import DialogButtons from "../../../../components/views/elements/DialogButtons";
 import InlineSpinner from "../../../../components/views/elements/InlineSpinner";
-import {
-    getSecureBackupSetupMethods,
-    isSecureBackupRequired,
-    SecureBackupSetupMethod,
-} from "../../../../utils/WellKnownUtils";
+import { isSecureBackupRequired, SecureBackupSetupMethod } from "../../../../utils/WellKnownUtils";
 import { ModuleRunner } from "../../../../modules/ModuleRunner";
-import type Field from "../../../../components/views/elements/Field";
 import BaseDialog from "../../../../components/views/dialogs/BaseDialog";
 import Spinner from "../../../../components/views/elements/Spinner";
 import InteractiveAuthDialog from "../../../../components/views/dialogs/InteractiveAuthDialog";
-import { type IValidationResult } from "../../../../components/views/elements/Validation";
-import PassphraseConfirmField from "../../../../components/views/auth/PassphraseConfirmField";
 import { initialiseDehydration } from "../../../../utils/device/dehydration";
 import { SdkContextClass } from "../../../../contexts/SDKContext";
 
@@ -51,15 +43,11 @@ enum Phase {
     Loading = "loading",
     LoadError = "load_error",
     ChooseKeyPassphrase = "choose_key_passphrase",
-    Passphrase = "passphrase",
-    PassphraseConfirm = "passphrase_confirm",
     ShowKey = "show_key",
     Storing = "storing",
     Stored = "stored",
     ConfirmSkip = "confirm_skip",
 }
-
-const PASSWORD_MIN_SCORE = 4; // So secure, many characters, much complex, wow, etc, etc.
 
 interface IProps {
     hasCancel?: boolean;
@@ -77,7 +65,6 @@ interface IState {
     // for /keys/device_signing/upload?
     canUploadKeysWithPasswordOnly: boolean | null;
     accountPassword: string;
-    accountPasswordCorrect: boolean | null;
     canSkip: boolean;
     error?: boolean;
 }
@@ -97,7 +84,6 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
     };
     private recoveryKey?: GeneratedSecretStorageKey;
     private recoveryKeyNode = createRef<HTMLElement>();
-    private passphraseField = createRef<Field>();
 
     public constructor(props: IProps) {
         super(props);
@@ -117,7 +103,6 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
             phase,
             copied: false,
             downloaded: false,
-            accountPasswordCorrect: null,
             canSkip: !isSecureBackupRequired(cli),
             canUploadKeysWithPasswordOnly,
             accountPassword,
@@ -603,7 +588,7 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
                 top={this.topComponent}
                 title={this.titleForPhase(this.state.phase)}
                 titleClass={titleClass}
-                hasCancel={this.props.hasCancel && [Phase.Passphrase].includes(this.state.phase)}
+                hasCancel={this.props.hasCancel && this.state.canSkip}
                 fixedWidth={false}
             >
                 <div>{content}</div>

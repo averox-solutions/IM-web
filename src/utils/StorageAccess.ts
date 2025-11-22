@@ -11,6 +11,9 @@ Please see LICENSE files in the repository root for full details.
  *
  * @returns {IDBFactory | undefined} The IndexedDB factory object if available, or undefined if it is not supported.
  */
+export const IDB_DATABASE_NAME = "matrix-react-sdk";
+export const IDB_DATABASE_VERSION = 2;
+
 export function getIDBFactory(): IDBFactory | undefined {
     // IndexedDB loading is lazy for easier testing.
 
@@ -31,15 +34,36 @@ async function idbInit(): Promise<void> {
         throw new Error("IndexedDB not available");
     }
     idb = await new Promise((resolve, reject) => {
-        const request = getIDBFactory()!.open("matrix-react-sdk", 1);
-        request.onerror = reject;
-        request.onsuccess = (): void => {
-            resolve(request.result);
+        const openRequest = getIDBFactory()!.open(IDB_DATABASE_NAME, IDB_DATABASE_VERSION);
+        openRequest.onerror = reject;
+        openRequest.onsuccess = (): void => {
+            resolve(openRequest.result);
         };
-        request.onupgradeneeded = (): void => {
-            const db = request.result;
-            db.createObjectStore("pickleKey");
-            db.createObjectStore("account");
+        openRequest.onupgradeneeded = (event): void => {
+            const db = openRequest.result;
+
+            if (!db.objectStoreNames.contains("pickleKey")) {
+                db.createObjectStore("pickleKey");
+            }
+
+            if (!db.objectStoreNames.contains("account")) {
+                db.createObjectStore("account");
+            }
+
+            let mediaStore: IDBObjectStore;
+            if (db.objectStoreNames.contains("mediaCache")) {
+                mediaStore = openRequest.transaction!.objectStore("mediaCache");
+            } else {
+                mediaStore = db.createObjectStore("mediaCache", { keyPath: "key" });
+            }
+            if (!mediaStore.indexNames.contains("byUpdated")) {
+                mediaStore.createIndex("byUpdated", "updated", { unique: false });
+            }
+
+            // Close older connections holding on to outdated versions.
+            if (event?.oldVersion && event.oldVersion < IDB_DATABASE_VERSION && idb) {
+                idb.close();
+            }
         };
     });
 }
@@ -127,4 +151,17 @@ export async function idbClear(table: string): Promise<void> {
         await idbInit();
     }
     return idbTransaction(table, "readwrite", (objectStore) => objectStore.clear());
+}
+
+/**
+ * Provides direct access to the shared IndexedDB instance for advanced use cases
+ * which cannot be covered by the helper functions above.
+ *
+ * @returns {Promise<IDBDatabase>} Resolves with the opened database instance.
+ */
+export async function getIdbDatabase(): Promise<IDBDatabase> {
+    if (!idb) {
+        await idbInit();
+    }
+    return idb!;
 }

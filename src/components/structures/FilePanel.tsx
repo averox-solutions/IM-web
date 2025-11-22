@@ -59,11 +59,27 @@ class FilePanel extends React.Component<IProps, IState> {
     private decryptingEvents = new Map<string, boolean>();
     public noRoom = false;
     private card = createRef<HTMLDivElement>();
+    private timelinePanel = createRef<TimelinePanel>();
 
     public state: IState = {
         timelineSet: null,
         narrow: false,
     };
+
+    private isFileEvent(ev: MatrixEvent): boolean {
+        if (ev.getType() !== "m.room.message") return false;
+        const content = ev.getContent();
+        const msgtype = content.msgtype;
+        // Check for file/media message types
+        if (["m.file", "m.image", "m.video", "m.audio"].includes(msgtype)) {
+            return true;
+        }
+        // Also check if the event has a URL (for media uploads)
+        if (typeof content.url === "string" && content.url) {
+            return true;
+        }
+        return false;
+    }
 
     private onRoomTimeline = (
         ev: MatrixEvent,
@@ -78,17 +94,19 @@ class FilePanel extends React.Component<IProps, IState> {
         const client = MatrixClientPeg.safeGet();
         const isEncryptedRoom = client.isRoomEncrypted(this.props.roomId);
 
-        // For unencrypted rooms, the filtered timeline handles files via server-side filter
-        if (!isEncryptedRoom) return;
+        // For encrypted rooms, decrypt first
+        if (isEncryptedRoom) {
+            client.decryptEventIfNeeded(ev);
+            if (ev.isBeingDecrypted()) {
+                this.decryptingEvents.set(ev.getId()!, Boolean(toStartOfTimeline));
+                return;
+            }
+        }
 
-        // In encrypted rooms, process both live events and backfilled events so the Files
-        // panel shows items even without the Event Index.
-        client.decryptEventIfNeeded(ev);
-
-        if (ev.isBeingDecrypted()) {
-            this.decryptingEvents.set(ev.getId()!, Boolean(toStartOfTimeline));
-        } else {
-            this.addEncryptedLiveOrHistoricalEvent(ev, Boolean(toStartOfTimeline));
+        // Check if this is a file/media event and add it to the timelineSet
+        // This ensures new uploads appear immediately in both encrypted and unencrypted rooms
+        if (this.isFileEvent(ev)) {
+            this.addFileEventToTimeline(ev, Boolean(toStartOfTimeline));
         }
     };
 
@@ -105,16 +123,22 @@ class FilePanel extends React.Component<IProps, IState> {
     };
 
     public addEncryptedLiveOrHistoricalEvent(ev: MatrixEvent, toStartOfTimeline: boolean): void {
-        if (!this.state.timelineSet) return;
-
-        const timeline = this.state.timelineSet.getLiveTimeline();
-        if (ev.getType() !== "m.room.message") return;
-        if (!["m.file", "m.image", "m.video", "m.audio"].includes(ev.getContent().msgtype!)) {
-            return;
+        if (this.isFileEvent(ev)) {
+            this.addFileEventToTimeline(ev, toStartOfTimeline);
         }
+    }
 
-        if (!this.state.timelineSet.eventIdToTimeline(ev.getId()!)) {
-            this.state.timelineSet.addEventToTimeline(ev, timeline, {
+    private addFileEventToTimeline(ev: MatrixEvent, toStartOfTimeline: boolean, timelineSet?: EventTimelineSet): void {
+        const targetTimelineSet = timelineSet || this.state.timelineSet;
+        if (!targetTimelineSet) return;
+
+        const timeline = targetTimelineSet.getLiveTimeline();
+        const eventId = ev.getId();
+        if (!eventId) return;
+
+        // Don't add if the event is already in the timelineSet
+        if (!targetTimelineSet.eventIdToTimeline(eventId)) {
+            targetTimelineSet.addEventToTimeline(ev, timeline, {
                 fromCache: false,
                 addToState: false,
                 toStartOfTimeline,
@@ -127,26 +151,26 @@ class FilePanel extends React.Component<IProps, IState> {
 
         await this.updateTimelineSet(this.props.roomId);
 
-        if (!client.isRoomEncrypted(this.props.roomId)) return;
-
-        // The timelineSets filter makes sure that encrypted events that contain
-        // URLs never get added to the timeline, even if they are live events.
-        // These methods manually listen for such events and add them despite the
-        // filter's best efforts. We attach these listeners for encrypted rooms
-        // regardless of whether an event index is available, so that new uploads
-        // appear immediately in the Files tab.
+        // Listen for timeline events to add new file/media uploads immediately
+        // This works for both encrypted and unencrypted rooms
         client.on(RoomEvent.Timeline, this.onRoomTimeline);
-        client.on(MatrixEventEvent.Decrypted, this.onEventDecrypted);
+        
+        // For encrypted rooms, also listen for decryption events
+        if (client.isRoomEncrypted(this.props.roomId)) {
+            client.on(MatrixEventEvent.Decrypted, this.onEventDecrypted);
+        }
     }
 
     public componentWillUnmount(): void {
         const client = MatrixClientPeg.get();
         if (client === null) return;
 
-        if (!client.isRoomEncrypted(this.props.roomId)) return;
-
         client.removeListener(RoomEvent.Timeline, this.onRoomTimeline);
-        client.removeListener(MatrixEventEvent.Decrypted, this.onEventDecrypted);
+        
+        // Only remove decryption listener if room is encrypted
+        if (client.isRoomEncrypted(this.props.roomId)) {
+            client.removeListener(MatrixEventEvent.Decrypted, this.onEventDecrypted);
+        }
     }
 
     public async fetchFileEventsServer(room: Room): Promise<EventTimelineSet> {
@@ -219,8 +243,6 @@ class FilePanel extends React.Component<IProps, IState> {
                     await eventIndex.populateFileTimeline(timelineSet, timeline, room, 10);
                 }
 
-                this.setState({ timelineSet: timelineSet });
-
                 // For encrypted rooms without an event index, proactively backfill the
                 // Files panel from currently loaded room timeline events.
                 if (client.isRoomEncrypted(roomId) && eventIndex === null) {
@@ -235,6 +257,92 @@ class FilePanel extends React.Component<IProps, IState> {
                         }
                     }
                 }
+
+                // For unencrypted rooms, trigger initial pagination to load file events from server
+                // This ensures files show up even after a page refresh
+                // IMPORTANT: Do this BEFORE setting state so TimelinePanel loads with events
+                if (!client.isRoomEncrypted(roomId)) {
+                    // First, backfill from currently loaded events for immediate display
+                    const liveEvents = room.getLiveTimeline().getEvents();
+                    let backfilledCount = 0;
+                    for (const ev of liveEvents) {
+                        if (this.isFileEvent(ev)) {
+                            this.addFileEventToTimeline(ev, false, timelineSet);
+                            backfilledCount++;
+                        }
+                    }
+                    logger.log(`FilePanel: Backfilled ${backfilledCount} file events from room timeline`);
+                    
+                    // Then trigger pagination to load file events from the server
+                    // This ensures files persist after refresh
+                    const liveTimeline = timelineSet.getLiveTimeline();
+                    const eventsBeforePagination = liveTimeline.getEvents().length;
+                    
+                    try {
+                        // Load initial batch of file events - try multiple times to ensure we get events
+                        // For filtered timelineSets, we need to paginate to load events from the server
+                        let paginationAttempts = 0;
+                        const maxPaginationAttempts = 5;
+                        let lastEventCount = eventsBeforePagination;
+                        
+                        while (paginationAttempts < maxPaginationAttempts) {
+                            const tokenBefore = liveTimeline.getPaginationToken(Direction.Backward);
+                            
+                            // Try to paginate even if there's no token initially
+                            // The filtered timelineSet might need initial pagination to get the token
+                            try {
+                                await client.paginateEventTimeline(liveTimeline, {
+                                    backwards: true,
+                                    limit: 50,
+                                });
+                            } catch (paginationError) {
+                                // If pagination fails (e.g., no token), that's okay - we'll stop
+                                logger.warn(`FilePanel: Pagination attempt ${paginationAttempts + 1} failed:`, paginationError);
+                                break;
+                            }
+                            
+                            const eventsAfterPagination = liveTimeline.getEvents().length;
+                            const eventsLoaded = eventsAfterPagination - lastEventCount;
+                            
+                            logger.log(
+                                `FilePanel: Pagination attempt ${paginationAttempts + 1}: ` +
+                                `Loaded ${eventsLoaded} events (total: ${eventsAfterPagination})`
+                            );
+                            
+                            // If we didn't load any events, stop paginating
+                            if (eventsLoaded === 0) {
+                                break;
+                            }
+                            
+                            lastEventCount = eventsAfterPagination;
+                            
+                            // Check if there's a token for more pagination
+                            const tokenAfter = liveTimeline.getPaginationToken(Direction.Backward);
+                            if (!tokenAfter || tokenAfter === tokenBefore) {
+                                // No more events to paginate
+                                break;
+                            }
+                            
+                            paginationAttempts++;
+                        }
+                        
+                        const finalEventCount = liveTimeline.getEvents().length;
+                        logger.log(`FilePanel: Final event count after pagination: ${finalEventCount} (backfilled: ${backfilledCount})`);
+                    } catch (error) {
+                        logger.error("Failed to paginate file timeline on initial load", error);
+                    }
+                }
+
+                // Set state AFTER pagination completes so TimelinePanel loads with events
+                this.setState({ timelineSet: timelineSet }, () => {
+                    // Trigger a refresh of the TimelinePanel to ensure it displays the loaded events
+                    // Use setTimeout to ensure the TimelinePanel has mounted
+                    setTimeout(() => {
+                        if (this.timelinePanel.current) {
+                            this.timelinePanel.current.refreshTimeline();
+                        }
+                    }, 100);
+                });
             } catch (error) {
                 logger.error("Failed to get or create file panel filter", error);
             }
@@ -307,6 +415,8 @@ class FilePanel extends React.Component<IProps, IState> {
                         <Measured sensor={this.card} onMeasurement={this.onMeasurement} />
                         <SearchWarning isRoomEncrypted={isRoomEncrypted} kind={WarningKind.Files} />
                         <TimelinePanel
+                            ref={this.timelinePanel}
+                            key={`file-panel-${this.props.roomId}`}
                             manageReadReceipts={false}
                             manageReadMarkers={false}
                             timelineSet={this.state.timelineSet}

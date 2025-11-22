@@ -51,6 +51,7 @@ import { getForwardableEvent } from "../../../events/forward/getForwardableEvent
 import { getShareableLocationEvent } from "../../../events/location/getShareableLocationEvent";
 import PinningUtils from "../../../utils/PinningUtils";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
+import DMRoomMap from "../../../utils/DMRoomMap";
 
 interface IReplyInThreadButton {
     mxEvent: MatrixEvent;
@@ -364,6 +365,10 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
             timelineRenderingType === TimelineRenderingType.Thread ||
             timelineRenderingType === TimelineRenderingType.ThreadsList;
         const isThreadRootEvent = isThread && mxEvent?.getThread()?.rootEvent === mxEvent;
+        const room = cli.getRoom(mxEvent.getRoomId());
+        const isDirectMessageRoom = !!room && !!DMRoomMap.shared().getUserIdForRoomId(room.roomId);
+        const isOwnMessage = mxEvent.getSender() === me;
+        const shouldHideRedactForIncomingDM = isDirectMessageRoom && !isOwnMessage;
 
         let resendReactionsButton: JSX.Element | undefined;
         if (!mxEvent.isRedacted() && unsentReactionsCount !== 0) {
@@ -377,7 +382,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let redactButton: JSX.Element | undefined;
-        if (isSent && this.state.canRedact) {
+        if (isSent && this.state.canRedact && !shouldHideRedactForIncomingDM) {
             redactButton = (
                 <IconizedContextMenuOption
                     iconClassName="mx_MessageContextMenu_iconRedact"

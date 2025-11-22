@@ -9,7 +9,7 @@ Please see LICENSE files in the repository root for full details.
 import { EventType, RoomType, JoinRule, Preset, type Room, RoomEvent } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 import { logger } from "matrix-js-sdk/src/logger";
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 
 import MatrixClientContext from "../../contexts/MatrixClientContext";
 import createRoom, { type IOpts } from "../../createRoom";
@@ -18,14 +18,13 @@ import { Action } from "../../dispatcher/actions";
 import defaultDispatcher from "../../dispatcher/dispatcher";
 import { type ActionPayload } from "../../dispatcher/payloads";
 import { type ViewRoomPayload } from "../../dispatcher/payloads/ViewRoomPayload";
-import * as Email from "../../email";
 import { useEventEmitterState } from "../../hooks/useEventEmitter";
 import { useMyRoomMembership } from "../../hooks/useRoomMembers";
 import { useFeatureEnabled } from "../../hooks/useSettings";
 import { useStateArray } from "../../hooks/useStateArray";
 import { _t } from "../../languageHandler";
 import PosthogTrackers from "../../PosthogTrackers";
-import { inviteMultipleToRoom, showRoomInviteDialog } from "../../RoomInvite";
+import { showRoomInviteDialog } from "../../RoomInvite";
 import { UIComponent } from "../../settings/UIFeature";
 import { UPDATE_EVENT } from "../../stores/AsyncStore";
 import RightPanelStore from "../../stores/right-panel/RightPanelStore";
@@ -36,7 +35,6 @@ import {
     shouldShowSpaceSettings,
     showAddExistingRooms,
     showCreateNewRoom,
-    showCreateNewSubspace,
     showSpaceInvite,
     showSpaceSettings,
 } from "../../utils/space";
@@ -57,7 +55,6 @@ import Field from "../views/elements/Field";
 import RoomFacePile from "../views/elements/RoomFacePile";
 import RoomName from "../views/elements/RoomName";
 import RoomTopic from "../views/elements/RoomTopic";
-import withValidation from "../views/elements/Validation";
 import RoomInfoLine from "../views/rooms/RoomInfoLine";
 import RoomPreviewCard from "../views/rooms/RoomPreviewCard";
 import SpacePublicShare from "../views/spaces/SpacePublicShare";
@@ -96,7 +93,6 @@ enum Phase {
 const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
     const [menuDisplayed, handle, openMenu, closeMenu] = useContextMenu();
     const canCreateRoom = shouldShowComponent(UIComponent.CreateRooms);
-    const canCreateSpace = shouldShowComponent(UIComponent.CreateSpaces);
     const videoRoomsEnabled = useFeatureEnabled("feature_video_rooms");
     const elementCallVideoRoomsEnabled = useFeatureEnabled("feature_element_call_video_rooms");
 
@@ -165,20 +161,6 @@ const SpaceLandingAddButton: React.FC<{ space: Room }> = ({ space }) => {
                             showAddExistingRooms(space);
                         }}
                     />
-                    {/* {canCreateSpace && (
-                        <IconizedContextMenuOption
-                            label={_t("room_list|add_space_label")}
-                            iconClassName="mx_RoomList_iconPlus"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                closeMenu();
-                                showCreateNewSubspace(space);
-                            }}
-                        >
-                            <BetaPill />
-                        </IconizedContextMenuOption>
-                    )} */}
                 </IconizedContextMenuOptionList>
             </IconizedContextMenu>
         );
@@ -475,104 +457,23 @@ const SpaceSetupPrivateScope: React.FC<{
     );
 };
 
-const validateEmailRules = withValidation({
-    rules: [
-        {
-            key: "email",
-            test: ({ value }) => !value || Email.looksValid(value),
-            invalid: () => _t("auth|email_field_label_invalid"),
-        },
-    ],
-});
-
 const SpaceSetupPrivateInvite: React.FC<{
     space: Room;
     onFinished(): void;
 }> = ({ space, onFinished }) => {
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState("");
-    const numFields = 3;
-    const fieldRefs = [useRef<Field>(null), useRef<Field>(null), useRef<Field>(null)];
-    const [emailAddresses, setEmailAddress] = useStateArray(numFields, "");
-    const fields = new Array(numFields).fill(0).map((x, i) => {
-        const name = "emailAddress" + i;
-        return (
-            <Field
-                key={name}
-                name={name}
-                type="text"
-                label={_t("common|email_address")}
-                placeholder={_t("auth|email_field_label")}
-                value={emailAddresses[i]}
-                onChange={(ev: React.ChangeEvent<HTMLInputElement>) => setEmailAddress(i, ev.target.value)}
-                ref={fieldRefs[i]}
-                onValidate={validateEmailRules}
-                autoFocus={i === 0}
-                disabled={busy}
-            />
-        );
-    });
-
-    const onNextClick = async (ev: ButtonEvent): Promise<void> => {
-        ev.preventDefault();
-        if (busy) return;
-        setError("");
-        for (const fieldRef of fieldRefs) {
-            const valid = await fieldRef.current?.validate({ allowEmpty: true });
-
-            if (valid === false) {
-                // true/null are allowed
-                fieldRef.current!.focus();
-                fieldRef.current!.validate({ allowEmpty: true, focused: true });
-                return;
-            }
-        }
-
-        setBusy(true);
-        const targetIds = emailAddresses.map((name) => name.trim()).filter(Boolean);
-        try {
-            const result = await inviteMultipleToRoom(space.client, space.roomId, targetIds);
-
-            const failedUsers = Object.keys(result.states).filter((a) => result.states[a] === "error");
-            if (failedUsers.length > 0) {
-                logger.log("Failed to invite users to space: ", result);
-                setError(
-                    _t("create_space|failed_invite_users", {
-                        csvUsers: failedUsers.join(", "),
-                    }),
-                );
-            } else {
-                onFinished();
-            }
-        } catch (err) {
-            logger.error("Failed to invite users to space: ", err);
-            setError(_t("invite|error_invite"));
-        }
-        setBusy(false);
-    };
-
-    let onClick = (ev: ButtonEvent): void => {
-        ev.preventDefault();
-        onFinished();
-    };
-    let buttonLabel = _t("create_space|skip_action");
-    if (emailAddresses.some((name) => name.trim())) {
-        onClick = onNextClick;
-        buttonLabel = busy ? _t("create_space|inviting_users") : _t("action|continue");
-    }
+    // Automatically open the invite dialog when this component mounts
+    useEffect(() => {
+        showRoomInviteDialog(space.roomId);
+    }, [space.roomId]);
 
     return (
         <div className="mx_SpaceRoomView_inviteTeammates">
             <h1>{_t("create_space|invite_teammates_heading")}</h1>
             <div className="mx_SpaceRoomView_description">{_t("create_space|invite_teammates_description")}</div>
 
-            {error && <div className="mx_SpaceRoomView_errorText">{error}</div>}
-            <form onSubmit={onClick} id="mx_SpaceSetupPrivateInvite">
-                {fields}
-            </form>
-
             <div className="mx_SpaceRoomView_inviteTeammates_buttons">
-                <AccessibleButton
+                <AccessibleButton style={{ color: "white", fontWeight: "var(--cpd-font-weight-semibold)", textDecoration: "underline" }}
+                    kind="primary"
                     className="mx_SpaceRoomView_inviteTeammates_inviteDialogButton"
                     onClick={() => showRoomInviteDialog(space.roomId)}
                 >
@@ -581,15 +482,9 @@ const SpaceSetupPrivateInvite: React.FC<{
             </div>
 
             <div className="mx_SpaceRoomView_buttons">
-                <AccessibleButton
-                    kind="primary"
-                    disabled={busy}
-                    onClick={onClick}
-                    element="input"
-                    type="submit"
-                    form="mx_SpaceSetupPrivateInvite"
-                    value={buttonLabel}
-                />
+                <AccessibleButton kind="primary" onClick={onFinished}>
+                    {_t("action|continue")}
+                </AccessibleButton>
             </div>
         </div>
     );

@@ -57,6 +57,10 @@ import { attachMentions, attachRelation } from "./components/views/rooms/SendMes
 import { doMaybeLocalRoomAction } from "./utils/local-room";
 import { SdkContextClass } from "./contexts/SDKContext";
 import { blobIsAnimated } from "./utils/Image.ts";
+import { persistMediaBlob } from "./utils/MediaCacheStore";
+import { fetchUserTokenAndPlatform } from "./utils/userdetails";
+
+const NOTIFICATION_API_BASE_URL = process.env.REACT_APP_NOTIFCATIONURL || "http://localhost:4000";
 
 // scraped out of a macOS hidpi (5660ppm) screenshot png
 //                  5669 px (x-axis)      , 5669 px (y-axis)      , per metre
@@ -563,6 +567,7 @@ export default class ContentMessages {
             dis.dispatch<UploadProgressPayload>({ action: Action.UploadProgress, upload });
         }
 
+        let contentMxc: string | null = null;
         try {
             if (file.type.startsWith("image/")) {
                 content.msgtype = MsgType.Image;
@@ -607,6 +612,25 @@ export default class ContentMessages {
             content.file = result.file;
             content.url = result.url;
 
+            contentMxc = content.url ?? content.file?.url ?? null;
+            if (contentMxc) {
+                try {
+                    await persistMediaBlob({
+                        part: "source",
+                        identifiers: {
+                            mxc: contentMxc,
+                        },
+                        blob: file,
+                        roomId,
+                        mxc: contentMxc,
+                        mimeType: file.type,
+                        size: file.size,
+                    });
+                } catch (error) {
+                    logger.warn("Unable to cache outgoing media before send", error);
+                }
+            }
+
             if (upload.cancelled) throw new UploadCanceledError();
             // Await previous message being sent into the room
             if (promBefore) await promBefore;
@@ -620,8 +644,27 @@ export default class ContentMessages {
                 sendRoundTripMetric(matrixClient, roomId, response.event_id);
             }
 
+            if (contentMxc) {
+                void persistMediaBlob({
+                    part: "source",
+                    identifiers: {
+                        eventId: response.event_id,
+                        mxc: contentMxc,
+                    },
+                    blob: file,
+                    eventId: response.event_id,
+                    roomId,
+                    mxc: contentMxc,
+                    mimeType: file.type,
+                    size: file.size,
+                }).catch((error) => {
+                    logger.warn("Unable to update cached outgoing media", error);
+                });
+            }
+
             dis.dispatch<UploadFinishedPayload>({ action: Action.UploadFinished, upload });
             dis.dispatch({ action: "message_sent" });
+            void this.notifyUploadCompletion(matrixClient, roomId, file);
         } catch (error) {
             // 413: File was too big or upset the server in some way:
             // clear the media size limit so we fetch it again next time we try to upload
@@ -652,6 +695,57 @@ export default class ContentMessages {
             return false;
         }
         return true;
+    }
+
+    private getFileCategory(file: File): string {
+        const extension = file.name.includes(".")
+            ? file.name.substring(file.name.lastIndexOf(".") + 1).toLowerCase()
+            : "";
+
+        if (["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"].includes(extension)) return "image";
+        if (["mp4", "mov", "avi", "mkv", "webm"].includes(extension)) return "video";
+        if (["mp3", "wav", "ogg", "aac", "flac"].includes(extension)) return "audio";
+        if (["pdf", "doc", "docx", "txt", "rtf"].includes(extension)) return "document";
+        if (["xls", "xlsx", "csv"].includes(extension)) return "spreadsheet";
+        if (["ppt", "pptx"].includes(extension)) return "presentation";
+        return "other";
+    }
+
+    private async notifyUploadCompletion(matrixClient: MatrixClient, roomId: string, file: File): Promise<void> {
+        try {
+            const room = matrixClient.getRoom(roomId);
+            if (!room) return;
+
+            const senderId = matrixClient.getSafeUserId();
+            const senderLocalPart =
+                senderId.startsWith("@") && senderId.includes(":")
+                    ? senderId.slice(1, senderId.indexOf(":"))
+                    : senderId;
+            const senderDisplayName = matrixClient.getUser(senderId)?.displayName?.trim();
+            const notificationTitle = senderDisplayName || senderLocalPart;
+            const notificationBody = this.getFileCategory(file);
+
+            const otherMembers = room.getJoinedMembers().filter((member) => member.userId !== senderId);
+
+            for (const member of otherMembers) {
+                try {
+                    await fetchUserTokenAndPlatform(member.userId);
+                    await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            userId: member.userId,
+                            notificationTitle,
+                            notificationBody,
+                        }),
+                    });
+                } catch (err) {
+                    logger.warn(`Failed to send upload notification to ${member.userId}`, err);
+                }
+            }
+        } catch (err) {
+            logger.warn("Failed to send upload completion notification", err);
+        }
     }
 
     private ensureMediaConfigFetched(matrixClient: MatrixClient): Promise<void> {

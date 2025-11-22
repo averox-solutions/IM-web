@@ -67,6 +67,7 @@ export const DEFAULTS: DeepReadonly<IConfigOptions> = {
         android: "https://play.google.com/store/apps/details?id=im.vector.app",
         fdroid: "https://f-droid.org/repository/browse/?fdid=im.vector.app",
     },
+    enable_threads: true,
 };
 
 export type ConfigOptions = Defaultize<IConfigOptions, typeof DEFAULTS>;

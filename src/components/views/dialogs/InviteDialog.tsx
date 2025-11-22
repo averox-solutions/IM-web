@@ -24,7 +24,6 @@ import * as Email from "../../../email";
 import { getDefaultIdentityServerUrl, setToDefaultIdentityServer } from "../../../utils/IdentityServerUtils";
 import { buildActivityScores, buildMemberScores, compareMembers } from "../../../utils/SortMembers";
 import { abbreviateUrl } from "../../../utils/UrlUtils";
-import IdentityAuthClient from "../../../IdentityAuthClient";
 import { humanizeTime } from "../../../utils/humanize";
 import { type IInviteResult, inviteMultipleToRoom, showAnyInviteErrors } from "../../../RoomInvite";
 import { Action } from "../../../dispatcher/actions";
@@ -36,7 +35,6 @@ import { mediaFromMxc } from "../../../customisations/Media";
 import BaseAvatar from "../avatars/BaseAvatar";
 import { SearchResultAvatar } from "../avatars/SearchResultAvatar";
 import AccessibleButton, { type ButtonEvent } from "../elements/AccessibleButton";
-import { selectText } from "../../../utils/strings";
 import Field from "../elements/Field";
 import TabbedView, { Tab, TabLocation } from "../../structures/TabbedView";
 import Dialpad from "../voip/DialPad";
@@ -46,7 +44,7 @@ import BaseDialog from "./BaseDialog";
 import DialPadBackspaceButton from "../elements/DialPadBackspaceButton";
 import LegacyCallHandler from "../../../LegacyCallHandler";
 import UserIdentifierCustomisations from "../../../customisations/UserIdentifier";
-import CopyableText from "../elements/CopyableText";
+
 import { type ScreenName } from "../../../PosthogTrackers";
 import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
 import { getKeyBindingsManager } from "../../../KeyBindingsManager";
@@ -57,7 +55,7 @@ import {
     startDmOnFirstMessage,
     ThreepidMember,
 } from "../../../utils/direct-messages";
-import { InviteKind, isDirectMessageInvite, isGroupInvite, isCallTransferInvite } from "./InviteDialogTypes";
+import { InviteKind, isDirectMessageInvite, isGroupInvite, } from "./InviteDialogTypes";
 import Modal from "../../../Modal";
 import dis from "../../../dispatcher/dispatcher";
 import { privateShouldBeEncrypted } from "../../../utils/rooms";
@@ -139,11 +137,16 @@ class DMUserTile extends React.PureComponent<IDMUserTileProps> {
             );
         }
 
+        const memberName =
+            this.props.member.name === this.props.member.userId
+                ? formatUserIdLocalPart(this.props.member.userId)
+                : this.props.member.name;
+
         return (
             <span className="mx_InviteDialog_userTile">
                 <span className="mx_InviteDialog_userTile_pill">
                     {avatar}
-                    <span className="mx_InviteDialog_userTile_name">{this.props.member.name}</span>
+                    <span className="mx_InviteDialog_userTile_name">{memberName}</span>
                 </span>
                 {closeButton}
             </span>
@@ -163,6 +166,30 @@ const toMember = (member: RoomMember | Member): Member => {
               avatar_url: member.getMxcAvatarUrl(),
           })
         : member;
+};
+
+const EXCLUDED_MEMBER_USER_IDS = new Set(["@latest-announcements:matrix.org"]);
+const EXCLUDED_MEMBER_DISPLAY_NAMES = new Set(["latest announcements"]);
+
+const shouldExcludeMember = (member: Member): boolean => {
+    const userId = member.userId?.toLowerCase();
+    if (userId && EXCLUDED_MEMBER_USER_IDS.has(userId)) {
+        return true;
+    }
+
+    const name = member.name?.trim().toLowerCase();
+    if (name && EXCLUDED_MEMBER_DISPLAY_NAMES.has(name)) {
+        return true;
+    }
+
+    return false;
+};
+
+const formatUserIdLocalPart = (userId?: string): string => {
+    if (!userId) return "";
+    if (!userId.startsWith("@")) return userId;
+    const [localPart] = userId.substring(1).split(":");
+    return localPart || userId;
 };
 
 interface IDMRoomTileProps {
@@ -266,16 +293,25 @@ class DMRoomTile extends React.PureComponent<IDMRoomTileProps> {
             withDisplayName: true,
         });
 
+        const rawIdentifier = userIdentifier || this.props.member.userId;
+        const formattedIdentifier =
+            rawIdentifier && rawIdentifier === this.props.member.userId
+                ? formatUserIdLocalPart(rawIdentifier)
+                : rawIdentifier;
         const caption = (this.props.member as ThreepidMember).isEmail
             ? _t("invite|email_caption")
-            : this.highlightName(userIdentifier || this.props.member.userId);
+            : this.highlightName(formattedIdentifier);
 
         return (
             <AccessibleButton className="mx_InviteDialog_tile mx_InviteDialog_tile--room" onClick={this.onClick}>
                 {stackedAvatar}
                 <span className="mx_InviteDialog_tile_nameStack">
                     <div className="mx_InviteDialog_tile_nameStack_name">
-                        {this.highlightName(this.props.member.name)}
+                        {this.highlightName(
+                            this.props.member.name === this.props.member.userId
+                                ? formatUserIdLocalPart(this.props.member.userId)
+                                : this.props.member.name,
+                        )}
                     </div>
                     <div className="mx_InviteDialog_tile_nameStack_userId">{caption}</div>
                 </span>
@@ -488,7 +524,12 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                 continue;
             }
 
-            recents.push({ userId, user: toMember(roomMember), lastActive: lastEventTs });
+            const member = toMember(roomMember);
+            if (shouldExcludeMember(member)) {
+                logger.warn(`[Invite:Recents] Excluding ${userId} due to block list`);
+                continue;
+            }
+            recents.push({ userId, user: member, lastActive: lastEventTs });
             // We mutate the given set so that any later callers avoid duplicating these users
             excludedTargetIds.add(userId);
         }
@@ -509,7 +550,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
         return Object.values(memberScores)
             .map(({ member }) => member)
-            .filter((member) => !excludedTargetIds.has(member.userId))
+            .filter((member) => !excludedTargetIds.has(member.userId) && !shouldExcludeMember(member))
             .sort(memberComparator)
             .map((member) => ({ userId: member.userId, user: toMember(member) }));
     }
@@ -541,6 +582,11 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         }
         if (!newMember) return this.state.targets;
 
+        if (shouldExcludeMember(newMember)) {
+            this.setState({ filterText: "" });
+            return this.state.targets;
+        }
+
         const newTargets = [...(this.state.targets || []), newMember];
         this.setState({ targets: newTargets, filterText: "" });
         return newTargets;
@@ -571,36 +617,12 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
         try {
             const cli = MatrixClientPeg.safeGet();
-            // Clean up the sender ID: remove leading "@" and everything after ":"
-            const fullId = cli.getUserId()!;
-            const sender =
-                fullId.startsWith("@") && fullId.includes(":") ? fullId.slice(1, fullId.indexOf(":")) : fullId;
-
             const targets = this.convertFilter();
 
-            for (const target of targets) {
-                if ("userId" in target) {
-                    try {
-                        const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(target.userId);
-                        console.log(`Fetched FCM token for ${target.userId}:`, fcmtoken);
-                        console.log(`Is iOS platform:`, is_iOS);
-
-                        await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                userId: target.userId,
-                                notificationTitle: sender,
-                                notificationBody: `got invited`,
-                            }),
-                        });
-                    } catch (fetchError) {
-                        logger.warn(`Failed to fetch/send notification for ${target.userId}`, fetchError);
-                    }
-                }
-            }
+            await this.sendInviteNotifications(
+                targets.map((target) => target.userId).filter(Boolean),
+                "Got Invited",
+            );
 
             await startDmOnFirstMessage(cli, targets);
             this.props.onFinished(true);
@@ -653,6 +675,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         try {
             const result = await inviteMultipleToRoom(cli, this.props.roomId, targetIds);
             if (!this.shouldAbortAfterInviteError(result, room)) {
+                await this.sendInviteNotifications(targetIds, "Got Invited");
                 // handles setting error message too
                 this.props.onFinished(true);
             }
@@ -787,10 +810,12 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                 }
 
                 this.setState({
-                    serverResultsMixin: r.results.map((u) => ({
-                        userId: u.user_id,
-                        user: new DirectoryMember(u),
-                    })),
+                    serverResultsMixin: r.results
+                        .map((u) => ({
+                            userId: u.user_id,
+                            user: new DirectoryMember(u),
+                        }))
+                        .filter((result) => !shouldExcludeMember(result.user)),
                 });
             })
             .catch((e) => {
@@ -811,11 +836,14 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             // to a real account.
             this.setState({
                 // per above: the userId is a lie here - it's just a regular identifier
-                threepidResultsMixin: [{ user: new ThreepidMember(term), userId: term }],
+                threepidResultsMixin: [{ user: new ThreepidMember(term), userId: term }].filter(
+                    (result) => !shouldExcludeMember(result.user),
+                ),
             });
             try {
-                const authClient = new IdentityAuthClient();
-                const token = await authClient.getAccessToken();
+                const cli = MatrixClientPeg.safeGet();
+                if (!cli.identityServer) return;
+                const token = await cli.identityServer.getAccessToken();
                 // No token → unable to try a lookup
                 if (!token) return;
 
@@ -848,7 +876,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                             // Use the search term as identifier, so that it shows up in suggestions.
                             userId: term,
                         },
-                    ],
+                    ].filter((result) => !shouldExcludeMember(result.user)),
                 });
             } catch (e) {
                 logger.error("Error searching identity server:");
@@ -888,7 +916,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         const { kind } = this.props;
         let targets: Member[];
 
-        if (isGroupInvite(kind)) {
+        if (kind && isGroupInvite(kind)) {
             // GROUP mode: allow unlimited additions in one go
             targets = [...this.state.targets];
             if (!targets.some((m) => m.userId === member.userId)) {
@@ -1252,6 +1280,43 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         this.setState({ dialPadValue: ev.currentTarget.value });
     };
 
+    private getNotificationTitle(): string {
+        const cli = MatrixClientPeg.safeGet();
+        const fullId = cli.getUserId()!;
+        const senderLocalPart =
+            fullId.startsWith("@") && fullId.includes(":") ? fullId.slice(1, fullId.indexOf(":")) : fullId;
+        const senderDisplayName = cli.getUser(fullId)?.displayName?.trim();
+        return senderDisplayName || senderLocalPart;
+    }
+
+    private async sendInviteNotification(targetUserId: string, notificationBody: string): Promise<void> {
+        if (!targetUserId || !targetUserId.startsWith("@")) return;
+
+        try {
+            const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(targetUserId);
+            console.log(`Fetched FCM token for ${targetUserId}:`, fcmtoken);
+            console.log(`Is iOS platform:`, is_iOS);
+
+            await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    userId: targetUserId,
+                    notificationTitle: this.getNotificationTitle(),
+                    notificationBody,
+                }),
+            });
+        } catch (err) {
+            logger.warn(`Failed to fetch/send notification for ${targetUserId}`, err);
+        }
+    }
+
+    private async sendInviteNotifications(targetUserIds: string[], notificationBody: string): Promise<void> {
+        await Promise.all(targetUserIds.map((userId) => this.sendInviteNotification(userId, notificationBody)));
+    }
+
     private onDigitPress = (digit: string, ev: ButtonEvent): void => {
         this.setState({ dialPadValue: this.state.dialPadValue + digit });
 
@@ -1386,9 +1451,8 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                     <p>{_t("invite|suggestions_disclaimer_prompt")}</p>
                 </div>
             );
-            const link = makeUserPermalink(MatrixClientPeg.safeGet().getSafeUserId());
             footer = <></>;
-        } else if (this.props.kind && isGroupInvite(this.props.kind)) {
+        } else if (isRoomInvite(this.props)) {
             const roomId = this.props.roomId;
             const room = MatrixClientPeg.get()?.getRoom(roomId);
             const isSpace = room?.isSpaceRoom();
