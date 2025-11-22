@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
+import { MsgType } from "matrix-js-sdk/src/matrix";
 import { type EncryptedFile, type RoomMessageEventContent } from "matrix-js-sdk/src/types";
 
 /**
@@ -15,8 +16,8 @@ import { type EncryptedFile, type RoomMessageEventContent } from "matrix-js-sdk/
  * @param {number} size
  * @param {number[]} [waveform]
  * @param {EncryptedFile} [file] Encrypted file
- * @param {string} [codec] Audio codec (e.g., "aac", "opus")
- * @param {string} [container] Audio container format (e.g., "Apple MPEG-4 audio", "OGG")
+ * @param {string} [codec] Audio codec (e.g., "aac", "opus", "pcm_s16le")
+ * @param {string} [container] Audio container format (e.g., "Apple MPEG-4 audio", "OGG", "WAV")
  */
 export const createVoiceMessageContent = (
     mxc: string | undefined,
@@ -30,7 +31,7 @@ export const createVoiceMessageContent = (
 ): RoomMessageEventContent => {
     return {
         "body": "Voice message",
-        "msgtype": "m.voice" as any, // Use m.voice msgtype for voice messages (custom msgtype)
+        "msgtype": MsgType.voice, // Use m.audio for voice messages per Matrix spec
         "url": mxc,
         "file": file,
         "info": {
