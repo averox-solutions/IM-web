@@ -9,7 +9,6 @@ Please see LICENSE files in the repository root for full details.
 import {
     type MatrixEvent,
     EventType,
-    M_POLL_START,
     type MatrixClient,
     EventTimeline,
     type Room,
@@ -25,8 +24,6 @@ export default class PinningUtils {
      */
     public static readonly PINNABLE_EVENT_TYPES: (EventType | string)[] = [
         EventType.RoomMessage,
-        M_POLL_START.name,
-        M_POLL_START.altName,
     ];
 
     /**

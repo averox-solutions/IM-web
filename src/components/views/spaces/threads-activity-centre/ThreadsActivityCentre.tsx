@@ -43,7 +43,8 @@ interface ThreadsActivityCentreProps {
 export function ThreadsActivityCentre({ displayButtonLabel }: ThreadsActivityCentreProps): JSX.Element {
     const [open, setOpen] = useState(false);
     const roomsAndNotifications = useUnreadThreadRooms(open);
-    const isReleaseAnnouncementOpen = useIsReleaseAnnouncementOpen("threadsActivityCentre");
+    // Disable the release announcement notification
+    const isReleaseAnnouncementOpen = false; // useIsReleaseAnnouncementOpen("threadsActivityCentre");
     const settingTACOnlyNotifs = useSettingValue("Notifications.tac_only_notifications");
 
     const emptyCaption = settingTACOnlyNotifs

@@ -367,9 +367,10 @@ private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
         return;
     }
     if (isLocation) {
-        this.notifyPushNotifications().catch(e =>
+        this.notifyPushNotifications("Location").catch(e =>
             logger.warn("notifyPushNotifications(location) error:", e),
         );
+        return;
     }
 };
 
