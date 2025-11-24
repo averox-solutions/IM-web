@@ -141,7 +141,7 @@ import GlobalCallUIManager from "../views/rooms/Calling/GlobalCallUIManager";
 // legacy export
 export { default as Views } from "../../Views";
 
-const AUTH_SCREENS = ["register", "mobile_register", "login", "forgot_password", "start_sso", "start_cas", "welcome"];
+const AUTH_SCREENS = ["temp_login_user=true", "mobile_register", "login", "forgot_password", "start_sso", "start_cas", "welcome"];
 
 // Actions that are redirected through the onboarding process prior to being
 // re-dispatched. NOTE: some actions are non-trivial and would require
@@ -1013,7 +1013,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         this.setStateForNewView(newState);
         ThemeController.isLogin = true;
         this.themeWatcher?.recheck();
-        this.notifyNewScreen(isMobileRegistration ? "mobile_register" : "register");
+        this.notifyNewScreen(isMobileRegistration ? "mobile_register" : "temp_login_user=true");
     }
 
     // switch view to the given room
@@ -1725,7 +1725,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             return;
         }
 
-        if (screen === "register") {
+        if (screen === "temp_login_user=true") {
             dis.dispatch({
                 action: "start_registration",
                 params: params,
@@ -1913,7 +1913,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     }
 
     private onRegisterClick = (): void => {
-        this.showScreen("register");
+        this.showScreen("temp_login_user=true");
     };
 
     private onLoginClick = (): void => {
@@ -2015,7 +2015,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         if (
             initialScreenAfterLogin &&
             // XXX: workaround for https://github.com/vector-im/element-web/issues/11643 causing a login-loop
-            !["welcome", "login", "register", "start_sso", "start_cas"].includes(initialScreenAfterLogin.screen)
+            !["welcome", "login", "temp_login_user=true", "start_sso", "start_cas"].includes(initialScreenAfterLogin.screen)
         ) {
             fragmentAfterLogin = `/${initialScreenAfterLogin.screen}`;
         }

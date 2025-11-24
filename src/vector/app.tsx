@@ -100,6 +100,11 @@ export async function loadApp(fragParams: QueryDict, matrixChatRef: React.Ref<Ma
         snakedConfig.get("default_device_display_name") ?? platform?.getDefaultDeviceDisplayName();
 
     const initialScreenAfterLogin = getInitialScreenAfterLogin(window.location);
+    
+    // Read disable_guests from config and invert it to get enableGuest
+    // If disable_guests is not set, default to disabling guests (enableGuest = false)
+    const disableGuests = snakedConfig.get("disable_guests");
+    const enableGuest = disableGuests === false;
 
     const wrapperOpts: WrapperOpts = { Wrapper: React.Fragment };
     ModuleRunner.instance.invoke(WrapperLifecycle.Wrapper, wrapperOpts);
@@ -113,7 +118,7 @@ export async function loadApp(fragParams: QueryDict, matrixChatRef: React.Ref<Ma
                     config={config}
                     realQueryParams={params}
                     startingFragmentQueryParams={fragParams}
-                    enableGuest={false}
+                    enableGuest={enableGuest}
                     onTokenLoginCompleted={onTokenLoginCompleted}
                     initialScreenAfterLogin={initialScreenAfterLogin}
                     defaultDeviceDisplayName={defaultDeviceName}

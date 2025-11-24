@@ -220,7 +220,8 @@ export async function loadSession(opts: ILoadSessionOpts = {}): Promise<boolean>
             return false;
         }
 
-        // Guest registration disabled - removed from registration flow
+        // Guest registration disabled - users must explicitly register or login
+        // Automatic guest registration was creating new users on every visit
         // if (enableGuest && guestHsUrl) {
         //     return registerAsGuest(guestHsUrl, guestIsUrl, defaultDeviceDisplayName);
         // }

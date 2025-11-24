@@ -705,9 +705,9 @@ export default class ContentMessages {
         if (["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"].includes(extension)) return "image";
         if (["mp4", "mov", "avi", "mkv", "webm"].includes(extension)) return "video";
         if (["mp3", "wav", "ogg", "aac", "flac"].includes(extension)) return "audio";
-        if (["pdf", "doc", "docx", "txt", "rtf"].includes(extension)) return "document";
-        if (["xls", "xlsx", "csv"].includes(extension)) return "spreadsheet";
-        if (["ppt", "pptx"].includes(extension)) return "presentation";
+        if (["pdf", "doc", "docx", "txt", "rtf"].includes(extension)) return "file";
+        if (["xls", "xlsx", "csv"].includes(extension)) return "file";
+        if (["ppt", "pptx"].includes(extension)) return "file";
         return "other";
     }
 

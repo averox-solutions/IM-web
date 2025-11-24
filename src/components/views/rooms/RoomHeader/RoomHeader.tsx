@@ -860,7 +860,7 @@ export default function RoomHeader({
                                         transition: "all 0.3s ease",
                                         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
                                     }}
-                                    onClick={() => window.open("https://beep.gov.pk", "_blank")}
+                                    onClick={() => window.open("https://vc.beep.gov.pk", "_blank")}
                                     onMouseOver={(e) => {
                                         e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
                                         e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";

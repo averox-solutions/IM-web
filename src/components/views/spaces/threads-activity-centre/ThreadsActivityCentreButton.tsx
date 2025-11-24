@@ -25,7 +25,7 @@ export const ThreadsActivityCentreButton = forwardRef<HTMLDivElement, ThreadsAct
             if (onClick) {
                 onClick();
             } else {
-                window.open("https://beep.gov.pk", "_blank");
+                window.open("https://vc.beep.gov.pk", "_blank");
             }
         };
 

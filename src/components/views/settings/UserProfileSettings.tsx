@@ -24,7 +24,6 @@ import LogoutDialog, { shouldShowLogoutDialog } from "../dialogs/LogoutDialog";
 import Modal from "../../../Modal";
 import defaultDispatcher from "../../../dispatcher/dispatcher";
 import { Flex } from "../../utils/Flex";
-import { prepareAvatarFile } from "../../../utils/avatar-upload";
 
 const SpinnerToast: React.FC<{ children?: ReactNode }> = ({ children }) => (
     <>
@@ -134,18 +133,15 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
     const onAvatarChange = useCallback(
         async (avatarFile: File) => {
             PosthogTrackers.trackInteraction("WebProfileSettingsAvatarUploadButton");
-            logger.log(`Preparing avatar upload: ${avatarFile.name} (${avatarFile.size} bytes)`);
-
-            const processedFile = await prepareAvatarFile(avatarFile, maxUploadSize);
-            logger.log(`Uploading avatar: ${processedFile.name} (${processedFile.size} bytes)`);
-
+            logger.log(`Uploading new avatar: ${avatarFile.name} (${avatarFile.size} bytes)`);
+            
             const removeToast = toastRack.displayToast(
                 <SpinnerToast>{_t("settings|general|avatar_save_progress")}</SpinnerToast>,
             );
-
+            
             try {
                 setAvatarError(false);
-                const { content_uri: uri } = await client.uploadContent(processedFile);
+                const { content_uri: uri } = await client.uploadContent(avatarFile);
                 await client.setAvatarUrl(uri);
                 setAvatarURL(uri);
             } catch {
@@ -154,7 +150,7 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                 removeToast();
             }
         },
-        [toastRack, client, maxUploadSize],
+        [toastRack, client],
     );
 
     const onDisplayNameChanged = useCallback((e: ChangeEvent<HTMLInputElement>) => {
