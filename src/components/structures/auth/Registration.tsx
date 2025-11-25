@@ -302,6 +302,22 @@ export default class Registration extends React.Component<IProps, IState> {
         }
     }
 
+    /**
+     * Generate an available username by appending a number or underscore
+     */
+    private generateAvailableUsername = (baseUsername: string, attempt: number): string => {
+        if (attempt === 0) {
+            // First try: append underscore
+            return baseUsername + "_";
+        } else if (attempt === 1) {
+            // Second try: append number 1
+            return baseUsername + "1";
+        } else {
+            // Subsequent tries: append incrementing numbers
+            return baseUsername + attempt;
+        }
+    };
+
     private onFormSubmit = async (formVals: Record<string, string>): Promise<void> => {
         this.setState({
             errorText: "",
@@ -312,13 +328,14 @@ export default class Registration extends React.Component<IProps, IState> {
 
         // Call both registration APIs simultaneously
         try {
-            // For now, only call Matrix registration
-            // const [customApiResult, matrixResult] = await Promise.allSettled([
-            //     this.makeCustomApiRegisterRequest(formVals.username!, formVals.password!),
-            //     this.makeMatrixRegisterRequest(formVals)
-            // ]);
+            let currentFormVals = { ...formVals };
+            let registrationAttempts = 0;
+            const maxAttempts = 10;
+            
+            while (registrationAttempts < maxAttempts) {
+                try {
             const [matrixResult] = await Promise.allSettled([
-                this.makeMatrixRegisterRequest(formVals)
+                        this.makeMatrixRegisterRequest(currentFormVals)
             ]);
 
             debuglog("Registration results:", { matrixResult });
@@ -332,11 +349,23 @@ export default class Registration extends React.Component<IProps, IState> {
                     busy: false,
                     doingUIAuth: false,
                     completedNoSignin: true,
-                    registeredUsername: formVals.username,
+                            registeredUsername: currentFormVals.username,
                 });
+                        return; // Success, exit
             } else {
                 // Matrix registration failed
                 const matrixError = matrixResult.status === 'rejected' ? matrixResult.reason : null;
+                        
+                        // Check if it's a username conflict
+                        if (matrixError instanceof MatrixError && matrixError.errcode === "M_USER_IN_USE") {
+                            // Generate new username and retry
+                            registrationAttempts++;
+                            const newUsername = this.generateAvailableUsername(currentFormVals.username!, registrationAttempts - 1);
+                            currentFormVals = { ...currentFormVals, username: newUsername };
+                            // Update formVals in state for next attempt
+                            this.setState({ formVals: currentFormVals });
+                            continue; // Retry with new username
+                        }
                 
                 debuglog("Matrix registration failed:", { matrixError });
                 
@@ -351,7 +380,39 @@ export default class Registration extends React.Component<IProps, IState> {
                     doingUIAuth: false,
                     errorText: errorMessage,
                 });
+                        return; // Exit on non-username errors
             }
+        } catch (error) {
+                    // If it's a username conflict in the catch block, retry
+                    if (error instanceof MatrixError && error.errcode === "M_USER_IN_USE") {
+                        registrationAttempts++;
+                        const newUsername = this.generateAvailableUsername(currentFormVals.username!, registrationAttempts - 1);
+                        currentFormVals = { ...currentFormVals, username: newUsername };
+                        this.setState({ formVals: currentFormVals });
+                        continue;
+                    }
+                    
+                    debuglog("Unexpected error during registration:", error);
+                    let errorMsg = error instanceof Error ? error.message : "Registration failed";
+                    // Remove "unknown message" text from error messages
+                    if (errorMsg && errorMsg.toLowerCase().includes('unknown')) {
+                        errorMsg = "Registration failed";
+                    }
+                    this.setState({
+                        busy: false,
+                        doingUIAuth: false,
+                        errorText: errorMsg,
+                    });
+                    return;
+                }
+            }
+            
+            // If we exhausted all attempts
+            this.setState({
+                busy: false,
+                doingUIAuth: false,
+                errorText: "Unable to find an available username. Please try a different username.",
+            });
         } catch (error) {
             debuglog("Unexpected error during registration:", error);
             let errorMsg = error instanceof Error ? error.message : "Registration failed";
@@ -412,7 +473,8 @@ export default class Registration extends React.Component<IProps, IState> {
                     errorText = _t("auth|unsupported_auth_msisdn");
                 }
             } else if (response instanceof MatrixError && response.errcode === "M_USER_IN_USE") {
-                errorText = _t("auth|username_in_use");
+                // Don't show error - username will be auto-modified and retried
+                // errorText = _t("auth|username_in_use");
             } else if (response instanceof MatrixError && response.errcode === "M_THREEPID_IN_USE") {
                 errorText = _t("auth|3pid_in_use");
             }

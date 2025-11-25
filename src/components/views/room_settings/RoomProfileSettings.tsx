@@ -96,15 +96,29 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
     };
 
     // Ensure topic length between 6-60 and name length between 1-50 characters
+    // Only validate fields that are actually being changed
     private isSaveEnabled = (): boolean => {
         const { displayName, topic, profileFieldsTouched } = this.state;
 
         const hasChanges = Object.values(profileFieldsTouched).some(Boolean);
+        if (!hasChanges) return false;
 
-        const nameValid = displayName.trim().length > 0 && displayName.trim().length <= 50;
-        const topicValid = topic.trim().length >= 6 && topic.trim().length <= 60;
+        // Only validate fields that are being changed
+        const nameChanged = profileFieldsTouched.name;
+        const topicChanged = profileFieldsTouched.topic;
+        const avatarChanged = profileFieldsTouched.avatar;
 
-        return hasChanges && nameValid && topicValid;
+        // If only avatar is changed, allow save regardless of name/topic validation
+        if (avatarChanged && !nameChanged && !topicChanged) {
+            return true;
+        }
+
+        // Validate name only if it's being changed
+        const nameValid = !nameChanged || (displayName.trim().length > 0 && displayName.trim().length <= 50);
+        // Validate topic only if it's being changed
+        const topicValid = !topicChanged || (topic.trim().length >= 6 && topic.trim().length <= 60);
+
+        return nameValid && topicValid;
     };
 
     private cancelProfileChanges = async (e: ButtonEvent): Promise<void> => {
@@ -125,19 +139,25 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         e.stopPropagation();
         e.preventDefault();
 
-        // Final validation
-        const { displayName, topic } = this.state;
-        if (
-            displayName.trim().length === 0 ||
-            displayName.trim().length > 50 ||
-            topic.trim().length < 6 ||
-            topic.trim().length > 60
-        ) {
-            console.warn("Validation failed: Name or topic length is invalid.");
-            return;
+        if (!this.isSaveEnabled()) return;
+
+        // Only validate fields that are being changed
+        const { displayName, topic, profileFieldsTouched } = this.state;
+        
+        if (profileFieldsTouched.name) {
+            if (displayName.trim().length === 0 || displayName.trim().length > 50) {
+                console.warn("Validation failed: Name length is invalid.");
+                return;
+            }
         }
 
-        if (!this.isSaveEnabled()) return;
+        if (profileFieldsTouched.topic) {
+            if (topic.trim().length < 6 || topic.trim().length > 60) {
+                console.warn("Validation failed: Topic length is invalid.");
+                return;
+            }
+        }
+
         this.setState({ profileFieldsTouched: {} });
 
         const client = MatrixClientPeg.safeGet();
@@ -151,14 +171,24 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         }
 
         if (this.state.avatarFile) {
-            const { content_uri: uri } = await client.uploadContent(this.state.avatarFile);
-            await client.sendStateEvent(this.props.roomId, EventType.RoomAvatar, { url: uri }, "");
-            newState.originalAvatarUrl = uri;
-            newState.avatarFile = null;
+            try {
+                const { content_uri: uri } = await client.uploadContent(this.state.avatarFile);
+                await client.sendStateEvent(this.props.roomId, EventType.RoomAvatar, { url: uri }, "");
+                newState.originalAvatarUrl = uri;
+                newState.avatarFile = null;
+            } catch (error) {
+                console.error("Failed to upload avatar:", error);
+                // Don't return here - allow other changes to save even if avatar fails
+            }
         } else if (this.state.avatarRemovalPending) {
-            await client.sendStateEvent(this.props.roomId, EventType.RoomAvatar, {}, "");
-            newState.avatarRemovalPending = false;
-            newState.originalAvatarUrl = null;
+            try {
+                await client.sendStateEvent(this.props.roomId, EventType.RoomAvatar, {}, "");
+                newState.avatarRemovalPending = false;
+                newState.originalAvatarUrl = null;
+            } catch (error) {
+                console.error("Failed to remove avatar:", error);
+                // Don't return here - allow other changes to save even if avatar removal fails
+            }
         }
 
         if (this.state.originalTopic !== this.state.topic) {
