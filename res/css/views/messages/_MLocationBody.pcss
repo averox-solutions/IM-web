@@ -13,22 +13,10 @@ Please see LICENSE files in the repository root for full details.
         max-width: 100%;
         width: 450px;
         height: 300px;
-        min-width: 450px;
-        min-height: 300px;
         z-index: 0; /* keeps the entire map under the message action bar */
-        position: relative;
-        overflow: hidden;
 
         border-radius: var(--MBody-border-radius);
         cursor: pointer;
-
-        /* Ensure Map component's internal div fills container */
-        .mx_Map {
-            width: 100% !important;
-            height: 100% !important;
-            min-width: 100% !important;
-            min-height: 100% !important;
-        }
     }
 }
 

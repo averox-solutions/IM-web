@@ -1610,6 +1610,7 @@
         "live_location_error": "Live location error",
         "live_locations_empty": "No live locations",
         "live_share_button": "Share for %(duration)s",
+        "shared_location": "Shared location",
         "live_toggle_label": "Enable live location sharing",
         "live_until": "Live until %(expiryTime)s",
         "live_update_time": "Updated %(humanizedUpdateTime)s",

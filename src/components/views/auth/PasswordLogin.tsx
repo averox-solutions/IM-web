@@ -467,24 +467,24 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                             />
                             <span style={{ fontSize: "14px" }}>
                                 I accept the{" "}
-                                <a
+                                <a 
                                     href="https://wa.beep.gov.pk/info/privacy_policy.html"
                                     target="_blank"
                                     rel="noreferrer noopener"
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{ color: "var(--primary-color)" }}
+                                    style={{ color: "var(--primary-color)", textDecoration: "underline"  }}
                                 >
-                                    Privacy Policy
+                                    <span style={{ fontWeight: "bold" }}>Privacy Policy</span>
                                 </a>
                                 {" and "}
-                                <a
+                                <a 
                                     href="https://wa.beep.gov.pk/info/terms_and_conditions.html"
                                     target="_blank"
                                     rel="noreferrer noopener"
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{ color: "var(--primary-color)" }}
+                                    style={{ color: "var(--primary-color)", textDecoration: "underline"  }}
                                 >
-                                    Terms & Conditions
+                                    <span style={{ fontWeight: "bold" }}>Terms & Conditions</span>
                                 </a>
                             </span>
                         </label>

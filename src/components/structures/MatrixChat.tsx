@@ -539,7 +539,19 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     }
 
     private getServerProperties(): { serverConfig: ValidatedServerConfig } {
-        const props = this.state.serverConfig || SdkConfig.get("validated_server_config")!;
+        const props = this.state.serverConfig || SdkConfig.get("validated_server_config");
+        if (!props) {
+            logger.error("No server config available - this should not happen");
+            // This should never happen in normal operation as the config is validated during app init
+            // If it does happen, we'll use a non-null assertion to satisfy TypeScript
+            // but this indicates a serious initialization problem
+            const config = SdkConfig.get("validated_server_config");
+            if (config) {
+                return { serverConfig: config };
+            }
+            // Last resort: this will cause a runtime error but prevents React rendering errors
+            throw new Error("Server configuration is not available. Please refresh the page.");
+        }
         return { serverConfig: props };
     }
 
@@ -2076,24 +2088,29 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             }
         } else if (this.state.view === Views.WELCOME) {
             view = <Welcome />;
-        } else if (this.state.view === Views.REGISTER && SettingsStore.getValue(UIFeature.Registration)) {
-            const email = ThreepidInviteStore.instance.pickBestInvite()?.toEmail;
-            view = (
-                <Registration
-                    clientSecret={this.state.register_client_secret}
-                    sessionId={this.state.register_session_id}
-                    idSid={this.state.register_id_sid}
-                    email={email}
-                    brand={this.props.config.brand}
-                    onLoggedIn={this.onRegisterFlowComplete}
-                    onLoginClick={this.onLoginClick}
-                    onServerConfigChange={this.onServerConfigChange}
-                    defaultDeviceDisplayName={this.props.defaultDeviceDisplayName}
-                    fragmentAfterLogin={fragmentAfterLogin}
-                    mobileRegister={this.state.isMobileRegistration}
-                    {...this.getServerProperties()}
-                />
-            );
+        } else if (this.state.view === Views.REGISTER) {
+            if (SettingsStore.getValue(UIFeature.Registration)) {
+                const email = ThreepidInviteStore.instance.pickBestInvite()?.toEmail;
+                view = (
+                    <Registration
+                        clientSecret={this.state.register_client_secret}
+                        sessionId={this.state.register_session_id}
+                        idSid={this.state.register_id_sid}
+                        email={email}
+                        brand={this.props.config.brand}
+                        onLoggedIn={this.onRegisterFlowComplete}
+                        onLoginClick={this.onLoginClick}
+                        onServerConfigChange={this.onServerConfigChange}
+                        defaultDeviceDisplayName={this.props.defaultDeviceDisplayName}
+                        fragmentAfterLogin={fragmentAfterLogin}
+                        mobileRegister={this.state.isMobileRegistration}
+                        {...this.getServerProperties()}
+                    />
+                );
+            } else {
+                // Registration is disabled, show welcome screen instead
+                view = <Welcome />;
+            }
         } else if (this.state.view === Views.FORGOT_PASSWORD && SettingsStore.getValue(UIFeature.PasswordReset)) {
             view = (
                 <ForgotPassword

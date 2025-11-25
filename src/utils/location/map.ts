@@ -42,7 +42,6 @@ export const createMap = (
                 "NavigationControl.ZoomOut": _t("action|zoom_out"),
             },
         });
-        map.addControl(new maplibregl.AttributionControl(), "top-right");
 
         map.on("error", (e) => {
             logger.error("Failed to load map: check map_style_url in config.json has a valid URL and API key", e.error);

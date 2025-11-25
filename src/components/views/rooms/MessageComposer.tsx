@@ -348,11 +348,10 @@ private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
         type === "org.matrix.msc3381.poll.start" || type === "m.poll.start";
 
     // --- Location detection ---
-    // Legacy: m.room.message with msgtype "m.location"
-    // Extensible events: type "m.location"
-    const isLocation =
-        (type === "m.room.message" && msgtype === "m.location") ||
-        type === "m.location";
+    // Location notifications are handled in shareLocation.ts to avoid duplicates
+    // const isLocation =
+    //     (type === "m.room.message" && msgtype === "m.location") ||
+    //     type === "m.location";
 
     if (isVoice) {
         this.notifyPushNotifications().catch(e =>
@@ -366,12 +365,12 @@ private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
         );
         return;
     }
-    if (isLocation) {
-        this.notifyPushNotifications("Location").catch(e =>
-            logger.warn("notifyPushNotifications(location) error:", e),
-        );
-        return;
-    }
+    // Location notifications are handled in shareLocation.ts to avoid duplicates
+    // if (isLocation) {
+    //     this.notifyPushNotifications().catch(e =>
+    //         logger.warn("notifyPushNotifications(location) error:", e),
+    //     );
+    // }
 };
 
 

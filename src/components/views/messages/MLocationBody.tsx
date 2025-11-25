@@ -6,10 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { type MatrixEvent, ClientEvent, type ClientEventHandlerMap } from "matrix-js-sdk/src/matrix";
 import { secureRandomString } from "matrix-js-sdk/src/randomstring";
-import type { Map as MapLibreMap } from "maplibre-gl";
+import { Tooltip } from "@vector-im/compound-web";
 
 import { _t } from "../../../languageHandler";
 import Modal from "../../../Modal";
@@ -23,7 +23,6 @@ import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import { SmartMarker, Map, LocationViewDialog } from "../location";
 import { type IBodyProps } from "./IBodyProps";
 import { createReconnectedListener } from "../../../utils/connection";
-import { Tooltip } from "@vector-im/compound-web";
 
 interface IState {
     error?: Error;
@@ -133,72 +132,27 @@ export const LocationBodyContent: React.FC<LocationBodyContentProps> = ({
     onError,
     onClick,
 }) => {
-    const mapRef = useRef<MapLibreMap | null>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [mapInstance, setMapInstance] = React.useState<MapLibreMap | null>(null);
-
     // only pass member to marker when should render avatar marker
     const markerRoomMember = isSelfLocation(mxEvent.getContent()) ? mxEvent.sender : undefined;
     const geoUri = locationEventGeoUri(mxEvent);
 
-    // Resize map when it's ready and container is mounted
-    useEffect(() => {
-        if (mapInstance && containerRef.current) {
-            // Use setTimeout to ensure DOM is fully rendered
-            const timer = setTimeout(() => {
-                try {
-                    mapInstance.resize();
-                } catch (e) {
-                    // Map might not be fully initialized yet
-                }
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [mapInstance]);
-
     const mapElement = (
-        <Map 
-            id={mapId} 
-            centerGeoUri={geoUri} 
-            onClick={onClick} 
-            onError={onError} 
-            className="mx_MLocationBody_map"
-        >
-            {({ map }) => {
-                // Store map reference for resize
-                if (map && mapRef.current !== map) {
-                    mapRef.current = map;
-                    setMapInstance(map);
-                }
-                return (
-                    <SmartMarker
-                        map={map}
-                        id={`${mapId}-marker`}
-                        geoUri={geoUri}
-                        roomMember={markerRoomMember ?? undefined}
-                    />
-                );
-            }}
+        <Map id={mapId} centerGeoUri={geoUri} onClick={onClick} onError={onError} className="mx_MLocationBody_map">
+            {({ map }) => (
+                <SmartMarker
+                    map={map}
+                    id={`${mapId}-marker`}
+                    geoUri={geoUri}
+                    roomMember={markerRoomMember ?? undefined}
+                />
+            )}
         </Map>
     );
 
     return (
         <div className="mx_MLocationBody">
             <Tooltip label={tooltip}>
-                <div 
-                    ref={containerRef}
-                    className="mx_MLocationBody_map"
-                    style={{
-                        width: '450px',
-                        height: '300px',
-                        minWidth: '450px',
-                        minHeight: '300px',
-                        position: 'relative',
-                        overflow: 'hidden'
-                    }}
-                >
-                    {mapElement}
-                </div>
+                <div className="mx_MLocationBody_map">{mapElement}</div>
             </Tooltip>
         </div>
     );
