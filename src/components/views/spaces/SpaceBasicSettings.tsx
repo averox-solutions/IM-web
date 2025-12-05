@@ -129,6 +129,7 @@ const SpaceBasicSettings: React.FC<IProps> = ({
                 value={name}
                 onChange={(ev: ChangeEvent<HTMLInputElement>) => setName(ev.target.value)}
                 disabled={nameDisabled}
+                maxLength={50}
             />
 
             <Field
