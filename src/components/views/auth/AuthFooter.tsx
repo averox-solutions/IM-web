@@ -46,6 +46,7 @@ const AuthFooter = (): ReactElement => {
             <a href="https://matrix.org" target="_blank" rel="noreferrer noopener">
                 {_t("powered_by_matrix")}
             </a>
+            <span className="mx_AuthFooter_version">Version 4.1</span>
         </footer>
     );
 };

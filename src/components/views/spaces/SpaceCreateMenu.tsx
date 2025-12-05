@@ -180,6 +180,7 @@ export const SpaceCreateForm: React.FC<ISpaceCreateFormProps> = ({
                 onValidate={spaceNameValidator}
                 disabled={busy}
                 autoComplete="off"
+                maxLength={50}
             />
 
             {showAliasField ? (
