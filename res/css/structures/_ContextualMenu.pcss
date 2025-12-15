@@ -197,3 +197,18 @@ Please see LICENSE files in the repository root for full details.
         transition: none !important;
     }
 }
+
+/* Mobile responsive styles */
+@media screen and (max-width: 767px) {
+    .mx_ContextualMenu {
+        max-width: calc(100vw - 32px);
+        width: auto;
+        min-width: 200px;
+    }
+
+    .mx_ContextualMenu_item {
+        padding: 14px 16px;
+        min-height: 44px;
+        font-size: $font-15px;
+    }
+}

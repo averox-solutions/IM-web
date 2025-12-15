@@ -15,6 +15,8 @@ interface IProps {
     timestamp?: JSX.Element;
     subtitle?: ReactNode;
     children?: ReactChild;
+    onTimestampContextMenu?: (ev: React.MouseEvent) => void;
+    onTimestampClick?: (ev: React.MouseEvent) => void;
 }
 
 const EventTileBubble = forwardRef<HTMLDivElement, IProps>(

@@ -87,7 +87,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
         this.state = {
             // Field error codes by field ID
             fieldValid: {},
-            loginType: LoginField.MatrixId,
+            loginType: LoginField.MatrixId, // Default to MatrixId, email login is disabled
             password: "",
             showPassword: false,
             acceptedTerms: false,
@@ -128,6 +128,10 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
 
     private onLoginTypeChange = (ev: React.ChangeEvent<HTMLSelectElement>): void => {
         const loginType = ev.target.value as IState["loginType"];
+        // Prevent switching to email login
+        if (loginType === LoginField.Email) {
+            return;
+        }
         this.setState({ loginType });
         this.props.onUsernameChanged?.(""); // Reset because email and username use the same state
     };
@@ -281,30 +285,13 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
             error: false,
         };
 
+        // Email login is disabled - default to MatrixId if somehow Email is selected
+        if (loginType === LoginField.Email) {
+            loginType = LoginField.MatrixId;
+            this.setState({ loginType });
+        }
+
         switch (loginType) {
-            case LoginField.Email:
-                classes.error = this.loginIncorrect && !this.props.username;
-                return (
-                    <EmailField
-                        element="input"
-                        id="mx_LoginForm_email"
-                        className={classNames(classes)}
-                        name="username" // make it a little easier for browser's remember-password
-                        autoComplete="email"
-                        type="email"
-                        key="email_input"
-                        placeholder="joe@example.com"
-                        value={this.props.username}
-                        onChange={this.onUsernameChanged}
-                        onBlur={this.onUsernameBlur}
-                        disabled={this.props.busy}
-                        autoFocus={autoFocus}
-                        onValidate={this.onEmailValidate}
-                        fieldRef={(field): void => {
-                            this[LoginField.Email] = field;
-                        }}
-                    />
-                );
             case LoginField.MatrixId:
                 classes.error = this.loginIncorrect && !this.props.username;
                 return (
@@ -369,6 +356,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
     private isLoginEmpty(): boolean {
         switch (this.state.loginType) {
             case LoginField.Email:
+                // Email login is disabled, treat as MatrixId
             case LoginField.MatrixId:
                 return !this.props.username;
             case LoginField.Phone:
@@ -400,9 +388,7 @@ export default class PasswordLogin extends React.PureComponent<IProps, IState> {
                         <option key={LoginField.MatrixId} value={LoginField.MatrixId}>
                             {_t("common|username")}
                         </option>
-                        <option key={LoginField.Email} value={LoginField.Email}>
-                            {_t("common|email_address")}
-                        </option>
+                        {/* Email login option removed - email login is disabled */}
                         <option key={LoginField.Password} value={LoginField.Password}>
                             {_t("auth|msisdn_field_label")}
                         </option>

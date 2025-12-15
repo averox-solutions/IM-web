@@ -232,6 +232,17 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         phoneNumber: string | undefined,
         password: string,
     ): Promise<void> => {
+        // Prevent email login
+        if (username && username.indexOf("@") > 0) {
+            this.setState({
+                busy: false,
+                busyLoggingIn: false,
+                errorText: _t("auth|email_login_disabled"),
+                loginIncorrect: false,
+            });
+            return;
+        }
+
         // Format username as @username:ms.beep.gov.pk
         let formattedUsername = username || "";
         if (formattedUsername) {
@@ -682,6 +693,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         
             return (
                 <div
+                    className="mx_Login_2FA"
                     style={{
                         marginTop: 32,
                         maxWidth: 400,
@@ -698,7 +710,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         
                     }}
                 >
-                    <h3 style={{ textAlign: "center", marginBottom: "-8px", fontSize: "20px",color:"black",marginTop:"-11px",paddingBottom:"3%"}}>
+                    <h3 className="mx_Login_2FA_title" style={{ textAlign: "center", marginBottom: "-8px", fontSize: "20px",color:"black",marginTop:"-11px",paddingBottom:"3%"}}>
                         Two-Factor Authentication
                     </h3>
         
@@ -745,6 +757,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         
                     <input
                         type="text"
+                        className="mx_Login_2FA_input"
                         placeholder="Enter 6-digit OTP"
                         value={this.state.twoFAToken || ""}
                         onChange={(e) => {
@@ -783,6 +796,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         
                     <AccessibleButton
                         kind="primary"
+                        className="mx_Login_2FA_button"
                         onClick={this.on2FASubmit}
                         style={{
                             width: "80%",

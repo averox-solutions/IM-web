@@ -9,10 +9,10 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React from "react";
-import { type MatrixClient, type UIAResponse } from "matrix-js-sdk/src/matrix";
+import { type MatrixClient, MatrixError } from "matrix-js-sdk/src/matrix";
 import { type AuthType } from "matrix-js-sdk/src/interactive-auth";
 
-import { _t } from "../../../languageHandler";
+import { _t, UserFriendlyError } from "../../../languageHandler";
 import AccessibleButton from "../elements/AccessibleButton";
 import InteractiveAuth, {
     ERROR_USER_CANCELLED,
@@ -22,6 +22,8 @@ import InteractiveAuth, {
 import { type ContinueKind, SSOAuthEntry } from "../auth/InteractiveAuthEntryComponents";
 import BaseDialog from "./BaseDialog";
 import { Linkify } from "../../../Linkify";
+import ErrorDialog from "./ErrorDialog";
+import Modal from "../../../Modal";
 
 type DialogAesthetics = Partial<{
     [x in AuthType]: {
@@ -63,7 +65,7 @@ export interface InteractiveAuthDialogProps<T = unknown>
     // Default is defined in _getDefaultDialogAesthetics()
     aestheticsForStagePhases?: DialogAesthetics;
 
-    onFinished(success?: boolean, result?: UIAResponse<T> | Error | null): void;
+    onFinished(success?: boolean, result?: T | Error | null): void;
 }
 
 interface IState {
@@ -157,12 +159,51 @@ export default class InteractiveAuthDialog<T> extends React.Component<Interactiv
             }
         }
 
-        let content: JSX.Element;
+        let content: React.ReactElement;
         if (this.state.authError) {
+            // Check if it's the "No validated 3pid session found" error
+            let error = this.state.authError;
+            let underlyingError: any = error;
+            if (error instanceof UserFriendlyError) {
+                underlyingError = error.cause || error;
+            }
+
+            const errorMsg = 
+                (underlyingError as any)?.message || 
+                error.message || 
+                (underlyingError as any)?.toString() || 
+                error.toString() || 
+                "";
+            const errorMsgLower = errorMsg.toLowerCase();
+
+            const isHttp400 = 
+                (underlyingError as any)?.httpStatus === 400 ||
+                (error as any)?.httpStatus === 400 ||
+                (underlyingError instanceof MatrixError && underlyingError.httpStatus === 400) ||
+                (error instanceof MatrixError && error.httpStatus === 400);
+
+            const isNoValidatedSessionError = 
+                errorMsgLower.includes("no validated 3pid session found") ||
+                errorMsgLower.includes("no validated") ||
+                errorMsgLower.includes("validated 3pid session") ||
+                (isHttp400 && (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session") || errorMsgLower.includes("session found")));
+
+            // If it's the "No validated 3pid session found" error, show user-friendly dialog and close this one
+            if (isNoValidatedSessionError) {
+                // Close this dialog first
+                this.props.onFinished(false);
+                // Show user-friendly error dialog
+                Modal.createDialog(ErrorDialog, {
+                    title: _t("settings|general|email_not_verified"),
+                    description: _t("settings|general|email_verification_instructions"),
+                });
+                return null;
+            }
+
             content = (
                 <div id="mx_Dialog_content">
                     <Linkify>
-                        <div role="alert">{this.state.authError.message || this.state.authError.toString()}</div>
+                        <div role="alert">{error.message || error.toString()}</div>
                     </Linkify>
                     <br />
                     <AccessibleButton onClick={this.onDismissClick} className="mx_GeneralButton" autoFocus={true}>

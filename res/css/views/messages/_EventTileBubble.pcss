@@ -17,6 +17,10 @@ Please see LICENSE files in the repository root for full details.
     box-sizing: border-box;
     display: grid;
     grid-template-columns: 24px minmax(0, 1fr) min-content min-content;
+    /* Make bubble clickable/touch-friendly */
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
  
    
  
@@ -48,5 +52,23 @@ text-align:center;
         align-self: center;
         margin-left: $spacing-16;
         margin-top:auto;
+        cursor: pointer; /* Make timestamp clickable */
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1); /* Visual feedback on tap */
+        user-select: none; /* Prevent text selection */
+        pointer-events: auto; /* Ensure clicks are captured */
+    }
+    
+    /* Ensure timestamp wrapper doesn't affect layout */
+    .mx_EventTileBubble > div[style*="contents"] {
+        display: contents !important;
+    }
+    
+    /* Ensure Tooltip wrapper doesn't block clicks on timestamp */
+    .mx_EventTileBubble [class*="Tooltip"] {
+        pointer-events: none; /* Allow clicks to pass through tooltip wrapper */
+    }
+    
+    .mx_EventTileBubble [class*="Tooltip"] > * {
+        pointer-events: auto; /* Re-enable pointer events on timestamp itself */
     }
 }

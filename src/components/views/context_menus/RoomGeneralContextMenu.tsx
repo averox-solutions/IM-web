@@ -34,6 +34,7 @@ import { shouldShowComponent } from "../../../customisations/helpers/UIComponent
 import { UIComponent } from "../../../settings/UIFeature";
 import { DeveloperToolsOption } from "./DeveloperToolsOption";
 import { useSettingValue } from "../../../hooks/useSettings";
+import UIStore from "../../../stores/UIStore";
 
 export interface RoomGeneralContextMenuProps extends IContextMenuProps {
     room: Room;
@@ -283,7 +284,9 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
     })();
 
     const developerModeEnabled = useSettingValue("developerMode");
-    const developerToolsOption = developerModeEnabled ? (
+    // Hide developer tools on mobile/responsive mode (max-width: 767px)
+    const isMobile = UIStore.instance.windowWidth <= 767;
+    const developerToolsOption = developerModeEnabled && !isMobile ? (
         <DeveloperToolsOption onFinished={onFinished} roomId={room.roomId} />
     ) : null;
 

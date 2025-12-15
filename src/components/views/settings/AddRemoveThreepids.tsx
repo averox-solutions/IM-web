@@ -30,6 +30,56 @@ import InlineSpinner from "../elements/InlineSpinner";
 // Whether we're adding 3pids to the user's account on the homeserver or sharing them on an identity server
 type TheepidControlMode = "hs" | "is";
 
+/**
+ * Maps backend error messages and codes to user-friendly custom messages for 3pid operations
+ */
+function getCustomThreepidErrorMessage(err: any, medium: "email" | "msisdn"): string {
+    // Check if it's a MatrixError with an errcode
+    if (err instanceof MatrixError && err.errcode) {
+        switch (err.errcode) {
+            case "M_THREEPID_IN_USE":
+                return medium === "email"
+                    ? _t("settings|general|error_email_already_in_use")
+                    : _t("settings|general|error_msisdn_already_in_use");
+            case "M_INVALID_EMAIL":
+                return _t("settings|general|error_invalid_email_detail");
+            case "M_INVALID_PARAM":
+                return _t("settings|general|error_invalid_email_detail");
+            case "M_LIMIT_EXCEEDED":
+                return _t("settings|general|error_rate_limit");
+            case "M_RESOURCE_LIMIT_EXCEEDED":
+                return _t("error|resource_limits");
+            case "M_FORBIDDEN":
+                return _t("settings|general|error_add_email_forbidden");
+        }
+    }
+
+    // Check error message patterns
+    const errorMsg = err?.message || err?.error || err?.toString() || "";
+    const errorLower = errorMsg.toLowerCase();
+    
+    if (errorLower.includes("already in use") || errorLower.includes("already exists")) {
+        return medium === "email"
+            ? _t("settings|general|error_email_already_in_use")
+            : _t("settings|general|error_msisdn_already_in_use");
+    }
+
+    if (errorLower.includes("invalid") && medium === "email") {
+        return _t("settings|general|error_invalid_email_detail");
+    }
+
+    if (errorLower.includes("rate limit") || errorLower.includes("too many")) {
+        return _t("settings|general|error_rate_limit");
+    }
+
+    if (errorLower.includes("network") || errorLower.includes("connection") || errorLower.includes("timeout")) {
+        return _t("error|connection");
+    }
+
+    // Use extractErrorMessageFromError as fallback
+    return extractErrorMessageFromError(err, _t("settings|general|error_add_email_generic"));
+}
+
 interface ExistingThreepidProps {
     mode: TheepidControlMode;
     threepid: ThirdPartyIdentifier;
@@ -165,13 +215,70 @@ const ExistingThreepid: React.FC<ExistingThreepidProps> = ({ mode, threepid, onC
                 bindTask.current = undefined;
             } catch (err) {
                 logger.error(`Unable to verify threepid:`, err);
+                // Debug log to help identify the error format
+                logger.log("Error details:", {
+                    err,
+                    errType: err?.constructor?.name,
+                    errMessage: (err as any)?.message,
+                    errHttpStatus: (err as any)?.httpStatus,
+                    errErrcode: (err as any)?.errcode,
+                    errToString: (err as any)?.toString(),
+                });
 
                 let underlyingError = err;
                 if (err instanceof UserFriendlyError) {
                     underlyingError = err.cause;
+                    logger.log("Underlying error:", underlyingError);
                 }
 
-                if (underlyingError instanceof MatrixError && underlyingError.errcode === "M_THREEPID_AUTH_FAILED") {
+                // Get error message from various possible locations
+                const errorMsg = 
+                    (underlyingError as any)?.message || 
+                    (err as any)?.message || 
+                    (underlyingError as any)?.toString() || 
+                    (err as any)?.toString() || 
+                    "";
+                const errorMsgLower = errorMsg.toLowerCase();
+                logger.log("Error message extracted:", errorMsg);
+
+                // Check for HTTP 400 - indicates "No validated 3pid session found"
+                // Check multiple ways to detect the error
+                const errHttpStatus = 
+                    (underlyingError as any)?.httpStatus ?? 
+                    (err as any)?.httpStatus ?? 
+                    (underlyingError instanceof MatrixError ? underlyingError.httpStatus : undefined) ??
+                    (err instanceof MatrixError ? err.httpStatus : undefined);
+                
+                const isHttp400 = errHttpStatus === 400;
+                
+                // Check for the specific error in multiple ways
+                const isNoValidatedSessionError = 
+                    errorMsgLower.includes("no validated 3pid session found") ||
+                    errorMsgLower.includes("no validated") ||
+                    errorMsgLower.includes("validated 3pid session") ||
+                    (isHttp400 && (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session") || errorMsgLower.includes("session found"))) ||
+                    (underlyingError instanceof MatrixError && 
+                     underlyingError.httpStatus === 400 &&
+                     (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session"))) ||
+                    (err instanceof MatrixError && 
+                     err.httpStatus === 400 &&
+                     (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session")));
+                
+                logger.log("Error detection:", { isHttp400, isNoValidatedSessionError, errorMsgLower });
+
+                // Check if it's the "No validated 3pid session found" error - show user-friendly message
+                if (isNoValidatedSessionError) {
+                    Modal.createDialog(ErrorDialog, {
+                        title:
+                            threepid.medium === "email"
+                                ? _t("settings|general|email_not_verified")
+                                : _t("settings|general|error_msisdn_verification"),
+                        description:
+                            threepid.medium === "email"
+                                ? _t("settings|general|email_verification_instructions")
+                                : _t("settings|general|msisdn_verification_instructions"),
+                    });
+                } else if (underlyingError instanceof MatrixError && underlyingError.errcode === "M_THREEPID_AUTH_FAILED") {
                     Modal.createDialog(ErrorDialog, {
                         title:
                             threepid.medium === "email"
@@ -336,7 +443,47 @@ const AddThreepidSection: React.FC<{ medium: "email" | "msisdn"; disabled?: bool
                         underlyingError = err.cause;
                     }
 
-                    if (
+                    // Get error message from various possible locations
+                    const errorMsg = 
+                        (underlyingError as any)?.message || 
+                        (err as any)?.message || 
+                        (underlyingError as any)?.toString() || 
+                        (err as any)?.toString() || 
+                        "";
+                    const errorMsgLower = errorMsg.toLowerCase();
+
+                    // Check for HTTP 400 - indicates "No validated 3pid session found"
+                    // Also check MatrixError properties directly
+                    const isHttp400 = 
+                        (underlyingError as any)?.httpStatus === 400 ||
+                        (err as any)?.httpStatus === 400 ||
+                        (underlyingError instanceof MatrixError && underlyingError.httpStatus === 400) ||
+                        (err instanceof MatrixError && err.httpStatus === 400);
+                    
+                    const isNoValidatedSessionError = 
+                        errorMsgLower.includes("no validated 3pid session found") ||
+                        errorMsgLower.includes("no validated") ||
+                        (isHttp400 && (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session"))) ||
+                        (underlyingError instanceof MatrixError && 
+                         underlyingError.httpStatus === 400 &&
+                         (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session"))) ||
+                        (err instanceof MatrixError && 
+                         err.httpStatus === 400 &&
+                         (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session")));
+
+                    // Check if it's the "No validated 3pid session found" error - show user-friendly message
+                    if (isNoValidatedSessionError) {
+                        Modal.createDialog(ErrorDialog, {
+                            title:
+                                medium === "email"
+                                    ? _t("settings|general|email_not_verified")
+                                    : _t("settings|general|error_msisdn_verification"),
+                            description:
+                                medium === "email"
+                                    ? _t("settings|general|email_verification_instructions")
+                                    : _t("settings|general|msisdn_verification_instructions"),
+                        });
+                    } else if (
                         underlyingError instanceof MatrixError &&
                         underlyingError.errcode === "M_THREEPID_AUTH_FAILED"
                     ) {
@@ -350,7 +497,7 @@ const AddThreepidSection: React.FC<{ medium: "email" | "msisdn"; disabled?: bool
                     } else {
                         Modal.createDialog(ErrorDialog, {
                             title:
-                                medium == "email"
+                                medium === "email"
                                     ? _t("settings|general|error_email_verification")
                                     : _t("settings|general|error_msisdn_verification"),
                             description: extractErrorMessageFromError(err, _t("invite|failed_generic")),
@@ -402,10 +549,60 @@ const AddThreepidSection: React.FC<{ medium: "email" | "msisdn"; disabled?: bool
                     setIsVerifying(false);
                     setContinueDisabled(false);
                     addTask.current = undefined;
-                    Modal.createDialog(ErrorDialog, {
-                        title: medium === "email" ? _t("settings|general|error_add_email") : _t("common|error"),
-                        description:  _t("unable to add email please contact your administrator"),
-                    });
+
+                    let underlyingError = err;
+                    if (err instanceof UserFriendlyError) {
+                        underlyingError = err.cause;
+                    }
+
+                    // Get error message from various possible locations
+                    const errorMsg = 
+                        (underlyingError as any)?.message || 
+                        (err as any)?.message || 
+                        (underlyingError as any)?.toString() || 
+                        (err as any)?.toString() || 
+                        "";
+                    const errorMsgLower = errorMsg.toLowerCase();
+
+                    // Check for HTTP 400 - indicates "No validated 3pid session found"
+                    // Also check MatrixError properties directly
+                    const isHttp400 = 
+                        (underlyingError as any)?.httpStatus === 400 ||
+                        (err as any)?.httpStatus === 400 ||
+                        (underlyingError instanceof MatrixError && underlyingError.httpStatus === 400) ||
+                        (err instanceof MatrixError && err.httpStatus === 400);
+                    
+                    const isNoValidatedSessionError = 
+                        errorMsgLower.includes("no validated 3pid session found") ||
+                        errorMsgLower.includes("no validated") ||
+                        (isHttp400 && (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session"))) ||
+                        (underlyingError instanceof MatrixError && 
+                         underlyingError.httpStatus === 400 &&
+                         (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session"))) ||
+                        (err instanceof MatrixError && 
+                         err.httpStatus === 400 &&
+                         (errorMsgLower.includes("validated") || errorMsgLower.includes("3pid session")));
+
+                    // Check if it's the "No validated 3pid session found" error - show user-friendly message
+                    if (isNoValidatedSessionError) {
+                        Modal.createDialog(ErrorDialog, {
+                            title:
+                                medium === "email"
+                                    ? _t("settings|general|email_not_verified")
+                                    : _t("settings|general|error_msisdn_verification"),
+                            description:
+                                medium === "email"
+                                    ? _t("settings|general|email_verification_instructions")
+                                    : _t("settings|general|msisdn_verification_instructions"),
+                        });
+                    } else {
+                        // Use getCustomThreepidErrorMessage for other errors
+                        const customErrorMsg = getCustomThreepidErrorMessage(err, medium);
+                        Modal.createDialog(ErrorDialog, {
+                            title: medium === "email" ? _t("settings|general|error_add_email") : _t("common|error"),
+                            description: customErrorMsg,
+                        });
+                    }
                 });
         },
         [client, phoneCountryInput, newThreepidInput, medium],

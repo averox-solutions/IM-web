@@ -394,3 +394,31 @@ Please see LICENSE files in the repository root for full details.
         left: 0;
     }
 }
+
+/* Mobile responsive styles */
+@media screen and (max-width: 767px) {
+    .mx_MessageComposer_wrapper {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .mx_MessageComposer_row {
+        padding: 8px 0;
+    }
+
+    .mx_MessageComposer_input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 10px 12px;
+        min-height: 44px;
+    }
+
+    .mx_MessageComposer_actions {
+        gap: 8px;
+    }
+
+    .mx_MessageComposer_button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px;
+    }
+}
