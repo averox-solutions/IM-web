@@ -549,17 +549,18 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             }
         }
 
+        // Hide password fields with CSS - password is auto-filled but still validated
         let passwordFields: JSX.Element | undefined;
         if (this.props.mobileRegister) {
             passwordFields = (
                 <>
-                    <div className="mx_AuthBody_fieldRow">{this.renderPassword()}</div>
-                    <div className="mx_AuthBody_fieldRow">{this.renderPasswordConfirm()}</div>
+                    <div className="mx_AuthBody_fieldRow" style={{ display: 'none' }}>{this.renderPassword()}</div>
+                    <div className="mx_AuthBody_fieldRow" style={{ display: 'none' }}>{this.renderPasswordConfirm()}</div>
                 </>
             );
         } else {
             passwordFields = (
-                <div className="mx_AuthBody_fieldRow">
+                <div className="mx_AuthBody_fieldRow" style={{ display: 'none' }}>
                     {this.renderPassword()}
                     {this.renderPasswordConfirm()}
                 </div>

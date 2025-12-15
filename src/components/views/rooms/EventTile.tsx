@@ -833,6 +833,58 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         this.showContextMenu(ev, this.props.permalinkCreator?.forEvent(this.props.mxEvent.getId()!));
     };
 
+    // Handle click on bubble messages to open context menu (for mobile/touch devices)
+    private onBubbleClick = (ev: React.MouseEvent): void => {
+        // Only handle clicks for bubble layout
+        if (this.props.layout !== Layout.Bubble) return;
+
+        const clickTarget = ev.target as HTMLElement;
+        
+        // Allow clicks on timestamp to open menu (timestamp is clickable in bubble layout)
+        // Check if click is on timestamp or inside a tooltip containing timestamp
+        const timestampElement = clickTarget.closest(".mx_MessageTimestamp");
+        const tooltipWrapper = clickTarget.closest("[class*='Tooltip']");
+        const isTimestamp = timestampElement !== null || 
+                           clickTarget.classList.contains("mx_MessageTimestamp") ||
+                           (tooltipWrapper !== null && tooltipWrapper.querySelector(".mx_MessageTimestamp") !== null);
+        
+        // Don't open menu if clicking on interactive elements (links, buttons, etc.)
+        // But allow timestamp clicks - timestamps should open the context menu
+        if (
+            !isTimestamp && (
+                clickTarget.tagName === "A" ||
+                clickTarget.tagName === "BUTTON" ||
+                (clickTarget.closest("a") && !clickTarget.closest(".mx_MessageTimestamp")) ||
+                clickTarget.closest("button") ||
+                clickTarget.closest(".mx_MessageActionBar") ||
+                clickTarget.closest(".mx_ReactionsRow") ||
+                clickTarget.closest(".mx_ReplyChain")
+            )
+        ) {
+            return;
+        }
+
+        // Don't open menu if text is selected (unless clicking timestamp)
+        if (!isTimestamp && getSelectedText()) return;
+
+        // Don't open menu when editing
+        if (this.props.editState) return;
+
+        // Don't open menu for redacted messages (they have no actionable options)
+        if (this.props.mxEvent.isRedacted()) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            return;
+        }
+
+        // Prevent default to avoid any link navigation if timestamp was wrapped in a link
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        // Simulate context menu event
+        this.showContextMenu(ev);
+    };
+
     private showContextMenu(ev: React.MouseEvent, permalink?: string): void {
         const clickTarget = ev.target as HTMLElement;
 
@@ -852,6 +904,13 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
 
         // We don't want to show the menu when editing a message
         if (this.props.editState) return;
+
+        // Don't show context menu for redacted messages (they have no actionable options)
+        if (this.props.mxEvent.isRedacted()) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            return;
+        }
 
         ev.preventDefault();
         ev.stopPropagation();
@@ -1181,7 +1240,26 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         const groupTimestamp = !useIRCLayout ? linkedTimestamp : null;
         const ircTimestamp = useIRCLayout ? linkedTimestamp : null;
         // Don't show bubble timestamp for info messages
-        const bubbleTimestamp = this.props.layout === Layout.Bubble && !isInfoMessage ? messageTimestamp : undefined;
+        // Wrap bubble timestamp with handlers to prevent browser context menu
+        const bubbleTimestamp = this.props.layout === Layout.Bubble && !isInfoMessage ? (
+            <div
+                onContextMenu={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    this.showContextMenu(ev);
+                }}
+                onClick={(ev) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (this.props.layout === Layout.Bubble) {
+                        this.onBubbleClick(ev);
+                    }
+                }}
+                style={{ display: "contents" }} // Don't affect layout
+            >
+                {messageTimestamp}
+            </div>
+        ) : undefined;
         const groupPadlock = !useIRCLayout && !isBubbleMessage && this.renderE2EPadlock();
         const ircPadlock = useIRCLayout && !isBubbleMessage && this.renderE2EPadlock();
 
@@ -1246,7 +1324,12 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                             {avatar}
                             {sender}
                         </div>,
-                        <div className={lineClasses} key="mx_EventTile_line" onContextMenu={this.onContextMenu}>
+                        <div 
+                            className={lineClasses} 
+                            key="mx_EventTile_line" 
+                            onContextMenu={this.onContextMenu}
+                            onClick={this.props.layout === Layout.Bubble ? this.onBubbleClick : undefined}
+                        >
                             {this.renderContextMenu()}
                             {replyChain}
                             {renderTile(
@@ -1396,7 +1479,12 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                                 {timestamp}
                             </div>
                         </a>,
-                        <div className={lineClasses} key="mx_EventTile_line" onContextMenu={this.onContextMenu}>
+                        <div 
+                            className={lineClasses} 
+                            key="mx_EventTile_line" 
+                            onContextMenu={this.onContextMenu}
+                            onClick={this.props.layout === Layout.Bubble ? this.onBubbleClick : undefined}
+                        >
                             {this.renderContextMenu()}
                             {renderTile(
                                 TimelineRenderingType.File,
@@ -1444,7 +1532,12 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                         {sender}
                         {ircPadlock}
                         {avatar}
-                        <div className={lineClasses} key="mx_EventTile_line" onContextMenu={this.onContextMenu}>
+                        <div 
+                            className={lineClasses} 
+                            key="mx_EventTile_line" 
+                            onContextMenu={this.onContextMenu}
+                            onClick={this.props.layout === Layout.Bubble ? this.onBubbleClick : undefined}
+                        >
                             {this.renderContextMenu()}
                             {groupTimestamp}
                             {groupPadlock}

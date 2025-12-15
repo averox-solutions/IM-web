@@ -105,14 +105,27 @@ async function start(): Promise<void> {
     }
 
     // Prevent DevTools usage globally - comprehensive blocking including browser menus
-    // Only enabled in production mode (when REACT_APP_ENV=prod/production or NODE_ENV=production)
+    // Enabled in production mode OR when in responsive/mobile mode (window width <= 767px)
     const isProduction = 
         process.env.REACT_APP_ENV === 'prod' || 
         process.env.REACT_APP_ENV === 'production' ||
         process.env.NODE_ENV === 'production' ||
         (process.env.REACT_APP_ENV !== 'dev' && process.env.REACT_APP_ENV !== 'development' && process.env.NODE_ENV !== 'development');
     
-    if (isProduction) {
+    // Check if in responsive/mobile mode
+    const isResponsiveMode = window.innerWidth <= 767;
+    
+    // Override window.alert to prevent alerts in responsive mode
+    if (isResponsiveMode) {
+        const originalAlert = window.alert;
+        window.alert = function(message?: any): void {
+            // Silently ignore alerts in responsive mode
+            console.log("[Alert suppressed in responsive mode]:", message);
+            return;
+        };
+    }
+    
+    if (isProduction || isResponsiveMode) {
         (function blockDevTools() {
             // Detect DevTools using multiple methods
             let devtools = { open: false, orientation: null };
@@ -204,8 +217,110 @@ async function start(): Promise<void> {
         // Run aggressive detection very frequently to catch browser menu DevTools
         setInterval(aggressiveDetection, 200);
         setInterval(detectDevTools, 600);
+        
+        // Method 5: Block keyboard shortcuts for DevTools in responsive mode
+        const blockDevToolsShortcuts = (event: KeyboardEvent): void => {
+            // Check if still in responsive mode (window might have been resized)
+            const stillResponsive = window.innerWidth <= 767;
+            if (!stillResponsive) {
+                return; // Exit if no longer in responsive mode
+            }
+            
+            const ctrlOrCmd = event.ctrlKey || event.metaKey;
+            const shift = event.shiftKey;
+            
+            // Block F12 (common DevTools shortcut)
+            if (event.key === 'F12') {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+Shift+I (Chrome/Edge DevTools)
+            if (ctrlOrCmd && shift && (event.key === 'I' || event.key === 'i')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+Shift+J (Chrome/Edge Console)
+            if (ctrlOrCmd && shift && (event.key === 'J' || event.key === 'j')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+Shift+C (Chrome/Edge Inspect Element)
+            if (ctrlOrCmd && shift && (event.key === 'C' || event.key === 'c')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+U (View Source - often used to inspect)
+            if (ctrlOrCmd && (event.key === 'U' || event.key === 'u')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+        };
+        
+        // Add keyboard event listener with capture phase to catch before other handlers
+        document.addEventListener('keydown', blockDevToolsShortcuts, true);
+        window.addEventListener('keydown', blockDevToolsShortcuts, true);
     })();
     }
+
+    // Disable browser context menu but allow app context menus to work
+    // We check for app-specific elements that should have context menus
+    document.addEventListener('contextmenu', (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target) return;
+        
+        // Check if clicking on elements that should have app context menus
+        // These are elements where the app has custom right-click functionality
+        const hasAppContextMenu = 
+            // Message tiles and related elements
+            target.closest('.mx_EventTile') ||
+            target.closest('.mx_EventTile_line') ||
+            target.closest('.mx_EventTileBubble') ||
+            target.closest('.mx_MessageTimestamp') ||
+            // Room tiles and list items
+            target.closest('.mx_RoomTile') ||
+            target.closest('.mx_RoomList') ||
+            // Context menu buttons and menus
+            target.closest('.mx_ContextMenuButton') ||
+            target.closest('[class*="ContextMenu"]') ||
+            target.closest('[class*="IconizedContextMenu"]') ||
+            // Space panels
+            target.closest('.mx_SpacePanel') ||
+            // User avatars
+            target.closest('.mx_BaseAvatar') ||
+            target.closest('.mx_UserMenu') ||
+            // Right panel elements
+            target.closest('.mx_RightPanel') ||
+            // Any element with data attributes indicating context menu support
+            target.closest('[data-context-menu]') ||
+            // Input fields and text areas (allow browser context menu for text selection)
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable ||
+            // Links (allow browser context menu for links)
+            target.tagName === 'A' ||
+            target.closest('a');
+        
+        // If no app context menu element found, prevent browser context menu
+        // This allows React's onContextMenu handlers to work for app elements
+        if (!hasAppContextMenu) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, true); // Use capture phase to intercept before React, but allow app elements through
 
     const {
         rageshakePromise,

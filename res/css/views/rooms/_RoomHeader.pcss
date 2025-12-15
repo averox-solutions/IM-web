@@ -130,3 +130,30 @@ Please see LICENSE files in the repository root for full details.
 .mx_HeaderSearchInput {
   width: 100%;
 }
+
+/* Mobile responsive styles */
+@media screen and (max-width: 767px) {
+    .mx_RoomHeader {
+        height: 56px;
+        padding: 0 12px;
+        min-height: 56px;
+    }
+
+    .mx_RoomHeader_infoWrapper {
+        gap: 12px;
+    }
+
+    .mx_RoomHeader_info {
+        padding-right: 8px;
+    }
+
+    .mx_RoomHeader_buttons {
+        gap: 8px;
+    }
+
+    .mx_RoomHeader_button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px;
+    }
+}

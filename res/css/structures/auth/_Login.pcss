@@ -99,6 +99,66 @@ div.mx_AccessibleButton_kind_link.mx_Login_forgot {
 }
 .mx_Field { position: relative; }
  
+/* Mobile responsive styles for login */
+@media screen and (max-width: 767px) {
+    .mx_Login_submit {
+        font-size: 16px;
+        padding: 14px;
+        min-height: 48px;
+    }
+
+    .mx_Login_type_container {
+        width: 100%;
+        margin-bottom: 16px;
+    }
+
+    .mx_Login_type_container .mx_Field {
+        width: 100%;
+    }
+
+    .mx_Login_type_container select {
+        width: 100%;
+        font-size: 16px;
+        padding: 12px;
+    }
+
+    .mx_Login_forgot {
+        margin-top: 16px;
+        font-size: $font-14px;
+    }
+
+    /* 2FA responsive styles */
+    .mx_Login_2FA {
+        max-width: 100% !important;
+        padding: 0 16px 20px 16px !important;
+        margin-top: 16px !important;
+    }
+
+    .mx_Login_2FA_title {
+        font-size: 18px !important;
+        margin-top: 0 !important;
+        padding-bottom: 16px !important;
+    }
+
+    .mx_Login_2FA_input {
+        width: 100% !important;
+        padding: 14px !important;
+        font-size: 18px !important; /* Prevents zoom on iOS */
+        min-height: 48px !important;
+    }
+
+    .mx_Login_2FA_button {
+        width: 100% !important;
+        padding: 14px !important;
+        font-size: 16px !important;
+        min-height: 48px !important;
+    }
+
+    .mx_Login_2FA img {
+        max-width: 160px !important;
+    }
+}
+ 
 /* Ensure the input has space for the eye icon */
 .mx_Field input[type="password"],
 .mx_Field input[type="text"] {

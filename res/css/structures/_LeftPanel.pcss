@@ -240,3 +240,18 @@ Please see LICENSE files in the repository root for full details.
         }
     }
 }
+
+/* Mobile responsive styles - Hide left panel on mobile */
+@media screen and (max-width: 767px) {
+    .mx_LeftPanel_outerWrapper {
+        display: none !important;
+    }
+
+    .mx_LeftPanel {
+        display: none !important;
+    }
+
+    .mx_LeftPanel_wrapper {
+        display: none !important;
+    }
+}

@@ -301,6 +301,16 @@ export class ModalManager extends TypedEventEmitter<ModalManagerEvent, HandlerMa
         isStaticModal = false,
         options: IOptions<C> = {},
     ): IHandle<C> {
+        // Don't show dialogs/alerts in responsive mode (mobile)
+        const isResponsiveMode = typeof window !== 'undefined' && window.innerWidth <= 767;
+        if (isResponsiveMode) {
+            // Return a dummy handle that does nothing
+            return {
+                close: () => {},
+                finished: Promise.resolve(),
+            };
+        }
+
         const beforeModal = this.getCurrentModal();
         const { modal, closeDialog, onFinishedProm } = this.buildModal<C>(component, props, className, options);
         if (isPriorityModal) {

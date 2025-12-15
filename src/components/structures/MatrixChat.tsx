@@ -570,8 +570,18 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             })
             .then((loadedSession) => {
                 if (!loadedSession) {
-                    // fall back to showing the welcome screen... unless we have a 3pid invite pending
-                    if (
+                    // Check if we have a room link in the URL - redirect to registration instead of login
+                    const firstScreen = this.screenAfterLogin ? this.screenAfterLogin.screen : null;
+                    if (firstScreen && firstScreen.startsWith("room/")) {
+                        // User tried to access a room link - redirect to registration
+                        dis.dispatch({
+                            action: "start_registration",
+                            screenAfterLogin: this.screenAfterLogin,
+                            params: this.screenAfterLogin?.params,
+                        });
+                        PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
+                        this.notifyNewScreen("new");
+                    } else if (
                         ThreepidInviteStore.instance.pickBestInvite() &&
                         SettingsStore.getValue(UIFeature.Registration)
                     ) {
@@ -769,6 +779,41 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 break;
             }
             case Action.ViewRoom: {
+                // If user is not logged in, redirect to registration instead of login
+                const cli = MatrixClientPeg.get();
+                const isLoggedOutOrGuest = !cli || cli.isGuest();
+                if (isLoggedOutOrGuest) {
+                    const roomPayload = payload as ViewRoomPayload;
+                    // Build the room screen string for redirect after registration
+                    let roomScreen = "";
+                    if (roomPayload.room_alias) {
+                        roomScreen = `room/${roomPayload.room_alias}`;
+                    } else if (roomPayload.room_id) {
+                        roomScreen = `room/${roomPayload.room_id}`;
+                    }
+                    if (roomPayload.event_id) {
+                        roomScreen += `/${roomPayload.event_id}`;
+                    }
+                    
+                    const params: QueryDict = {};
+                    if (roomPayload.via_servers && roomPayload.via_servers.length > 0) {
+                        params.via = roomPayload.via_servers;
+                    }
+                    
+                    dis.dispatch({
+                        action: "start_registration",
+                        screenAfterLogin: {
+                            screen: roomScreen,
+                            params: params,
+                        },
+                        params: params,
+                    });
+                    PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
+                    // Update URL to show registration page
+                    this.notifyNewScreen("new");
+                    return;
+                }
+                
                 // Takes either a room ID or room alias: if switching to a room the client is already
                 // known to be in (eg. user clicks on a room in the recents panel), supply the ID
                 // If the user is clicking on a room in the context of the alias being presented
@@ -1032,6 +1077,40 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     private async viewRoom(roomInfo: ViewRoomPayload): Promise<void> {
         this.focusNext = roomInfo.focusNext ?? "composer";
 
+        // If user is not logged in, redirect to registration instead of login
+        const cli = MatrixClientPeg.get();
+        const isLoggedOutOrGuest = !cli || cli.isGuest();
+        if (isLoggedOutOrGuest) {
+            // Build the room screen string for redirect after registration
+            let roomScreen = "";
+            if (roomInfo.room_alias) {
+                roomScreen = `room/${roomInfo.room_alias}`;
+            } else if (roomInfo.room_id) {
+                roomScreen = `room/${roomInfo.room_id}`;
+            }
+            if (roomInfo.event_id) {
+                roomScreen += `/${roomInfo.event_id}`;
+            }
+            
+            const params: QueryDict = {};
+            if (roomInfo.via_servers && roomInfo.via_servers.length > 0) {
+                params.via = roomInfo.via_servers;
+            }
+            
+            dis.dispatch({
+                action: "start_registration",
+                screenAfterLogin: {
+                    screen: roomScreen,
+                    params: params,
+                },
+                params: params,
+            });
+            PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
+            // Update URL to show registration page
+            this.notifyNewScreen("new");
+            return;
+        }
+
         if (roomInfo.room_alias) {
             logger.log(`Switching to room alias ${roomInfo.room_alias} at event ${roomInfo.event_id}`);
         } else {
@@ -1118,6 +1197,18 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     }
 
     private viewWelcome(): void {
+        // If we have a room link in screenAfterLogin, redirect to registration instead of login/welcome
+        if (this.screenAfterLogin && this.screenAfterLogin.screen && this.screenAfterLogin.screen.startsWith("room/")) {
+            dis.dispatch({
+                action: "start_registration",
+                screenAfterLogin: this.screenAfterLogin,
+                params: this.screenAfterLogin.params,
+            });
+            PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
+            this.notifyNewScreen("new");
+            return;
+        }
+        
         if (shouldUseLoginForWelcome(SdkConfig.get())) {
             return this.viewLogin();
         }
@@ -1771,9 +1862,19 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 });
             }
         } else if (screen === "new") {
+            // "new" route is now used for registration (renamed from register)
+            if (isLoggedOutOrGuest) {
+                dis.dispatch({
+                    action: "start_registration",
+                    params: params,
+                });
+                PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
+            } else {
+                // If logged in, "new" still means create room
             dis.dispatch({
                 action: "view_create_room",
             });
+            }
         } else if (screen === "dm") {
             dis.dispatch({
                 action: "view_create_chat",
@@ -1803,6 +1904,23 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             const type = screen === "start_sso" ? "sso" : "cas";
             PlatformPeg.get()?.startSingleSignOn(cli, type, this.getFragmentAfterLogin());
         } else if (screen.indexOf("room/") === 0) {
+            // If user is not logged in, redirect to registration page instead of login
+            if (isLoggedOutOrGuest) {
+                // Store the room link to redirect after registration
+                dis.dispatch({
+                    action: "start_registration",
+                    screenAfterLogin: {
+                        screen: screen,
+                        params: params || {},
+                    },
+                    params: params,
+                });
+                PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
+                // Update URL to show registration page
+                this.notifyNewScreen("new");
+                return;
+            }
+
             // Rooms can have the following formats:
             // #room_alias:domain or !opaque_id:domain
             const room = screen.substring(5);
