@@ -890,6 +890,7 @@ export const TAG_ORDER: TagID[] = [
     DefaultTagID.Untagged,
     DefaultTagID.Conference,
     DefaultTagID.LowPriority,
+    DefaultTagID.OneOnOneLeftChat,
     DefaultTagID.Suggested,
     // DefaultTagID.Archived isn't here any more: we don't show it at all.
     // The section still exists in the code as a place for rooms that we know
@@ -1242,7 +1243,11 @@ const TAG_AESTHETICS: TagAestheticsMap = {
         isInvite: false,
         defaultHidden: false,
     },
-  
+    [DefaultTagID.OneOnOneLeftChat]: {
+        sectionLabel: _td("common|1-1_left_chat"),
+        isInvite: false,
+        defaultHidden: false,
+    },
 
     // TODO: Replace with archived view: https://github.com/vector-im/element-web/issues/14038
     [DefaultTagID.Archived]: {

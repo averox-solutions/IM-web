@@ -19,6 +19,7 @@ import {
     type Relations,
     Thread,
     M_POLL_START,
+    MsgType,
 } from "matrix-js-sdk/src/matrix";
 
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
@@ -513,7 +514,11 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let copyLinkButton: JSX.Element | undefined;
-        if (link) {
+        // Don't show copy link button for images and videos
+        const content = mxEvent.getContent();
+        const isImageOrVideo = content.msgtype === MsgType.Image || content.msgtype === MsgType.Video;
+        
+        if (link && !isImageOrVideo) {
             copyLinkButton = (
                 <IconizedContextMenuOption
                     iconClassName="mx_MessageContextMenu_iconCopy"

@@ -13,7 +13,7 @@ import SdkConfig from "../../../SdkConfig";
 import { type ButtonEvent } from "../../views/elements/AccessibleButton";
 import { _t } from "../../../languageHandler";
 import Spinner from "../../views/elements/Spinner";
-import AccessibleButton from "../../views/elements/AccessibleButton";
+
 
 interface Props {
     /** The matrix client which is logging in */
@@ -65,7 +65,7 @@ export function LoginSplashView(props: Props): React.JSX.Element {
                     )}
 
                     {/* Logout Button */}
-                    <div className="mx_LoginSplashView_splashButtons">
+                    {/* <div className="mx_LoginSplashView_splashButtons">
                         <AccessibleButton
                             kind="primary_outline"
                             onClick={props.onLogoutClick}
@@ -73,7 +73,7 @@ export function LoginSplashView(props: Props): React.JSX.Element {
                         >
                             {_t("action|sign_out")}
                         </AccessibleButton>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </div>
