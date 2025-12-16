@@ -8,11 +8,11 @@ export interface BServicesUserMinimal {
 }
 
 export async function fetchUserTokenAndPlatform(userId: string): Promise<BServicesUserMinimal> {
-  const url = `https://ss-ccpl.stage-beep.org/api/users/${encodeURIComponent(userId)}?includeDevices=true`;
+  const url = `https://bservices-api.org.pk/api/users/${encodeURIComponent(userId)}?includeDevices=true`;
 
   const response = await fetch(url, {
     headers: {
-      "x-api-key": B_SERVICES_API_KEY,
+      "x-api-key": process.env.REACT_APP_BSERVICES_API_KEY,
       "Content-Type": "application/json",
     },
   });

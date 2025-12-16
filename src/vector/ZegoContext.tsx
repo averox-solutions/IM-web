@@ -94,7 +94,11 @@ export const ZegoProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       zegoInstance.onIncomingCallReceived = (callInfo) => {
         console.log("📞 Incoming call received:", callInfo);
+        // Don't show alert in responsive mode
+        const isResponsiveMode = typeof window !== 'undefined' && window.innerWidth <= 767;
+        if (!isResponsiveMode) {
         alert(`📲 Incoming ${callInfo.callType} call from ${callInfo.caller.userID}`);
+        }
       };
 
       Notification.requestPermission().then((permission) => {

@@ -9,6 +9,12 @@
  * @param duration - How long to show the notification (in milliseconds)
  */
 export function showToast(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info', duration: number = 3000): void {
+    // Don't show toasts in responsive mode (mobile)
+    const isResponsiveMode = typeof window !== 'undefined' && window.innerWidth <= 767;
+    if (isResponsiveMode) {
+        return;
+    }
+
     // Create toast element
     const toast = document.createElement('div');
     toast.textContent = message;
@@ -88,6 +94,12 @@ export function showCallNotification(
     onAccept: () => void,
     onReject: () => void
 ): void {
+    // Don't show call notifications in responsive mode (mobile)
+    const isResponsiveMode = typeof window !== 'undefined' && window.innerWidth <= 767;
+    if (isResponsiveMode) {
+        return;
+    }
+
     // Create notification element
     const container = document.createElement('div');
     container.style.position = 'fixed';

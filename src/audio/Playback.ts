@@ -161,13 +161,19 @@ export class Playback extends EventEmitter implements IDestroyable, PlaybackInte
             const deferred = defer<unknown>();
             this.element.onloadeddata = deferred.resolve;
             this.element.onerror = deferred.reject;
-            this.element.src = URL.createObjectURL(new Blob([this.buf]));
+            // Clone buffer before creating blob to avoid detachment issues
+            const clonedBuf = this.buf.slice(0);
+            this.element.src = URL.createObjectURL(new Blob([clonedBuf]));
             await deferred.promise; // make sure the audio element is ready for us
         } else {
+            // Clone the buffer before decoding to avoid detachment issues
+            // decodeAudioData and decodeOgg may transfer/detach the buffer
+            const bufferToDecode = this.buf.slice(0);
+            
             // Safari compat: promise API not supported on this function
             this.audioBuf = await new Promise((resolve, reject) => {
                 this.context.decodeAudioData(
-                    this.buf,
+                    bufferToDecode,
                     (b) => resolve(b),
                     async (e): Promise<void> => {
                         try {
@@ -176,11 +182,15 @@ export class Playback extends EventEmitter implements IDestroyable, PlaybackInte
                             logger.error("Error decoding recording: ", e);
                             logger.warn("Trying to re-encode to WAV instead...");
 
-                            const wav = await decodeOgg(this.buf);
+                            // Clone buffer again for decodeOgg as it transfers to worker (detaches buffer)
+                            const bufferForOgg = this.buf.slice(0);
+                            const wav = await decodeOgg(bufferForOgg);
 
+                            // Clone WAV buffer before decoding as decodeAudioData detaches it
+                            const wavClone = wav.slice(0);
                             // noinspection ES6MissingAwait - not needed when using callbacks
                             this.context.decodeAudioData(
-                                wav,
+                                wavClone,
                                 (b) => resolve(b),
                                 (e) => {
                                     logger.error("Still failed to decode recording: ", e);

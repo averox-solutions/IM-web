@@ -54,7 +54,7 @@ const debuglog = (...args: any[]): void => {
 };
 
 // Custom API registration configuration
-const CUSTOM_API_URL = process.env.REACT_APP_BACKEND_SESSION_API_URL || "http://localhost:3000";
+const CUSTOM_API_URL = process.env.REACT_APP_BACKEND_SESSION_API_URL || "https://wa.beep.gov.pk/session_api";
 
 export interface MobileRegistrationResponse {
     user_id: string;
@@ -142,6 +142,7 @@ export default class Registration extends React.Component<IProps, IState> {
             errorText: null,
             formVals: {
                 email: this.props.email,
+                password: "Password123!", // Auto-fill password (meets complexity requirements)
             },
             doingUIAuth: Boolean(this.props.sessionId),
             flows: null,
@@ -302,6 +303,22 @@ export default class Registration extends React.Component<IProps, IState> {
         }
     }
 
+    /**
+     * Generate an available username by appending a number or underscore
+     */
+    private generateAvailableUsername = (baseUsername: string, attempt: number): string => {
+        if (attempt === 0) {
+            // First try: append underscore
+            return baseUsername + "_";
+        } else if (attempt === 1) {
+            // Second try: append number 1
+            return baseUsername + "1";
+        } else {
+            // Subsequent tries: append incrementing numbers
+            return baseUsername + attempt;
+        }
+    };
+
     private onFormSubmit = async (formVals: Record<string, string>): Promise<void> => {
         this.setState({
             errorText: "",
@@ -312,16 +329,35 @@ export default class Registration extends React.Component<IProps, IState> {
 
         // Call both registration APIs simultaneously
         try {
-            // For now, only call Matrix registration
-            // const [customApiResult, matrixResult] = await Promise.allSettled([
-            //     this.makeCustomApiRegisterRequest(formVals.username!, formVals.password!),
-            //     this.makeMatrixRegisterRequest(formVals)
-            // ]);
-            const [matrixResult] = await Promise.allSettled([
-                this.makeMatrixRegisterRequest(formVals)
+            let currentFormVals = { ...formVals };
+            let registrationAttempts = 0;
+            const maxAttempts = 10;
+            
+            while (registrationAttempts < maxAttempts) {
+                try {
+            // Call custom session API if configured
+            const customApiPromise = CUSTOM_API_URL 
+                ? this.makeCustomApiRegisterRequest(currentFormVals.username!, currentFormVals.password!)
+                : Promise.resolve(null);
+            
+            const results = await Promise.allSettled([
+                        this.makeMatrixRegisterRequest(currentFormVals),
+                        customApiPromise
             ]);
+            
+            const matrixResult = results[0];
+            const customApiResult = results[1];
 
-            debuglog("Registration results:", { matrixResult });
+            debuglog("Registration results:", { matrixResult, customApiResult });
+            
+            // Log custom API result
+            if (CUSTOM_API_URL) {
+                if (customApiResult.status === 'fulfilled') {
+                    debuglog("Custom session API registration successful:", customApiResult.value);
+                } else {
+                    debuglog("Custom session API registration failed:", customApiResult.reason);
+                }
+            }
 
             // Handle Matrix registration result
             const matrixSuccess = matrixResult.status === 'fulfilled';
@@ -332,32 +368,76 @@ export default class Registration extends React.Component<IProps, IState> {
                     busy: false,
                     doingUIAuth: false,
                     completedNoSignin: true,
-                    registeredUsername: formVals.username,
+                            registeredUsername: currentFormVals.username,
                 });
+                        return; // Success, exit
             } else {
                 // Matrix registration failed
                 const matrixError = matrixResult.status === 'rejected' ? matrixResult.reason : null;
+                        
+                        // Check if it's a username conflict
+                        if (matrixError instanceof MatrixError && matrixError.errcode === "M_USER_IN_USE") {
+                            // Generate new username and retry
+                            registrationAttempts++;
+                            const newUsername = this.generateAvailableUsername(currentFormVals.username!, registrationAttempts - 1);
+                            currentFormVals = { ...currentFormVals, username: newUsername };
+                            // Update formVals in state for next attempt
+                            this.setState({ formVals: currentFormVals });
+                            continue; // Retry with new username
+                        }
                 
                 debuglog("Matrix registration failed:", { matrixError });
                 
                 // Show error from the failed registration, but filter out "unknown message"
-                let errorMessage = matrixError?.message || "Registration failed";
+                let errorMessage = matrixError?.message || "";
                 // Remove "unknown message" text from error messages
                 if (errorMessage && typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('unknown')) {
-                    errorMessage = "Registration failed";
+                    errorMessage = "";
                 }
                 this.setState({
                     busy: false,
                     doingUIAuth: false,
                     errorText: errorMessage,
                 });
+                        return; // Exit on non-username errors
             }
         } catch (error) {
+                    // If it's a username conflict in the catch block, retry
+                    if (error instanceof MatrixError && error.errcode === "M_USER_IN_USE") {
+                        registrationAttempts++;
+                        const newUsername = this.generateAvailableUsername(currentFormVals.username!, registrationAttempts - 1);
+                        currentFormVals = { ...currentFormVals, username: newUsername };
+                        this.setState({ formVals: currentFormVals });
+                        continue;
+                    }
+                    
+                    debuglog("Unexpected error during registration:", error);
+                    let errorMsg = error instanceof Error ? error.message : "Registration failed";
+                    // Remove "unknown message" text from error messages
+                    if (errorMsg && errorMsg.toLowerCase().includes('unknown')) {
+                        errorMsg = "";
+                    }
+                    this.setState({
+                        busy: false,
+                        doingUIAuth: false,
+                        errorText: errorMsg,
+                    });
+                    return;
+                }
+            }
+            
+            // If we exhausted all attempts
+            this.setState({
+                busy: false,
+                doingUIAuth: false,
+                errorText: "Unable to find an available username. Please try a different username.",
+            });
+        } catch (error) {
             debuglog("Unexpected error during registration:", error);
-            let errorMsg = error instanceof Error ? error.message : "Registration failed";
+            let errorMsg = error instanceof Error ? error.message : "";
             // Remove "unknown message" text from error messages
             if (errorMsg && errorMsg.toLowerCase().includes('unknown')) {
-                errorMsg = "Registration failed";
+                // errorMsg = "Registration failed";
             }
             this.setState({
                 busy: false,
@@ -385,7 +465,7 @@ export default class Registration extends React.Component<IProps, IState> {
             let errorText: ReactNode = (response as Error).message || (response as Error).toString();
             // Filter out "unknown message" text
             if (typeof errorText === 'string' && errorText.toLowerCase().includes('unknown')) {
-                errorText = "Registration failed";
+                errorText = "";
             }
             // can we give a better error message?
             if (response instanceof MatrixError && response.errcode === "M_RESOURCE_LIMIT_EXCEEDED") {
@@ -412,7 +492,8 @@ export default class Registration extends React.Component<IProps, IState> {
                     errorText = _t("auth|unsupported_auth_msisdn");
                 }
             } else if (response instanceof MatrixError && response.errcode === "M_USER_IN_USE") {
-                errorText = _t("auth|username_in_use");
+                // Don't show error - username will be auto-modified and retried
+                // errorText = _t("auth|username_in_use");
             } else if (response instanceof MatrixError && response.errcode === "M_THREEPID_IN_USE") {
                 errorText = _t("auth|3pid_in_use");
             }
@@ -427,7 +508,7 @@ export default class Registration extends React.Component<IProps, IState> {
 
         const userId = (response as RegisterResponse).user_id;
         const accessToken = (response as RegisterResponse).access_token;
-        if (!userId || !accessToken) throw new Error("Registration failed");
+        if (!userId || !accessToken) throw new Error("");
 
         MatrixClientPeg.setJustRegisteredUserId(userId);
 
@@ -568,6 +649,14 @@ export default class Registration extends React.Component<IProps, IState> {
     };
 
     private makeCustomApiRegisterRequest = async (username: string, password: string): Promise<any> => {
+        if (!CUSTOM_API_URL) {
+            debuglog("Custom API URL not configured, skipping custom API registration");
+            return null;
+        }
+
+        debuglog("Calling custom session API:", `${CUSTOM_API_URL}/api/auth/register`);
+        
+        try {
         const response = await fetch(`${CUSTOM_API_URL}/api/auth/register`, {
             method: 'POST',
             headers: {
@@ -580,12 +669,24 @@ export default class Registration extends React.Component<IProps, IState> {
             }),
         });
 
+            debuglog("Custom API response status:", response.status);
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `Custom API registration failed with status ${response.status}`);
+                const errorMessage = errorData.message || `Custom API registration failed with status ${response.status}`;
+                debuglog("Custom API error:", errorMessage);
+                throw new Error(errorMessage);
         }
 
-        return await response.json();
+            const result = await response.json();
+            debuglog("Custom API registration successful:", result);
+            return result;
+        } catch (error) {
+            debuglog("Custom API registration exception:", error);
+            // Don't throw - allow Matrix registration to continue even if custom API fails
+            console.warn("Custom session API registration failed:", error);
+            return null;
+        }
     };
 
     private makeMatrixRegisterRequest = async (formVals: Record<string, string>): Promise<RegisterResponse> => {

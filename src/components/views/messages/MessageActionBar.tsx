@@ -61,6 +61,7 @@ import { type GetRelationsForEvent, type IEventTileType } from "../rooms/EventTi
 import { type ButtonEvent } from "../elements/AccessibleButton";
 import PinningUtils from "../../../utils/PinningUtils";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
+import { areThreadsEnabled } from "../../../utils/thread-feature";
 
 interface IOptionsButtonProps {
     mxEvent: MatrixEvent;
@@ -202,6 +203,8 @@ interface IReplyInThreadButton {
 }
 
 const ReplyInThreadButton: React.FC<IReplyInThreadButton> = ({ mxEvent }) => {
+    if (!areThreadsEnabled()) return null;
+
     const context = useContext(CardContext);
 
     const relationType = mxEvent?.getRelation()?.rel_type;
@@ -345,6 +348,8 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
     private readonly forbiddenThreadHeadMsgType = [MsgType.KeyVerificationRequest];
 
     private get showReplyInThreadAction(): boolean {
+        if (!areThreadsEnabled()) return false;
+
         const inNotThreadTimeline = this.context.timelineRenderingType !== TimelineRenderingType.Thread;
 
         const isAllowedMessageType =
@@ -536,14 +541,7 @@ export default class MessageActionBar extends React.PureComponent<IMessageAction
                         />,
                     );
                 }
-            } else if (
-                // Show thread icon even for deleted messages, but only within main timeline
-                this.context.timelineRenderingType === TimelineRenderingType.Room &&
-                this.props.mxEvent.getThread()
-            ) {
-                toolbarOpts.unshift(threadTooltipButton);
             }
-
             if (allowCancel) {
                 toolbarOpts.push(cancelSendingButton);
             }

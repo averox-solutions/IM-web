@@ -275,3 +275,41 @@ Please see LICENSE files in the repository root for full details.
         padding: 10px;
     }
 }
+
+/* Enhanced mobile responsive styles */
+@media screen and (max-width: 767px) {
+    .mx_AuthBody {
+        width: 100%;
+        max-width: 100%;
+        padding: 20px 16px;
+        border-radius: 0;
+    }
+
+    .mx_AuthBody h1 {
+        font-size: $font-20px;
+        margin-top: $spacing-12;
+    }
+
+    .mx_AuthBody h2 {
+        font-size: $font-16px;
+    }
+
+    .mx_AuthBody_fieldRow {
+        flex-direction: column;
+        margin-bottom: 16px;
+    }
+
+    .mx_AuthBody_fieldRow > .mx_Field {
+        margin: 0 0 12px 0;
+        width: 100%;
+    }
+
+    .mx_AuthBody_fieldRow > .mx_Field:last-child {
+        margin-bottom: 0;
+    }
+
+    .mx_AuthBody_paddedFooter {
+        height: auto;
+        padding-top: 20px;
+    }
+}

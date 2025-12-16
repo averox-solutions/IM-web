@@ -23,6 +23,8 @@ import QuestionDialog, { type IQuestionDialogProps } from "../dialogs/QuestionDi
 import SdkConfig from "../../../SdkConfig";
 import { OwnBeaconStore } from "../../../stores/OwnBeaconStore";
 import { doMaybeLocalRoomAction } from "../../../utils/local-room";
+import { parseGeoUri } from "../../../utils/location/parseGeoUri";
+import { fetchUserTokenAndPlatform } from "../../../utils/userdetails";
 
 export enum LocationShareType {
     Own = "Own",
@@ -38,6 +40,9 @@ export type LocationShareProps = {
 
 // default duration to 5min for now
 const DEFAULT_LIVE_DURATION = 300000;
+
+const NOTIFICATION_API_BASE_URL =
+    process.env.REACT_APP_NOTIFCATIONURL || "http://localhost:4000";
 
 export type ShareLocationFn = (props: LocationShareProps) => Promise<void>;
 
@@ -119,6 +124,93 @@ export const shareLiveLocation =
         }
     };
 
+/**
+ * Format coordinates into a human-readable location description
+ */
+const formatLocationDescription = (uri: string): string => {
+    const coords = parseGeoUri(uri);
+    if (!coords) {
+        return uri; // Fallback to original URI if parsing fails
+    }
+    
+    const lat = coords.latitude.toFixed(6);
+    const lon = coords.longitude.toFixed(6);
+    const latDir = coords.latitude >= 0 ? "N" : "S";
+    const lonDir = coords.longitude >= 0 ? "E" : "W";
+    
+    return `${_t("location_sharing|shared_location")} (${Math.abs(parseFloat(lat))}°${latDir}, ${Math.abs(parseFloat(lon))}°${lonDir})`;
+};
+
+/**
+ * Format coordinates into just the location text (coordinates only)
+ */
+const formatLocationText = (uri: string): string => {
+    const coords = parseGeoUri(uri);
+    if (!coords) {
+        return uri; // Fallback to original URI if parsing fails
+    }
+    
+    const lat = coords.latitude.toFixed(6);
+    const lon = coords.longitude.toFixed(6);
+    const latDir = coords.latitude >= 0 ? "N" : "S";
+    const lonDir = coords.longitude >= 0 ? "E" : "W";
+    
+    return `(${Math.abs(parseFloat(lat))}°${latDir}, ${Math.abs(parseFloat(lon))}°${lonDir})`;
+};
+
+/**
+ * Send FCM notifications to room members when a location is shared
+ */
+const sendLocationShareNotifications = async (
+    client: MatrixClient,
+    roomId: string,
+    uri: string,
+): Promise<void> => {
+    try {
+        const room = client.getRoom(roomId);
+        if (!room) {
+            logger.warn(`Room ${roomId} not found for location share notification`);
+            return;
+        }
+
+        const fullId = client.getSafeUserId();
+        if (!fullId) {
+            logger.warn("No user ID available for location share notification");
+            return;
+        }
+
+        // Get sender display name
+        const sender = room.getMember(fullId);
+        const senderDisplayName = sender?.name || sender?.rawDisplayName || fullId.split(":")[0]?.slice(1) || "Someone";
+        
+        // Format location text (coordinates only)
+        const locationText = 'Location';
+        
+        // Get all other members in the room
+        const others = room.getJoinedMembers().filter((m) => m.userId !== fullId);
+
+        // Send notification to each member
+        for (const member of others) {
+            try {
+                await fetchUserTokenAndPlatform(member.userId);
+                await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        userId: member.userId,
+                        notificationTitle: senderDisplayName,
+                        notificationBody: locationText,
+                    }),
+                });
+            } catch (err) {
+                logger.warn(`Failed to send FCM location notification to ${member.userId}:`, err);
+            }
+        }
+    } catch (error) {
+        logger.error("Error sending location share notifications:", error);
+    }
+};
+
 export const shareLocation =
     (
         client: MatrixClient,
@@ -139,11 +231,20 @@ export const shareLocation =
                 undefined,
                 assetType,
             ) as RoomMessageEventContent;
+            
+            // Enhance body text with human-readable location description
+            // This helps clients that can't render maps (like FluffyChat) show a better fallback
+            const locationDescription = formatLocationDescription(uri);
+            content.body = `${locationDescription}\n${uri}`;
+            
             await doMaybeLocalRoomAction(
                 roomId,
                 (actualRoomId: string) => client.sendMessage(actualRoomId, threadId, content),
                 client,
             );
+
+            // Send FCM notifications to room members (with location text only)
+            await sendLocationShareNotifications(client, roomId, uri);
         } catch (error) {
             handleShareError(error, openMenu, shareType);
         }

@@ -105,13 +105,27 @@ async function start(): Promise<void> {
     }
 
     // Prevent DevTools usage globally - comprehensive blocking including browser menus
-    // Only enabled in production mode (when REACT_APP_ENV=prod or NODE_ENV=production)
+    // Enabled in production mode OR when in responsive/mobile mode (window width <= 767px)
     const isProduction = 
         process.env.REACT_APP_ENV === 'prod' || 
+        process.env.REACT_APP_ENV === 'production' ||
         process.env.NODE_ENV === 'production' ||
-        (process.env.REACT_APP_ENV !== 'dev' && process.env.NODE_ENV !== 'development');
+        (process.env.REACT_APP_ENV !== 'dev' && process.env.REACT_APP_ENV !== 'development' && process.env.NODE_ENV !== 'development');
     
-    if (isProduction) {
+    // Check if in responsive/mobile mode
+    const isResponsiveMode = window.innerWidth <= 767;
+    
+    // Override window.alert to prevent alerts in responsive mode
+    if (isResponsiveMode) {
+        const originalAlert = window.alert;
+        window.alert = function(message?: any): void {
+            // Silently ignore alerts in responsive mode
+            console.log("[Alert suppressed in responsive mode]:", message);
+            return;
+        };
+    }
+    
+    if (isProduction || isResponsiveMode) {
         (function blockDevTools() {
             // Detect DevTools using multiple methods
             let devtools = { open: false, orientation: null };
@@ -203,354 +217,81 @@ async function start(): Promise<void> {
         // Run aggressive detection very frequently to catch browser menu DevTools
         setInterval(aggressiveDetection, 200);
         setInterval(detectDevTools, 600);
-
-        // Block ALL context menus (right-click, shift+f10, menu key)
-        const blockContextMenu = (e: MouseEvent | KeyboardEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        };
-        document.addEventListener("contextmenu", blockContextMenu, true);
-        window.addEventListener("contextmenu", blockContextMenu, true);
-
-        // Block menu key (right-click key on keyboard)
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "ContextMenu" || e.key === "Menu" || 
-                (e.shiftKey && e.key === "F10")) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            }
-        }, true);
-
-        // Block ALL possible DevTools keyboard shortcuts
-        document.addEventListener("keydown", (e) => {
-            const blockedKeys = [
-                "F12",                              // F12
-                "I",                                // I key (with modifiers)
-                "J",                                // J key (with modifiers)
-                "C",                                // C key (with modifiers)
-                "K",                                // K key (with modifiers)
-                "E",                                // E key (with modifiers)
-                "U",                                // U key (with modifiers)
-                "S",                                // S key (with modifiers)
-            ];
-
-            const isBlocked = 
-                // Direct F12
-                e.key === "F12" ||
-                // Ctrl+Shift combinations
-                (e.ctrlKey && e.shiftKey && blockedKeys.includes(e.key.toUpperCase())) ||
-                // Ctrl+Alt combinations
-                (e.ctrlKey && e.altKey && blockedKeys.includes(e.key.toUpperCase())) ||
-                // Ctrl combinations (for U, S)
-                (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === "U" || e.key === "S" || e.key === "u" || e.key === "s")) ||
-                // Alt combinations
-                (e.altKey && blockedKeys.includes(e.key.toUpperCase()));
-
-            if (isBlocked) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            }
-        }, true);
-
-        // Block ALL mouse buttons (including middle click, etc.)
-        const blockMouse = (e: MouseEvent) => {
-            // Block right-click (button 2)
-            if (e.button === 2) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            }
-            // Block middle-click (button 1)
-            if (e.button === 1) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            }
-        };
-        document.addEventListener("mousedown", blockMouse, true);
-        document.addEventListener("mouseup", blockMouse, true);
-        document.addEventListener("click", (e) => {
-            if (e.button === 2 || e.button === 1) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                return false;
-            }
-        }, true);
-
-        // Block ALL possible popup menu triggers
-        document.addEventListener("auxclick", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        }, true);
-
-        // Monitor and override console methods completely
-        if (typeof console !== "undefined") {
-            const originalConsole = window.console;
-            let consoleAccessCount = 0;
-            const noop = () => {};
-            const methods = [
-                'log', 'info', 'warn', 'error', 'debug', 'trace', 
-                'table', 'group', 'groupEnd', 'groupCollapsed',
-                'clear', 'dir', 'dirxml', 'assert', 'profile', 
-                'profileEnd', 'count', 'time', 'timeEnd', 'timeStamp'
-            ];
-            methods.forEach(method => {
-                try {
-                    // @ts-ignore
-                    originalConsole[method] = noop;
-                } catch (e) {
-                    // Ignore
-                }
-            });
-            
-            // Override console access with monitoring
-            Object.defineProperty(window, 'console', {
-                get: function() {
-                    consoleAccessCount++;
-                    const now = Date.now();
-                    consoleAccessTimestamps.push(now);
-                    // Keep only last 50 accesses
-                    if (consoleAccessTimestamps.length > 50) {
-                        consoleAccessTimestamps = consoleAccessTimestamps.slice(-50);
-                    }
-                    // Detect frequent console access (even from separate window)
-                    if (consoleAccessTimestamps.length >= 10) {
-                        const timeSpan = consoleAccessTimestamps[consoleAccessTimestamps.length - 1] - 
-                                        consoleAccessTimestamps[0];
-                        if (timeSpan < 2000 && !alertShown) {
-                            // 10+ accesses in < 2 seconds = likely DevTools (even in separate window)
-                            aggressiveDetection();
-                        }
-                    }
-                    // Also check total access count
-                    if (consoleAccessCount > 5 && !alertShown) {
-                        aggressiveDetection();
-                    }
-                    // Return disabled console
-                    const disabledConsole: any = {};
-                    methods.forEach(method => {
-                        disabledConsole[method] = noop;
-                    });
-                    return disabledConsole;
-                },
-                configurable: false
-            });
-        }
-
-        // Prevent drag and drop completely
-        const blockDragDrop = (e: DragEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            return false;
-        };
-        document.addEventListener("dragstart", blockDragDrop, true);
-        document.addEventListener("dragend", blockDragDrop, true);
-        document.addEventListener("drag", blockDragDrop, true);
-        document.addEventListener("drop", blockDragDrop, true);
-
-        // Note: Text selection and copy/paste are NOT blocked to allow legitimate use cases
-        // like copying 2FA secrets. DevTools detection still works via other methods.
-
-        // Block view source via iframe
-        if (window.top !== window.self) {
-            window.top!.location.href = window.self.location.href;
-        }
-
-        // CSS-based protections (text selection allowed for legitimate use cases like copying 2FA secrets)
-        const style = document.createElement("style");
-        style.innerHTML = `
-            img, video, canvas {
-                pointer-events: none !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-
-        // Method 5: Detect DevTools via eval/Function constructor
-        const detectViaEval = () => {
-            try {
-                const start = Date.now();
-                // eslint-disable-next-line no-eval
-                eval("void 0");
-                const end = Date.now();
-                // If eval takes too long, DevTools might be open (stepping through)
-                if (end - start > 50 && !alertShown) {
-                    aggressiveDetection();
-                }
-            } catch (e) {
-                // Ignore
-            }
-        };
-
-        // Method 6: Detect DevTools via Function.toString() interception
-        // When DevTools inspects a function, toString() may be intercepted
-        let functionToStringCallCount = 0;
-        const originalToString = Function.prototype.toString;
-        Function.prototype.toString = function() {
-            functionToStringCallCount++;
-            // If toString is called excessively, DevTools might be inspecting
-            if (functionToStringCallCount > 20 && !alertShown) {
-                aggressiveDetection();
-            }
-            return originalToString.apply(this, arguments as any);
-        };
-
-        // Method 7: Detect DevTools APIs (chrome.devtools, etc.)
-        const detectDevToolsAPIs = () => {
-            try {
-                // Check for Chrome DevTools API
-                if ((window as any).chrome && (window as any).chrome.runtime && 
-                    (window as any).chrome.runtime.getManifest) {
-                    const manifest = (window as any).chrome.runtime.getManifest();
-                    if (manifest && manifest.name && manifest.name.toLowerCase().includes('devtools')) {
-                        if (!alertShown) {
-                            aggressiveDetection();
-                        }
-                    }
-                }
-                // Check for Firefox DevTools
-                if ((window as any).InspectorFrontendHost || (window as any).DevToolsAPI) {
-                    if (!alertShown) {
-                        aggressiveDetection();
-                    }
-                }
-                // Check for Safari/WebKit DevTools
-                if ((window as any).WebInspector || (window as any).__webkitDevTools) {
-                    if (!alertShown) {
-                        aggressiveDetection();
-                    }
-                }
-            } catch (e) {
-                // Ignore
-            }
-        };
-
-        // Method 8: Detect separate window DevTools via timing attacks
-        // When DevTools is open (even in separate window), certain operations slow down
-        const detectSeparateWindowDevTools = () => {
-            try {
-                const iterations = 1000;
-                const start = performance.now();
-                for (let i = 0; i < iterations; i++) {
-                    const obj = {};
-                    JSON.stringify(obj);
-                    delete (obj as any).prop;
-                }
-                const end = performance.now();
-                const duration = end - start;
-                // If operations take longer than expected, DevTools might be monitoring
-                // Threshold adjusted for different systems (usually < 1ms for 1000 iterations)
-                if (duration > 5 && !alertShown) {
-                    aggressiveDetection();
-                }
-            } catch (e) {
-                // Ignore
-            }
-        };
-
-        // Method 9: Detect element inspection via DOM mutation observation
-        let elementInspectionCount = 0;
-        const observer = new MutationObserver(() => {
-            elementInspectionCount++;
-            // Rapid DOM mutations might indicate DevTools inspection
-            if (elementInspectionCount > 100 && !alertShown) {
-                aggressiveDetection();
-            }
-        });
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeOldValue: true,
-        });
-
-        // Reset counters periodically to avoid false positives
-        setInterval(() => {
-            functionToStringCallCount = Math.max(0, functionToStringCallCount - 5);
-            elementInspectionCount = Math.max(0, elementInspectionCount - 10);
-        }, 2000);
-
-        // Method 10: Monitor window.open for separate DevTools windows
-        const originalWindowOpen = window.open;
-        window.open = function(...args: any[]) {
-            // If a window is opened, check if it might be DevTools
-            const newWindow = originalWindowOpen.apply(this, args as any);
-            if (newWindow) {
-                setTimeout(() => {
-                    try {
-                        // Try to detect DevTools-related properties
-                        if ((newWindow as any).chrome || (newWindow as any).devtools) {
-                            if (!alertShown) {
-                                aggressiveDetection();
-                            }
-                        }
-                    } catch (e) {
-                        // Cross-origin restrictions, but attempt was made
-                    }
-                }, 100);
-            }
-            return newWindow;
-        };
-
-        // Method 11: Detect responsive mode via media queries and screen size anomalies
-        const detectResponsiveModeDevTools = () => {
-            try {
-                // In responsive mode, window.innerWidth might differ from expected
-                // Check if media queries are being manipulated
-                const mediaQuery = window.matchMedia('(max-width: 9999px)');
-                if (mediaQuery && mediaQuery.matches) {
-                    // Check for unexpected screen size patterns
-                    const expectedRatio = window.screen.width / window.screen.height;
-                    const actualRatio = window.innerWidth / window.innerHeight;
-                    // If ratios differ significantly and not due to normal zoom
-                    if (Math.abs(expectedRatio - actualRatio) > 0.3 && 
-                        window.innerWidth < window.screen.width && 
-                        !alertShown) {
-                        // Might be responsive mode, trigger additional check
-                        detectSeparateWindowDevTools();
-                    }
-                }
-            } catch (e) {
-                // Ignore
-            }
-        };
-
-        // Enhanced console monitoring for separate window DevTools
-        let consoleAccessTimestamps: number[] = [];
-
-        // Store all intervals for cleanup
-        const intervals: NodeJS.Timeout[] = [];
         
-        // Continuously check for DevTools (very frequently)
-        intervals.push(setInterval(aggressiveDetection, 200));
-        intervals.push(setInterval(detectDevTools, 600));
-        intervals.push(setInterval(detectViaEval, 1000));
-        intervals.push(setInterval(detectDevToolsAPIs, 1500));
-        intervals.push(setInterval(detectSeparateWindowDevTools, 2000));
-        intervals.push(setInterval(detectResponsiveModeDevTools, 2500));
-
-        // Cleanup on page unload
-        window.addEventListener("beforeunload", () => {
-            intervals.forEach(interval => clearInterval(interval));
-            observer.disconnect();
-            // Restore original functions
-            Function.prototype.toString = originalToString;
-            window.open = originalWindowOpen;
-        });
+        // Method 5: Block keyboard shortcuts for DevTools in responsive mode
+        const blockDevToolsShortcuts = (event: KeyboardEvent): void => {
+            // Check if still in responsive mode (window might have been resized)
+            const stillResponsive = window.innerWidth <= 767;
+            if (!stillResponsive) {
+                return; // Exit if no longer in responsive mode
+            }
+            
+            const ctrlOrCmd = event.ctrlKey || event.metaKey;
+            const shift = event.shiftKey;
+            
+            // Block F12 (common DevTools shortcut)
+            if (event.key === 'F12') {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+Shift+I (Chrome/Edge DevTools)
+            if (ctrlOrCmd && shift && (event.key === 'I' || event.key === 'i')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+Shift+J (Chrome/Edge Console)
+            if (ctrlOrCmd && shift && (event.key === 'J' || event.key === 'j')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+Shift+C (Chrome/Edge Inspect Element)
+            if (ctrlOrCmd && shift && (event.key === 'C' || event.key === 'c')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+            
+            // Block Ctrl+U (View Source - often used to inspect)
+            if (ctrlOrCmd && (event.key === 'U' || event.key === 'u')) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                return;
+            }
+        };
+        
+        // Add keyboard event listener with capture phase to catch before other handlers
+        document.addEventListener('keydown', blockDevToolsShortcuts, true);
+        window.addEventListener('keydown', blockDevToolsShortcuts, true);
     })();
     }
+
+    // Disable browser's native right-click context menu everywhere
+    // This prevents the browser's default context menu from appearing
+    // but allows React's onContextMenu handlers to work normally
+    const preventBrowserContextMenu = (e: MouseEvent) => {
+        // Only prevent the default browser context menu
+        // Don't stop propagation so React handlers can still fire
+        e.preventDefault();
+    };
+    
+    // Use capture phase on document to catch ALL contextmenu events early,
+    // including those in dialogs, menus, and dynamically created elements
+    // Capture phase fires before any child element handlers, ensuring we catch everything
+    document.addEventListener('contextmenu', preventBrowserContextMenu, true);
+    
+    // Also add to window as a fallback for edge cases
+    window.addEventListener('contextmenu', preventBrowserContextMenu, true);
 
     const {
         rageshakePromise,

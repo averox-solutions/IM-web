@@ -9,43 +9,14 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { type ReactElement } from "react";
 
-import SdkConfig from "../../../SdkConfig";
 import { _t } from "../../../languageHandler";
 
 const AuthFooter = (): ReactElement => {
-    const brandingConfig = SdkConfig.getObject("branding");
-    const links = brandingConfig?.get("auth_footer_links") ?? [
-        { text: "Blog", url: "https://im.beep.gov.pk/blog" },
-        { text: "Mastodon", url: "https://mastodon.matrix.org/@Element" },
-        { text: "GitHub", url: "https://github.com/element-hq/element-web" },
-    ];
-
-    const authFooterLinks: JSX.Element[] = [];
-    for (const linkEntry of links) {
-        authFooterLinks.push(
-            <a href={linkEntry.url} key={linkEntry.text} target="_blank" rel="noreferrer noopener">
-                {linkEntry.text}
-            </a>,
-        );
-    }
-
     // Beep information links for login/registration pages
-    const beepLinks = [
-        { text: "Privacy Policy", url: "https://wa.beep.gov.pk/info/privacy_policy.html" },
-        { text: "Terms & Conditions", url: "https://wa.beep.gov.pk/info/terms_and_conditions.html" },
-    ];
 
     return (
         <footer className="mx_AuthFooter" role="contentinfo">
-            {authFooterLinks}
-            {beepLinks.map((link) => (
-                <a href={link.url} key={link.text} target="_blank" rel="noreferrer noopener">
-                    {link.text}
-                </a>
-            ))}
-            <a href="https://matrix.org" target="_blank" rel="noreferrer noopener">
-                {_t("powered_by_matrix")}
-            </a>
+            <span className="mx_AuthFooter_version">Version 4.1</span>
         </footer>
     );
 };

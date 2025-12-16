@@ -132,30 +132,8 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             return;
         }
 
-        if (this.state.email === "") {
-            if (this.showEmail()) {
-                Modal.createDialog(RegistrationEmailPromptDialog, {
-                    onFinished: async (confirmed: boolean, email?: string): Promise<void> => {
-                        if (confirmed && email !== undefined) {
-                            this.setState(
-                                {
-                                    email,
-                                },
-                                () => {
-                                    this.doSubmit(ev);
-                                },
-                            );
-                        }
-                    },
-                });
-            } else {
-                // user can't set an e-mail so don't prompt them to
-                this.doSubmit(ev);
-                return;
-            }
-        } else {
-            this.doSubmit(ev);
-        }
+        // Skip email prompt - email field is disabled
+        this.doSubmit(ev);
     };
 
     private doSubmit(
@@ -163,12 +141,11 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
     ): void {
         PosthogAnalytics.instance.setAuthenticationType("Password");
 
-        const email = this.state.email.trim();
-
+        // Email is skipped - not included in registration
         const promise = this.props.onRegisterClick({
             username: this.state.username.trim(),
             password: this.state.password.trim(),
-            email: email,
+            // email: undefined, // Email field is disabled
             phoneCountry: this.state.phoneCountry,
             phoneNumber: this.state.phoneNumber,
         });
@@ -193,7 +170,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             RegistrationField.Username,
             RegistrationField.Password,
             RegistrationField.PasswordConfirm,
-            RegistrationField.Email,
+            // RegistrationField.Email, // Email field is disabled
             RegistrationField.PhoneNumber,
         ];
 
@@ -432,11 +409,8 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
     }
 
     private showEmail(): boolean {
-        const threePidLogin = !SdkConfig.get().disable_3pid_login;
-        if (!threePidLogin || !this.authStepIsUsed("m.login.email.identity")) {
-            return false;
-        }
-        return true;
+        // Email field is disabled - always return false
+        return false;
     }
 
     private showPhoneNumber(): boolean {
@@ -575,17 +549,18 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             }
         }
 
+        // Hide password fields with CSS - password is auto-filled but still validated
         let passwordFields: JSX.Element | undefined;
         if (this.props.mobileRegister) {
             passwordFields = (
                 <>
-                    <div className="mx_AuthBody_fieldRow">{this.renderPassword()}</div>
-                    <div className="mx_AuthBody_fieldRow">{this.renderPasswordConfirm()}</div>
+                    <div className="mx_AuthBody_fieldRow" style={{ display: 'none' }}>{this.renderPassword()}</div>
+                    <div className="mx_AuthBody_fieldRow" style={{ display: 'none' }}>{this.renderPasswordConfirm()}</div>
                 </>
             );
         } else {
             passwordFields = (
-                <div className="mx_AuthBody_fieldRow">
+                <div className="mx_AuthBody_fieldRow" style={{ display: 'none' }}>
                     {this.renderPassword()}
                     {this.renderPasswordConfirm()}
                 </div>
@@ -615,12 +590,12 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                             />
                             <span style={{ fontSize: "14px" }}>
                                 I accept the{" "}
-                                <a
+                                <a  
                                     href="https://wa.beep.gov.pk/info/privacy_policy.html"
                                     target="_blank"
                                     rel="noreferrer noopener"
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{ color: "var(--primary-color)" }}
+                                    style={{ color: "var(--primary-color)", textDecoration: "underline", fontWeight: "bold" }}
                                 >
                                     Privacy Policy
                                 </a>
@@ -630,7 +605,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                                     target="_blank"
                                     rel="noreferrer noopener"
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{ color: "var(--primary-color)" }}
+                                    style={{ color: "var(--primary-color)", textDecoration: "underline", fontWeight: "bold" }}
                                 >
                                     Terms & Conditions
                                 </a>

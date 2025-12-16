@@ -87,16 +87,26 @@ const ManagementSection: React.FC<ManagementSectionProps> = ({ onDeactivateClick
 const UtilitySection: React.FC = () => {
     // Prevent hard refresh keyboard shortcuts
     useEffect(() => {
+        const softReload = (): void => {
+            window.location.reload();
+        };
+
         const handleKeyDown = (event: KeyboardEvent): void => {
-            // Prevent Ctrl+Shift+R (hard refresh on Chrome/Edge)
-            if (event.ctrlKey && event.shiftKey && event.key === "R") {
+            const ctrlOrCmd = event.ctrlKey || event.metaKey;
+
+            // Prevent Ctrl/Cmd + Shift + R (hard refresh) and perform a normal reload instead
+            if (ctrlOrCmd && event.shiftKey && event.key === "R") {
                 event.preventDefault();
                 event.stopPropagation();
+                softReload();
+                return;
             }
-            // Prevent Ctrl+F5 (hard refresh)
-            if (event.ctrlKey && event.key === "F5") {
+
+            // Prevent Ctrl/Cmd + F5 (hard refresh) and perform a normal reload instead
+            if (ctrlOrCmd && event.key === "F5") {
                 event.preventDefault();
                 event.stopPropagation();
+                softReload();
             }
         };
 

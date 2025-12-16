@@ -7,13 +7,21 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { type MatrixEvent, EventType, MsgType } from "matrix-js-sdk/src/matrix";
+import { type MatrixError } from "matrix-js-sdk/src/http-api";
 import { type FileContent, type ImageContent, type MediaEventContent } from "matrix-js-sdk/src/types";
 import { logger } from "matrix-js-sdk/src/logger";
 
 import { LazyValue } from "./LazyValue";
 import { type Media, mediaFromContent } from "../customisations/Media";
-import { decryptFile } from "./DecryptFile";
+import { decryptFile, DownloadError } from "./DecryptFile";
 import { type IDestroyable } from "./IDestroyable";
+import {
+    loadMediaBlobFromCache,
+    mediaCacheKeyFor,
+    persistMediaBlob,
+    type MediaCachePart,
+} from "./MediaCacheStore";
+import { loadLocalMediaBlob } from "./LocalMediaCache";
 
 // TODO: We should consider caching the blobs. https://github.com/vector-im/element-web/issues/17192
 
@@ -38,11 +46,9 @@ export class MediaEventHelper implements IDestroyable {
     }
 
     public get fileName(): string {
-        return (
-            this.event.getContent<FileContent>().filename ||
-            this.event.getContent<MediaEventContent>().body ||
-            "download"
-        );
+        const content = this.event.getContent<MediaEventContent>();
+        const voiceFileName = content["org.matrix.msc1767.file"]?.name;
+        return content.filename || voiceFileName || content.body || "download";
     }
 
     public destroy(): void {
@@ -71,33 +77,152 @@ export class MediaEventHelper implements IDestroyable {
         }
     };
 
-    private fetchSource = (): Promise<Blob> => {
+    private fetchSource = async (): Promise<Blob> => {
+        const blob = await this.fetchAndCacheMedia("source", async () => {
         if (this.media.isEncrypted) {
             const content = this.event.getContent<MediaEventContent>();
             return decryptFile(content.file!, content.info);
         }
-        return this.media.downloadSource().then((r) => r.blob());
+            const response = await this.media.downloadSource();
+            return response.blob();
+        });
+        if (!blob) {
+            throw new Error("Failed to load media source");
+        }
+        return blob;
     };
 
-    private fetchThumbnail = (): Promise<Blob | null> => {
-        if (!this.media.hasThumbnail) return Promise.resolve(null);
+    private fetchThumbnail = async (): Promise<Blob | null> => {
+        if (!this.media.hasThumbnail) return null;
 
+        const blob = await this.fetchAndCacheMedia("thumbnail", async () => {
         if (this.media.isEncrypted) {
             const content = this.event.getContent<ImageContent>();
             if (content.info?.thumbnail_file) {
                 return decryptFile(content.info.thumbnail_file, content.info.thumbnail_info);
-            } else {
+                }
                 // "Should never happen"
                 logger.warn("Media claims to have thumbnail and is encrypted, but no thumbnail_file found");
-                return Promise.resolve(null);
-            }
+                return null;
         }
 
         const thumbnailHttp = this.media.thumbnailHttp;
-        if (!thumbnailHttp) return Promise.resolve(null);
+            if (!thumbnailHttp) return null;
 
-        return fetch(thumbnailHttp).then((r) => r.blob());
+            const response = await fetch(thumbnailHttp);
+            return response.blob();
+        });
+
+        return blob;
     };
+
+    private async fetchAndCacheMedia(part: MediaCachePart, fetcher: () => Promise<Blob | null>): Promise<Blob | null> {
+        const cacheKey = mediaCacheKeyFor(part, {
+            eventId: this.event.getId(),
+            txnId: this.event.getTxnId(),
+            mxc: this.media.srcMxc,
+        });
+        if (cacheKey) {
+            const cachedBlob = await loadMediaBlobFromCache(cacheKey);
+            if (cachedBlob) {
+                return cachedBlob;
+            }
+
+            const localBlob = await loadLocalMediaBlob(cacheKey);
+            if (localBlob) {
+                return localBlob;
+            }
+        }
+
+        const blob = await this.fetchWithRetry(fetcher, cacheKey);
+        if (!blob || !cacheKey) {
+            return blob;
+        }
+
+        await persistMediaBlob({
+            identifiers: {
+                eventId: this.event.getId(),
+                txnId: this.event.getTxnId(),
+                mxc: this.media.srcMxc,
+            },
+            blob,
+            eventId: this.event.getId(),
+            roomId: this.event.getRoomId(),
+            mxc: this.media.srcMxc,
+            mimeType: this.getMimeTypeForPart(part) ?? blob.type,
+            size: blob.size,
+            part,
+        });
+
+        return blob;
+    }
+
+    private async fetchWithRetry(
+        fetcher: () => Promise<Blob | null>,
+        cacheKey: string | null,
+        maxAttempts = 6,
+    ): Promise<Blob | null> {
+        let attempt = 0;
+        let lastError: unknown;
+        while (attempt < maxAttempts) {
+            try {
+                return await fetcher();
+            } catch (error) {
+                lastError = error;
+                attempt++;
+                if (!this.shouldRetryDownload(error, cacheKey) || attempt >= maxAttempts) {
+                    throw error;
+                }
+                const delay = this.getRetryDelay(attempt);
+                await new Promise((resolve) => window.setTimeout(resolve, delay));
+            }
+        }
+        throw lastError;
+    }
+
+    private getRetryDelay(attempt: number): number {
+        const base = 1000; // 1s
+        const delay = base * Math.pow(2, attempt - 1); // exponential backoff
+        return Math.min(delay, 15000); // cap at 15s between attempts
+    }
+
+    private shouldRetryDownload(error: unknown, cacheKey?: string | null): boolean {
+        if (error instanceof DownloadError) {
+            if (this.maybePendingUpload(cacheKey, error.cause)) {
+                return true;
+            }
+            return this.isNotFoundError(error.cause);
+        }
+        if (this.maybePendingUpload(cacheKey, error)) {
+            return true;
+        }
+        return this.isNotFoundError(error);
+    }
+
+    private maybePendingUpload(cacheKey: string | null | undefined, error: unknown): boolean {
+        if (!cacheKey) return false;
+        const txnId = this.event.getTxnId();
+        if (!txnId) return false;
+        if (!cacheKey.includes(txnId)) return false;
+        return this.isNotFoundError(error);
+    }
+    private isNotFoundError(error: unknown): boolean {
+        const httpError = error as { httpStatus?: number };
+        if (typeof httpError?.httpStatus === "number") {
+            return httpError.httpStatus === 404;
+        }
+
+        const matrixError = error as MatrixError;
+        return matrixError?.httpStatus === 404;
+    }
+
+    private getMimeTypeForPart(part: MediaCachePart): string | undefined {
+        const content = this.event.getContent<ImageContent>();
+        if (part === "thumbnail") {
+            return content.info?.thumbnail_info?.mimetype ?? undefined;
+        }
+        return content.info?.mimetype ?? undefined;
+    }
 
     public static isEligible(event: MatrixEvent): boolean {
         if (!event) return false;

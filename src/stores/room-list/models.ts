@@ -16,7 +16,9 @@ export enum DefaultTagID {
     Conference = "im.vector.fake.conferences",
     ServerNotice = "m.server_notice",
     Suggested = "im.vector.fake.suggested",
-    Calllog="Call log"
+    Calllog="Call log",
+    OneOnOneChatLeave = "1-1_chat_leave",
+    OneOnOneLeftChat = "1-1_left_chat"
 }
 
 export const OrderedDefaultTagIDs = [
@@ -26,6 +28,7 @@ export const OrderedDefaultTagIDs = [
     DefaultTagID.Conference,
     DefaultTagID.Untagged,
     DefaultTagID.LowPriority,
+    DefaultTagID.OneOnOneLeftChat,
     DefaultTagID.ServerNotice,
     DefaultTagID.Suggested,
     DefaultTagID.Archived,

@@ -20,6 +20,8 @@ describe("createVoiceMessageContent", () => {
                 42000,
                 {} as unknown as EncryptedFile,
                 [1, 2, 3],
+                "opus",
+                "OGG",
             ),
         ).toMatchSnapshot();
     });

@@ -616,6 +616,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 
 import { ClientEvent, type MatrixClient } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
+import { KnownMembership } from "matrix-js-sdk/src/types";
 
 import { canEncryptToAllUsers } from "../createRoom";
 import { Action } from "../dispatcher/actions";
@@ -631,7 +632,9 @@ import { resolveThreePids } from "./threepids";
  * Starts or reopens a DM:
  * - Reuse existing DM if joined.
  * - Auto-invite other user if they left.
- * - If you left old DM → create a new DM and update m.direct.
+ * - Auto-join if user was invited but hasn't joined yet.
+ * - Rejoin if user left but other user is still in the room.
+ * - If you left old DM and other user also left → create a new DM and update m.direct.
  * - Send placeholder if reused DM is empty.
  *
  * @async
@@ -689,6 +692,51 @@ export async function startDmOnFirstMessage(client: MatrixClient, targets: Membe
                 }
             }
             return existingRoom.roomId;
+        } else if (myMembership === KnownMembership.Invite) {
+            // ✅ User was invited but hasn't joined - auto-join without invitation
+            try {
+                await client.joinRoom(existingRoom.roomId);
+                logger.info(`Auto-joined existing DM ${existingRoom.roomId} for ${userId}`);
+
+                // ✅ Open the existing DM
+                dis.dispatch<ViewRoomPayload>({
+                    action: Action.ViewRoom,
+                    room_id: existingRoom.roomId,
+                    should_peek: false,
+                    joining: false,
+                    metricsTrigger: "MessageUser",
+                });
+
+                return existingRoom.roomId;
+            } catch (err) {
+                logger.error(`Failed to auto-join existing DM ${existingRoom.roomId}`, err);
+                // Fall through to create new DM if join fails
+            }
+        } else if (myMembership === KnownMembership.Leave) {
+            // ✅ User left the room - check if other user is still there and rejoin
+            const otherMember = existingRoom.getMember(userId);
+            if (otherMember && (otherMember.membership === KnownMembership.Join || otherMember.membership === KnownMembership.Invite)) {
+                // Other user is still in the room (joined or invited) - rejoin without invitation
+                try {
+                    await client.joinRoom(existingRoom.roomId);
+                    logger.info(`Rejoined existing DM ${existingRoom.roomId} for ${userId}`);
+
+                    // ✅ If other user was invited but not joined, they'll be auto-joined when they come back
+                    // ✅ Open the existing DM
+                    dis.dispatch<ViewRoomPayload>({
+                        action: Action.ViewRoom,
+                        room_id: existingRoom.roomId,
+                        should_peek: false,
+                        joining: false,
+                        metricsTrigger: "MessageUser",
+                    });
+
+                    return existingRoom.roomId;
+                } catch (err) {
+                    logger.error(`Failed to rejoin existing DM ${existingRoom.roomId}`, err);
+                    // Fall through to create new DM if rejoin fails
+                }
+            }
         }
     }
 

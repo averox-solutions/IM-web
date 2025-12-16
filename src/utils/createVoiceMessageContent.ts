@@ -16,6 +16,8 @@ import { type EncryptedFile, type RoomMessageEventContent } from "matrix-js-sdk/
  * @param {number} size
  * @param {number[]} [waveform]
  * @param {EncryptedFile} [file] Encrypted file
+ * @param {string} [codec] Audio codec (e.g., "aac", "opus", "pcm_s16le")
+ * @param {string} [container] Audio container format (e.g., "Apple MPEG-4 audio", "OGG", "WAV")
  */
 export const createVoiceMessageContent = (
     mxc: string | undefined,
@@ -24,11 +26,12 @@ export const createVoiceMessageContent = (
     size: number,
     file?: EncryptedFile,
     waveform?: number[],
+    codec?: string,
+    container?: string,
 ): RoomMessageEventContent => {
     return {
-        "body": "Voice message",
-        //"msgtype": "org.matrix.msc2516.voice",
-        "msgtype": MsgType.Audio,
+        "body": `recording${Date.now()}.wav`, // Filename as body for file display
+        "msgtype": MsgType.Audio, // Use m.audio so it's playable
         "url": mxc,
         "file": file,
         "info": {
@@ -43,7 +46,7 @@ export const createVoiceMessageContent = (
         "org.matrix.msc1767.file": {
             url: mxc,
             file,
-            name: "Voice message.ogg",
+            name: `recording${Date.now()}.wav`,
             mimetype,
             size,
         },
@@ -51,6 +54,8 @@ export const createVoiceMessageContent = (
             duration,
             // https://github.com/matrix-org/matrix-doc/pull/3246
             waveform,
+            ...(codec && { codec }),
+            ...(container && { container }),
         },
         "org.matrix.msc3245.voice": {}, // No content, this is a rendering hint
     };

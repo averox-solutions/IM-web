@@ -386,6 +386,8 @@ export default function RoomHeader({
 
     const notificationsEnabled = useFeatureEnabled("feature_notifications");
     const askToJoinEnabled = useFeatureEnabled("feature_ask_to_join");
+    const shouldShowMembersButton =
+        !isDirectMessage && (!allSamePowerLevel || memberCount === 1 || memberCount === 0);
     
     // Check if session is verified
     const [isSessionVerified, setIsSessionVerified] = useState<boolean>(() => {
@@ -858,7 +860,7 @@ export default function RoomHeader({
                                         transition: "all 0.3s ease",
                                         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
                                     }}
-                                    onClick={() => window.open("https://beep.gov.pk", "_blank")}
+                                    onClick={() => window.open("https://vc.beep.gov.pk", "_blank")}
                                     onMouseOver={(e) => {
                                         e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
                                         e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
@@ -1028,10 +1030,9 @@ export default function RoomHeader({
                         </Tooltip>
                     )}
 
-                    {/* FacePile (Member List) - hide if restricted */}
-                    {/* FacePile (Member List) - hide if restricted */}
+                    {/* FacePile (Member List) - only show for group rooms */}
 
-                    {((!isDirectMessage && !allSamePowerLevel) || memberCount === 1 || memberCount === 0) && (
+                    {shouldShowMembersButton && (
                         <BodyText as="div" size="sm" weight="medium">
                             <FacePile
                                 className="mx_RoomHeader_members"

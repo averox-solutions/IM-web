@@ -54,6 +54,7 @@ const ALLOWED_BLOB_MIMETYPES = [
     "video/quicktime",
 
     "audio/mp4",
+    "audio/m4a",
     "audio/webm",
     "audio/aac",
     "audio/mpeg",

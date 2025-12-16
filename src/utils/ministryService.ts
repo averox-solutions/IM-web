@@ -20,8 +20,8 @@ export interface MinistryResponse {
     message?: string;
 }
 
-const WEB_API_KEY = process.env.WEB_API_KEY || "3a7520ec8dd5de7bf74e2f791b14167773cd747cf8f4f452f3f473251a1c803d";
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://lk-ccpl.stage-beep.org";
+const WEB_API_KEY = process.env.WEB_API_KEY;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * Fetch all ministries from the database

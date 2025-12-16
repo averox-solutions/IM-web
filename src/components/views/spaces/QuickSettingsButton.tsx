@@ -30,6 +30,7 @@ import { Icon as PinUprightIcon } from "../../../../res/img/element-icons/room/p
 import Modal from "../../../Modal";
 import DevtoolsDialog from "../dialogs/DevtoolsDialog";
 import { SdkContextClass } from "../../../contexts/SDKContext";
+import UIStore from "../../../stores/UIStore";
 
 const QuickSettingsButton: React.FC<{
     isPanelCollapsed: boolean;
@@ -65,7 +66,7 @@ const QuickSettingsButton: React.FC<{
                     {_t("quick_settings|all_settings")}
                 </AccessibleButton>
 
-                {currentRoomId && developerModeEnabled && (
+                {currentRoomId && developerModeEnabled && UIStore.instance.windowWidth > 767 && (
                     <AccessibleButton
                         onClick={() => {
                             closeMenu();

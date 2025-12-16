@@ -77,6 +77,24 @@ const moduleReplacementPlugins = [
 
     // Allow customisations to override the default components too
     ...parseOverridesToReplacements(fileOverrides),
+
+    // Fix broken symlink for matrix-wysiwyg-wasm bundled dependency
+    new webpack.NormalModuleReplacementPlugin(
+        /^@vector-im\/matrix-wysiwyg-wasm$/,
+        function (resource) {
+            // Point to the extracted bundled dependency - keep the module name but change context
+            const wasmDir = path.resolve(
+                __dirname,
+                "node_modules/@vector-im/matrix-wysiwyg/node_modules/@vector-im/matrix-wysiwyg-wasm",
+            );
+            const fs = require("fs");
+            if (fs.existsSync(wasmDir) && fs.existsSync(path.resolve(wasmDir, "package.json"))) {
+                // Don't change the request, just update the context so webpack resolves from the right place
+                resource.context = wasmDir;
+                resource.createData.context = wasmDir;
+            }
+        },
+    ),
 ];
 
 // dotenv to load environment variables
@@ -189,6 +207,24 @@ module.exports = (env, argv) => {
                 // using `npm link` / `yarn link`.
                 "react": path.resolve(__dirname, "node_modules/react"),
                 "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
+
+                // Workaround for compound-web importing error-solid which doesn't exist in compound-design-tokens
+                "@vector-im/compound-design-tokens/assets/web/icons/error-solid": path.resolve(
+                    __dirname,
+                    "node_modules/@vector-im/compound-design-tokens/assets/web/icons/error.js",
+                ),
+                // Workaround for broken symlink to matrix-wysiwyg-wasm bundled dependency
+                // Point to the extracted bundled dependency location
+                "@vector-im/matrix-wysiwyg-wasm": path.resolve(
+                    __dirname,
+                    "node_modules/@vector-im/matrix-wysiwyg/node_modules/@vector-im/matrix-wysiwyg-wasm",
+                ),
+                // Workaround for broken symlink to matrix-wysiwyg-wasm bundled dependency
+                // Point to the package directory (webpack will resolve to package.json/index.js)
+                "@vector-im/matrix-wysiwyg-wasm": path.resolve(
+                    __dirname,
+                    "node_modules/@vector-im/matrix-wysiwyg/node_modules/@vector-im/matrix-wysiwyg-wasm",
+                ),
 
                 // Same goes for js/react-sdk - we don't need two copies.
                 "matrix-js-sdk": path.resolve(__dirname, "node_modules/matrix-js-sdk"),

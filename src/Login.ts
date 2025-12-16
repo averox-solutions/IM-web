@@ -141,6 +141,14 @@ export default class Login {
     ): Promise<IMatrixClientCreds> {
         const isEmail = !!username && username.indexOf("@") > 0;
 
+        // Prevent email login
+        if (isEmail) {
+            const error = new Error("Email login is not allowed");
+            (error as any).httpStatus = 400;
+            (error as any).errcode = "M_FORBIDDEN";
+            return Promise.reject(error);
+        }
+
         let identifier;
         if (phoneCountry && phoneNumber) {
             identifier = {

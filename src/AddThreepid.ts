@@ -205,6 +205,20 @@ export default class AddThreepid {
                     // implemented it without, so this may just succeed and that's OK.
                     return [true];
                 } catch (err) {
+                    // Check if it's the "No validated 3pid session found" error (HTTP 400)
+                    if (err instanceof MatrixError && err.httpStatus === 400) {
+                        const errorMsg = err.message || err.toString() || "";
+                        const errorMsgLower = errorMsg.toLowerCase();
+                        if (
+                            errorMsgLower.includes("no validated 3pid session found") ||
+                            errorMsgLower.includes("no validated") ||
+                            errorMsgLower.includes("validated 3pid session") ||
+                            errorMsgLower.includes("validated") && errorMsgLower.includes("session")
+                        ) {
+                            throw new UserFriendlyError("settings|general|email_verification_instructions", { cause: err });
+                        }
+                    }
+                    
                     if (!(err instanceof MatrixError) || err.httpStatus !== 401 || !err.data?.flows) {
                         // doesn't look like an interactive-auth failure
                         throw err;
@@ -307,6 +321,20 @@ export default class AddThreepid {
                 // implemented it without, so this may just succeed and that's OK.
                 return [true];
             } catch (err) {
+                // Check if it's the "No validated 3pid session found" error (HTTP 400)
+                if (err instanceof MatrixError && err.httpStatus === 400) {
+                    const errorMsg = err.message || err.toString() || "";
+                    const errorMsgLower = errorMsg.toLowerCase();
+                    if (
+                        errorMsgLower.includes("no validated 3pid session found") ||
+                        errorMsgLower.includes("no validated") ||
+                        errorMsgLower.includes("validated 3pid session") ||
+                        errorMsgLower.includes("validated") && errorMsgLower.includes("session")
+                    ) {
+                        throw new UserFriendlyError("settings|general|msisdn_verification_instructions", { cause: err });
+                    }
+                }
+                
                 if (!(err instanceof MatrixError) || err.httpStatus !== 401 || !err.data?.flows) {
                     // doesn't look like an interactive-auth failure
                     throw err;

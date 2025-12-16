@@ -54,6 +54,13 @@ import { type MatrixClientProps, withMatrixClientHOC } from "../../../contexts/M
 import { UIFeature } from "../../../settings/UIFeature";
 import { formatTimeLeft } from "../../../DateUtils";
 import RoomReplacedSvg from "../../../../res/img/room_replaced.svg";
+import DMRoomMap from "../../../utils/DMRoomMap";
+import { KnownMembership } from "matrix-js-sdk/src/types";
+import { leaveRoomBehaviour } from "../../../utils/leave-behaviour";
+import { Action as DispatcherAction } from "../../../dispatcher/actions";
+import { type AfterLeaveRoomPayload } from "../../../dispatcher/payloads/AfterLeaveRoomPayload";
+import { RoomStateEvent, RoomEvent } from "matrix-js-sdk/src/matrix";
+import { setDMRoom } from "../../../Rooms";
 
 // Base URL for backend services (e.g., notifications), configurable via env
 // Primary: REACT_APP_NOTIFCATIONURL (as requested), Fallbacks: REACT_APP_BACKEND_URL, localhost
@@ -104,6 +111,8 @@ interface IState {
     isWysiwygLabEnabled: boolean;
     isRichTextEnabled: boolean;
     initialComposerContent: string;
+    shouldShowReopenButtons: boolean;
+    otherUserId?: string;
 }
 
 type WysiwygComposerState = {
@@ -156,6 +165,8 @@ export class MessageComposer extends React.Component<IProps, IState> {
             isWysiwygLabEnabled: isWysiwygLabEnabled,
             isRichTextEnabled: isRichTextEnabled,
             initialComposerContent: initialComposerContent,
+            shouldShowReopenButtons: false,
+            otherUserId: undefined,
         };
 
         this.instanceId = instanceCount++;
@@ -276,9 +287,11 @@ public componentDidMount(): void {
     // Sync initial recording state (handles cached recordings)
     this.updateRecordingState();
 
-    // Listen to timeline to detect voice/poll/location sent by me
-    const mx = MatrixClientPeg.safeGet();
-    mx.on("Room.timeline", this.onMyEventSent);
+    // Check if chat should show reopen buttons and listen to room state changes
+    this.checkIfShouldShowReopenButtons();
+    this.props.room.on(RoomEvent.Timeline, this.onMyEventSent);
+    this.props.room.on(RoomStateEvent.Members, this.onRoomMembersUpdate);
+    this.props.room.on(RoomEvent.MyMembership, this.onRoomMembersUpdate);
 }
 
 
@@ -298,9 +311,10 @@ public componentWillUnmount(): void {
     // Remove voice recording listeners via setter cleanup
     this.voiceRecording = null;
 
-    // Detach timeline listener
-    const mx = MatrixClientPeg.get();
-    if (mx) mx.removeListener("Room.timeline", this.onMyEventSent);
+    // Remove room state listeners
+    this.props.room.removeListener(RoomEvent.Timeline, this.onMyEventSent);
+    this.props.room.removeListener(RoomStateEvent.Members, this.onRoomMembersUpdate);
+    this.props.room.removeListener(RoomEvent.MyMembership, this.onRoomMembersUpdate);
 }
 
 
@@ -313,7 +327,7 @@ private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
     if (ev.getSender() !== mx.getUserId()) return;
 
     // ignore local-echo / pending sends; wait until it's sent to the server
-    const status = ev.getStatus?.();
+    const status = ev.status;
     if (status !== null && status !== undefined) return;
 
     const type = ev.getType();
@@ -334,11 +348,10 @@ private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
         type === "org.matrix.msc3381.poll.start" || type === "m.poll.start";
 
     // --- Location detection ---
-    // Legacy: m.room.message with msgtype "m.location"
-    // Extensible events: type "m.location"
-    const isLocation =
-        (type === "m.room.message" && msgtype === "m.location") ||
-        type === "m.location";
+    // Location notifications are handled in shareLocation.ts to avoid duplicates
+    // const isLocation =
+    //     (type === "m.room.message" && msgtype === "m.location") ||
+    //     type === "m.location";
 
     if (isVoice) {
         this.notifyPushNotifications().catch(e =>
@@ -352,11 +365,12 @@ private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
         );
         return;
     }
-    if (isLocation) {
-        this.notifyPushNotifications().catch(e =>
-            logger.warn("notifyPushNotifications(location) error:", e),
-        );
-    }
+    // Location notifications are handled in shareLocation.ts to avoid duplicates
+    // if (isLocation) {
+    //     this.notifyPushNotifications().catch(e =>
+    //         logger.warn("notifyPushNotifications(location) error:", e),
+    //     );
+    // }
 };
 
 
@@ -392,11 +406,6 @@ private onAction = (payload: ActionPayload): void => {
             }
             break;
         }
-
-        case Action.MessageSent:
-            // intentionally no-op here to avoid duplicate notifications for text;
-            // notifications for voice/poll/location are fired via onMyEventSent (timeline)
-            break;
 
         default:
             // ignore everything else
@@ -462,10 +471,37 @@ private onAction = (payload: ActionPayload): void => {
         });
     };
 
-    private async notifyPushNotifications(): Promise<void> {
+    private getNotificationTitle(): string {
+        const cli = MatrixClientPeg.safeGet();
+        const fullId = cli.getUserId()!;
+        const senderLocalPart =
+            fullId.startsWith("@") && fullId.includes(":") ? fullId.slice(1, fullId.indexOf(":")) : fullId;
+        const senderDisplayName = cli.getUser(fullId)?.displayName?.trim();
+        return senderDisplayName || senderLocalPart;
+    }
+
+    private async sendReopenNotification(targetUserId: string): Promise<void> {
+        try {
+            const notificationTitle = this.getNotificationTitle();
+            await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    userId: targetUserId,
+                    notificationTitle,
+                    notificationBody: "Got Invited",
+                }),
+            });
+        } catch (err) {
+            logger.warn(`Failed to send reopen notification to ${targetUserId}`, err);
+        }
+    }
+
+    private async notifyPushNotifications(notificationBody: string = "Text"): Promise<void> {
         const fullId = MatrixClientPeg.get()!.getSafeUserId()!;
-        // strip leading @ and domain
-        const sender = fullId.slice(1, fullId.indexOf(":"));
+        const notificationTitle = this.getNotificationTitle();
         const others = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
     
         for (const member of others) {
@@ -478,9 +514,9 @@ private onAction = (payload: ActionPayload): void => {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        userid: member.userId,
-                        notificationTitle: `${sender}`,
-                        notificationBody: `text`,
+                        userId: member.userId,
+                        notificationTitle,
+                        notificationBody,
                     }),
                 });
             } catch (err) {
@@ -525,9 +561,9 @@ private onAction = (payload: ActionPayload): void => {
         if (this.state.haveRecording && this.voiceRecordingButton.current) {
             await this.voiceRecordingButton.current.send();
             try {
-                await this.notifyPushNotifications();
-            } catch (e) {
-                logger.warn("notifyPushNotifications(voice click) error:", e);
+                await this.notifyPushNotifications("Voice Message");
+            } catch (err) {
+                logger.warn("notifyPushNotifications(voice click) error:", err);
             }
             return;
         }
@@ -536,37 +572,15 @@ private onAction = (payload: ActionPayload): void => {
         const raw = this.state.composerContent ?? "";
         const message = raw.trim();
     
-        // 3) Compute sender info once (only used if we notify)
-        const fullId = MatrixClientPeg.get()!.getSafeUserId()!;
-        const sender =
-            fullId.startsWith("@") && fullId.includes(":")
-                ? fullId.slice(1, fullId.indexOf(":"))
-                : fullId;
-    
-        console.log("Sender (clean):", sender);
+        console.log("Notification title:", this.getNotificationTitle());
         console.log("User message:", message);
     
         // 4) Send FCM notification to other members ONLY if message has content
         if (message.length > 0) {
-            const otherMembers = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
-            for (const member of otherMembers) {
-                try {
-                    const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
-                    console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
-                    console.log(`Is iOS platform:`, is_iOS);
-    
-                    await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            userId: member.userId,
-                            notificationTitle: sender,
-                            notificationBody: "Text",
-                        }),
-                    });
-                } catch (err) {
-                    console.warn(`Failed to send FCM to ${member.userId}:`, err);
-                }
+            try {
+                await this.notifyPushNotifications(message);
+            } catch (err) {
+                logger.warn("notifyPushNotifications(text) error:", err);
             }
         }
     
@@ -655,6 +669,140 @@ private onAction = (payload: ActionPayload): void => {
         window.setTimeout(() => this.setState({ recordingTimeLeftSeconds: undefined }), 3000);
     };
 
+    private checkIfShouldShowReopenButtons = (): void => {
+        const room = this.props.room;
+        let otherUserId = DMRoomMap.shared().getUserIdForRoomId(room.roomId);
+        
+        // If not marked as DM, check if it's a 1-on-1 chat (2 members) and auto-mark it
+        if (!otherUserId) {
+            const totalMembers = room.getInvitedAndJoinedMemberCount();
+            if (totalMembers === 2) {
+                // It's a 1-on-1 chat - find the other user and mark it as DM
+                const cli = MatrixClientPeg.safeGet();
+                const myUserId = cli.getUserId();
+                // Try to find the other member (joined first, then invited)
+                let otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId);
+                if (!otherMember) {
+                    const invitedMembers = room.getMembersWithMembership(KnownMembership.Invite);
+                    otherMember = invitedMembers.find(m => m.userId !== myUserId);
+                }
+                
+                if (otherMember) {
+                    otherUserId = otherMember.userId;
+                    // Auto-mark this room as a DM
+                    setDMRoom(cli, room.roomId, otherUserId).catch(err => {
+                        logger.warn(`Failed to auto-mark room ${room.roomId} as DM`, err);
+                    });
+                }
+            }
+        }
+        
+        if (!otherUserId) {
+            // Not a DM, reset state
+            this.setState({ shouldShowReopenButtons: false, otherUserId: undefined });
+            return;
+        }
+
+        const myMembership = room.getMyMembership();
+        const otherMember = room.getMember(otherUserId);
+
+        // Show buttons if:
+        // 1. I left the room (myMembership === Leave) AND other user is still in (joined or invited)
+        // 2. OR I'm still in (joined) AND other user left
+        const shouldShow = 
+            (myMembership === KnownMembership.Leave && 
+             otherMember && 
+             (otherMember.membership === KnownMembership.Join || otherMember.membership === KnownMembership.Invite)) ||
+            (myMembership === KnownMembership.Join && 
+             (!otherMember || otherMember.membership === KnownMembership.Leave));
+
+        this.setState({ 
+            shouldShowReopenButtons: shouldShow,
+            otherUserId: shouldShow ? otherUserId : undefined,
+        });
+    };
+
+    private onRoomMembersUpdate = (): void => {
+        this.checkIfShouldShowReopenButtons();
+    };
+
+    private handleReopenChat = async (): Promise<void> => {
+        const { room } = this.props;
+        const { otherUserId } = this.state;
+
+        if (!otherUserId) {
+            logger.error("Try to reopen a room that is not a DM room. This should not be possible from the UI!");
+            return;
+        }
+
+        try {
+            const cli = MatrixClientPeg.safeGet();
+            const myMembership = room.getMyMembership();
+            
+            // If we left, rejoin first
+            if (myMembership === KnownMembership.Leave) {
+                await cli.joinRoom(room.roomId);
+                logger.info(`Rejoined room ${room.roomId}`);
+            }
+            
+            // Ensure room is marked as DM
+            await setDMRoom(cli, room.roomId, otherUserId);
+            logger.info(`Marked room ${room.roomId} as DM for ${otherUserId}`);
+            
+            // Simply invite the user (following FluffyChat's approach)
+            // Send invite with is_direct flag for FluffyChat compatibility
+            try {
+                await cli.sendStateEvent(
+                    room.roomId,
+                    EventType.RoomMember,
+                    {
+                        membership: KnownMembership.Invite,
+                        is_direct: true,
+                    },
+                    otherUserId
+                );
+                logger.info(`Invited ${otherUserId} to room ${room.roomId} with is_direct flag`);
+            } catch (err) {
+                // Fallback to standard invite if sendStateEvent fails
+                logger.warn("Failed to send invite with is_direct, falling back to standard invite", err);
+                await cli.invite(room.roomId, otherUserId);
+                logger.info(`Invited ${otherUserId} to room ${room.roomId} (fallback)`);
+            }
+
+            await this.sendReopenNotification(otherUserId);
+        } catch (err) {
+            logger.error("Failed to reopen chat:", err);
+        }
+    };
+
+    private handleDeleteChat = async (): Promise<void> => {
+        const { room } = this.props;
+        const roomId = room.roomId;
+
+        try {
+            const cli = MatrixClientPeg.safeGet();
+            const myMembership = room.getMyMembership();
+            
+            // Only leave if we're still in the room
+            if (myMembership === KnownMembership.Join) {
+                await leaveRoomBehaviour(cli, roomId);
+
+                dis.dispatch<AfterLeaveRoomPayload>({
+                    action: DispatcherAction.AfterLeaveRoom,
+                    room_id: roomId,
+                });
+            } else {
+                // Already left, just navigate away
+                dis.dispatch<AfterLeaveRoomPayload>({
+                    action: DispatcherAction.AfterLeaveRoom,
+                    room_id: roomId,
+                });
+            }
+        } catch (err) {
+            logger.error("Failed to delete chat:", err);
+        }
+    };
+
     private setStickerPickerOpen = (isStickerPickerOpen: boolean): void => {
         this.setState({
             isStickerPickerOpen,
@@ -714,7 +862,10 @@ private onAction = (payload: ActionPayload): void => {
         const controls: ReactNode[] = [];
         const menuPosition = this.getMenuPosition();
 
-        const canSendMessages = this.context.canSendMessages && !this.context.tombstone;
+        // Check if we should show reopen buttons (user left or other user left in DM)
+        const shouldShowReopenButtons = this.state.shouldShowReopenButtons && this.state.otherUserId;
+
+        const canSendMessages = this.context.canSendMessages && !this.context.tombstone && !shouldShowReopenButtons;
         let composer: ReactNode;
         if (canSendMessages) {
             if (this.state.isWysiwygLabEnabled && menuPosition) {
@@ -786,6 +937,31 @@ private onAction = (payload: ActionPayload): void => {
                         </span>
                         <br />
                         {continuesLink}
+                    </div>
+                </div>,
+            );
+        } else if (shouldShowReopenButtons) {
+            // Show delete and reopen buttons when user left or other user left in DM
+            controls.push(
+                <div key="controls_chat_left" className="mx_MessageComposer_chat_left_wrapper">
+                    <div className="mx_MessageComposer_chat_left_message">
+                        {_t("composer|user_left_chat_message")}
+                    </div>
+                    <div className="mx_MessageComposer_chat_left_buttons">
+                        <AccessibleButton
+                            className="mx_MessageComposer_chat_left_button mx_MessageComposer_chat_left_button_delete"
+                            onClick={this.handleDeleteChat}
+                            kind="danger"
+                        >
+                            {_t("composer|delete_chat")}
+                        </AccessibleButton>
+                        <AccessibleButton
+                            className="mx_MessageComposer_chat_left_button mx_MessageComposer_chat_left_button_reopen"
+                            onClick={this.handleReopenChat}
+                            kind="primary"
+                        >
+                            {_t("composer|reopen_chat")}
+                        </AccessibleButton>
                     </div>
                 </div>,
             );

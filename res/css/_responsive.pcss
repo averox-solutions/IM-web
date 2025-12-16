@@ -1,0 +1,613 @@
+/*
+Copyright 2024 New Vector Ltd.
+
+SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
+Please see LICENSE files in the repository root for full details.
+*/
+
+/* Mobile Responsive Breakpoints */
+/* 
+ * Mobile: 0-767px
+ * Tablet: 768px-1023px
+ * Desktop: 1024px+
+ */
+
+/* ============================================
+   GLOBAL MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Base mobile styles */
+@media screen and (max-width: 767px) {
+    /* Ensure proper viewport scaling */
+    html {
+        font-size: 14px;
+    }
+
+    /* Prevent horizontal scroll */
+    body {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    #matrixchat {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+    /* Touch-friendly tap targets */
+    button, a, input, select, textarea {
+        min-height: 44px; /* iOS recommended tap target size */
+    }
+}
+
+/* Tablet styles */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+    html {
+        font-size: 15px;
+    }
+}
+
+/* ============================================
+   MAIN LAYOUT RESPONSIVE STYLES
+   ============================================ */
+
+/* Mobile: Stack panels vertically or hide sidebars */
+@media screen and (max-width: 767px) {
+    /* Main body layout */
+    .mx_MatrixChat {
+        flex-direction: column;
+    }
+
+    /* Hide Left Panel completely on mobile */
+    .mx_LeftPanel_outerWrapper {
+        display: none !important;
+    }
+
+    .mx_LeftPanel {
+        display: none !important;
+    }
+
+    .mx_LeftPanel_wrapper {
+        display: none !important;
+    }
+
+    /* Hide Space Panel completely on mobile */
+    .mx_SpacePanel {
+        display: none !important;
+    }
+
+    /* Room View - Full width on mobile */
+    .mx_RoomView_wrapper {
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    .mx_RoomView {
+        width: 100%;
+    }
+
+    /* Hide resize handle on mobile */
+    .mx_ResizeHandle {
+        display: none;
+    }
+
+    /* Right panel - Full screen overlay on mobile */
+    .mx_RightPanel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2000;
+        background: $background;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+
+    .mx_RightPanel.mx_RightPanel--open {
+        transform: translateX(0);
+    }
+}
+
+/* Tablet: Adjust panel widths */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+    .mx_LeftPanel_outerWrapper {
+        max-width: 40%;
+    }
+}
+
+/* ============================================
+   AUTHENTICATION PAGES RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_AuthPage {
+        padding: 0;
+        min-height: 100vh;
+    }
+
+    .mx_AuthBody {
+        width: 100%;
+        max-width: 100%;
+        padding: 20px 16px;
+        border-radius: 0;
+        margin: 0;
+    }
+
+    .mx_AuthBody h1 {
+        font-size: $font-20px;
+        margin-top: $spacing-16;
+    }
+
+    .mx_Login_submit {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    .mx_Login_type_container {
+        width: 100%;
+    }
+
+    .mx_Field {
+        width: 100%;
+        margin-bottom: 16px;
+    }
+
+    .mx_Field input,
+    .mx_Field select {
+        width: 100%;
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 12px;
+    }
+
+    /* 2FA responsive styles */
+    .mx_Login_2FA {
+        padding: 16px;
+    }
+
+    .mx_Login_2FA h3 {
+        font-size: 18px;
+    }
+
+    .mx_Login_2FA input[type="text"] {
+        font-size: 18px; /* Prevents zoom on iOS */
+        padding: 14px;
+        width: 100%;
+    }
+
+    .mx_Login_2FA button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+    }
+}
+
+/* ============================================
+   ROOM LIST RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_LeftPanel_roomListContainer {
+        width: 100%;
+    }
+
+    .mx_LeftPanel_userHeader {
+        padding: 12px 16px;
+    }
+
+    .mx_LeftPanel_filterContainer {
+        margin: 0 16px;
+        padding: 12px 0;
+    }
+
+    .mx_RoomTile {
+        padding: 12px 16px;
+        min-height: 64px;
+    }
+
+    .mx_RoomTile_name {
+        font-size: $font-15px;
+    }
+
+    .mx_RoomTile_timestamp {
+        font-size: $font-11px;
+    }
+}
+
+/* ============================================
+   MESSAGE COMPOSER RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_MessageComposer {
+        padding: 12px 16px;
+    }
+
+    .mx_MessageComposer_wrapper {
+        padding: 0;
+    }
+
+    .mx_MessageComposer_input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 12px;
+        min-height: 44px;
+    }
+
+    .mx_MessageComposer_actions {
+        gap: 8px;
+    }
+
+    .mx_MessageComposer_button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* ============================================
+   MESSAGE LIST RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_RoomView_MessageList {
+        padding: 12px 16px;
+    }
+
+    .mx_EventTile {
+        margin-bottom: 12px;
+    }
+
+    .mx_EventTile_line {
+        padding: 8px 0;
+    }
+
+    .mx_EventTile_avatar {
+        width: 36px;
+        height: 36px;
+        margin-right: 12px;
+    }
+
+    .mx_EventTile_content {
+        font-size: $font-14px;
+    }
+
+    /* Increase clickable area for bubble messages on mobile */
+    .mx_EventTile_bubbleContainer .mx_EventTile_line {
+        padding: 12px 0 !important; /* Increase vertical padding for better touch target */
+        min-height: 44px; /* Ensure minimum touch target size */
+    }
+
+    .mx_EventTileBubble {
+        padding: 14px 16px !important; /* Increase padding for larger touch area */
+        min-height: 44px; /* Ensure minimum touch target size */
+        cursor: pointer; /* Show it's clickable */
+        /* Add extra padding around the bubble to increase clickable area */
+        margin: 8px 0 !important;
+    }
+
+    /* Make the entire bubble line clickable and touch-friendly */
+    .mx_EventTile[data-layout="bubble"] .mx_EventTile_line {
+        padding: 16px 0 !important; /* Extra padding for better touch target */
+        min-height: 60px; /* Larger minimum height for easier tapping */
+        cursor: pointer; /* Show entire line is clickable */
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1); /* Visual feedback on tap */
+        user-select: none; /* Prevent text selection when tapping */
+        position: relative; /* Ensure proper click area */
+    }
+
+    /* Ensure bubble messages have adequate spacing for touch */
+    .mx_EventTile[data-layout="bubble"] {
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+
+    /* Make the entire bubble container clickable */
+    .mx_EventTile_bubbleContainer .mx_EventTile_line {
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* ============================================
+   ROOM HEADER RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_RoomHeader {
+        padding: 12px 16px;
+        min-height: 56px;
+    }
+
+    .mx_RoomHeader_name {
+        font-size: $font-16px;
+    }
+
+    .mx_RoomHeader_buttons {
+        gap: 8px;
+    }
+
+    .mx_RoomHeader_button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px;
+    }
+}
+
+/* ============================================
+   DIALOGS AND MODALS RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_Dialog_wrapper {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        max-width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+    }
+
+    .mx_Dialog {
+        width: 100%;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+        padding: 20px 16px;
+        box-sizing: border-box;
+        overflow-y: auto;
+    }
+
+    .mx_Dialog_title {
+        font-size: $font-20px;
+        margin-bottom: 16px;
+    }
+
+    .mx_Dialog_content {
+        font-size: $font-14px;
+        line-height: 1.5;
+    }
+
+    .mx_Dialog_buttons {
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .mx_Dialog_button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+    }
+
+    /* Hide all dialogs and alerts on mobile */
+    .mx_Dialog_wrapper,
+    .mx_Dialog,
+    .mx_ErrorDialog,
+    .mx_QuestionDialog,
+    .mx_BaseDialog {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    /* Hide toast notifications */
+    [class*="Toast"],
+    [class*="toast"],
+    [class*="Notification"] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+}
+
+/* ============================================
+   SETTINGS RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_SettingsTab {
+        padding: 16px;
+    }
+
+    .mx_SettingsTab_heading {
+        font-size: $font-18px;
+        margin-bottom: 16px;
+    }
+
+    .mx_SettingsSection {
+        margin-bottom: 24px;
+    }
+
+    .mx_SettingsSubsection {
+        margin-bottom: 16px;
+    }
+
+    .mx_SettingsSubsection_heading {
+        font-size: $font-16px;
+    }
+
+    .mx_FieldRow {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .mx_FieldRow_label {
+        width: 100%;
+    }
+
+    .mx_FieldRow_field {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   FORMS AND INPUTS RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    textarea,
+    select {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    textarea {
+        min-height: 100px;
+    }
+
+    label {
+        font-size: $font-14px;
+        margin-bottom: 8px;
+        display: block;
+    }
+}
+
+/* ============================================
+   BUTTONS RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_AccessibleButton {
+        min-height: 44px;
+        padding: 12px 16px;
+        font-size: $font-15px;
+    }
+
+    .mx_AccessibleButton_kind_primary {
+        width: 100%;
+    }
+
+    button.mx_AccessibleButton {
+        min-height: 44px;
+    }
+}
+
+/* ============================================
+   TOOLTIPS AND CONTEXT MENUS RESPONSIVE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    .mx_ContextualMenu {
+        max-width: calc(100vw - 32px);
+        width: auto;
+    }
+
+    .mx_ContextualMenu_item {
+        padding: 14px 16px;
+        min-height: 44px;
+    }
+}
+
+/* ============================================
+   DEVELOPER TOOLS - DISABLE ON MOBILE
+   ============================================ */
+
+@media screen and (max-width: 767px) {
+    /* Hide developer tools dialog completely on mobile */
+    .mx_DevtoolsDialog_wrapper,
+    .mx_DevtoolsDialog,
+    .mx_DevTools,
+    .mx_DevTools_button,
+    .mx_DevTools_label_left,
+    .mx_DevTools_label_right,
+    .mx_DevTools_label_bottom {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+    
+    /* Hide developer tools option in context menus */
+    .mx_IconizedContextMenu_developerTools {
+        display: none !important;
+    }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Hide on mobile */
+@media screen and (max-width: 767px) {
+    .mx_hideOnMobile {
+        display: none !important;
+    }
+}
+
+/* Show only on mobile */
+.mx_showOnMobile {
+    display: none !important;
+}
+
+@media screen and (max-width: 767px) {
+    .mx_showOnMobile {
+        display: block !important;
+    }
+}
+
+/* Hide on tablet */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+    .mx_hideOnTablet {
+        display: none !important;
+    }
+}
+
+/* Show only on tablet */
+.mx_showOnTablet {
+    display: none !important;
+}
+
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+    .mx_showOnTablet {
+        display: block !important;
+    }
+}
+
+/* ============================================
+   TOUCH OPTIMIZATIONS
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+    /* Touch device optimizations */
+    * {
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    }
+
+    button, a, .mx_AccessibleButton {
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Larger touch targets */
+    .mx_IconButton {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* ============================================
+   LANDSCAPE ORIENTATION
+   ============================================ */
+
+@media screen and (max-width: 767px) and (orientation: landscape) {
+    .mx_AuthBody {
+        padding: 16px;
+    }
+
+    .mx_Dialog {
+        padding: 16px;
+    }
+
+    .mx_RoomHeader {
+        padding: 8px 16px;
+        min-height: 48px;
+    }
+}

@@ -125,6 +125,13 @@ export default class MFileBody extends React.Component<IProps, IState> {
     }
 
     private get fileName(): string {
+        const voiceFileName = this.content["org.matrix.msc1767.file"]?.name;
+        if (this.content.filename && this.content.filename.length > 0) {
+            return this.content.filename;
+        }
+        if (voiceFileName && voiceFileName.length > 0) {
+            return voiceFileName;
+        }
         return this.content.body && this.content.body.length > 0 ? this.content.body : _t("common|attachment");
     }
 

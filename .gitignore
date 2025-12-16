@@ -22,6 +22,8 @@ electron/pub
 /webpack-stats.json
 .vscode
 .vscode/
+.cursor
+.cursor/
 .env
 /coverage
 # Auto-generated file

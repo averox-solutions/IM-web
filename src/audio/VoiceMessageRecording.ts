@@ -9,6 +9,7 @@ Please see LICENSE files in the repository root for full details.
 import { type MatrixClient } from "matrix-js-sdk/src/matrix";
 import { type EncryptedFile } from "matrix-js-sdk/src/types";
 import { type SimpleObservable } from "matrix-widget-api";
+import { logger } from "matrix-js-sdk/src/logger";
 
 import { uploadFile } from "../ContentMessages";
 import { concat } from "../utils/arrays";
@@ -112,7 +113,11 @@ export class VoiceMessageRecording implements IDestroyable {
      */
     public getPlayback(): Playback {
         this.playback = Singleflight.for(this, "playback").do(() => {
-            return new Playback(this.audioBuffer.buffer, this.voiceRecording.amplitudes); // cast to ArrayBuffer proper;
+            // Clone the ArrayBuffer to avoid detachment issues when decoding
+            // decodeAudioData detaches the buffer, so we need a copy for playback
+            const buffer = this.audioBuffer.buffer;
+            const clonedBuffer = buffer.slice(0); // Create a copy that won't be detached
+            return new Playback(clonedBuffer, this.voiceRecording.amplitudes);
         });
         return this.playback;
     }
@@ -126,12 +131,18 @@ export class VoiceMessageRecording implements IDestroyable {
 
         try {
             this.emit(RecordingState.Uploading);
+            
+            // Create blob with proper WAV MIME type
+            const blob = new Blob([this.audioBuffer], {
+                type: "audio/wav", // Use standard WAV MIME type
+            });
+            
+            logger.log(`Uploading voice message: size=${blob.size} bytes, type=${blob.type}, contentType=${this.contentType}`);
+            
             const { url: mxc, file: encrypted } = await uploadFile(
                 this.matrixClient,
                 inRoomId,
-                new Blob([this.audioBuffer], {
-                    type: this.contentType,
-                }),
+                blob,
             );
             this.lastUpload = { mxc, encrypted };
             this.emit(RecordingState.Uploaded);
@@ -148,6 +159,14 @@ export class VoiceMessageRecording implements IDestroyable {
 
     public get contentType(): string {
         return this.voiceRecording.contentType;
+    }
+
+    public get codec(): string {
+        return this.voiceRecording.codec;
+    }
+
+    public get container(): string {
+        return this.voiceRecording.container;
     }
 
     public get contentLength(): number {

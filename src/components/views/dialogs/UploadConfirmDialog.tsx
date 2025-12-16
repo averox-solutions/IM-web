@@ -1,16 +1,10 @@
 import React from "react";
 import { FilesIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
-import { fetchUserTokenAndPlatform } from "../../../utils/userdetails";
 import { _t } from "../../../languageHandler";
 import { getBlobSafeMimeType } from "../../../utils/blobs";
 import BaseDialog from "./BaseDialog";
 import DialogButtons from "../elements/DialogButtons";
 import { fileSize } from "../../../utils/FileUtils";
-
-// Base URL for backend services (e.g., notifications), configurable via env
-// Primary: REACT_APP_NOTIFCATIONURL (as requested), Fallbacks: REACT_APP_BACKEND_URL, localhost
-const NOTIFICATION_API_BASE_URL =
-    process.env.REACT_APP_NOTIFCATIONURL ||  "http://localhost:4000";
 
 interface IProps {
     file: File;
@@ -63,18 +57,6 @@ export default class UploadConfirmDialog extends React.Component<IProps, IState>
         this.props.onFinished(false);
     };
 
-    private getFileCategory(fileName: string): string {
-        const extension = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase() : "";
-
-        if (["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"].includes(extension)) return "image";
-        if (["mp4", "mov", "avi", "mkv", "webm"].includes(extension)) return "video";
-        if (["mp3", "wav", "ogg", "aac", "flac"].includes(extension)) return "audio";
-        if (["pdf", "doc", "docx", "txt", "rtf"].includes(extension)) return "document";
-        if (["xls", "xlsx", "csv"].includes(extension)) return "spreadsheet";
-        if (["ppt", "pptx"].includes(extension)) return "presentation";
-        return "other";
-    }
-
     // Block logic (by extension + MIME)
     private isFileDisallowed(fileName: string, mimeType: string): { blocked: boolean; reason: string } {
         const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase() : "";
@@ -96,65 +78,6 @@ export default class UploadConfirmDialog extends React.Component<IProps, IState>
         return { blocked: false, reason: "" };
     }
 
-    // Helper: read mx_user_id from localStorage and return a nice display name
-    private getLocalDisplayNameFromMxUserId(): string {
-        try {
-            const raw = (localStorage.getItem("mx_user_id") || "").trim();
-            if (!raw) return "Unknown";
-
-            let s = raw.startsWith("@") ? raw.slice(1) : raw;
-            const colonIdx = s.indexOf(":");
-            if (colonIdx !== -1) s = s.slice(0, colonIdx);
-
-            s = s
-                .split(/[._-]+/g)
-                .filter(Boolean)
-                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                .join(" ");
-
-            return s || "Unknown";
-        } catch {
-            return "Unknown";
-        }
-    }
-
-    private async notifyPushNotifications(): Promise<void> {
-        try {
-            const savedCallData = JSON.parse(localStorage.getItem("activeCallData") || "{}");
-            const { toUserIds, groupName, senderId } = savedCallData;
-
-            if (!Array.isArray(toUserIds) || toUserIds.length === 0) {
-                console.warn("❌ No valid user IDs found in localStorage to send notifications.");
-                return;
-            }
-
-            const fileCategory = this.getFileCategory(this.props.file.name);
-            const cleanedLocalName = this.getLocalDisplayNameFromMxUserId();
-            const targetName = groupName || cleanedLocalName || senderId;
-
-            for (const userId of toUserIds) {
-                try {
-
-                    await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            userId: userId,
-                            notificationTitle: targetName,
-                            notificationBody: fileCategory,
-                        }),
-                    });
-
-                    console.log(`Notification sent to ${userId}`);
-                } catch (e) {
-                    console.warn(`Failed to send FCM to ${userId}`, e);
-                }
-            }
-        } catch (error) {
-            console.error("❌ Error notifying push notifications:", error);
-        }
-    }
-
     private onUploadClick = (): void => {
         if (this.state.isBlocked) {
             console.warn("Blocked upload attempt for disallowed file type.");
@@ -166,7 +89,6 @@ export default class UploadConfirmDialog extends React.Component<IProps, IState>
         console.log("Uploading file name:", name);
         console.log("Uploading file extension:", extension);
 
-        this.notifyPushNotifications();
         this.props.onFinished(true);
     };
 
