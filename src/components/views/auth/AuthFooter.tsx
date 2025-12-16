@@ -13,10 +13,12 @@ import { _t } from "../../../languageHandler";
 
 const AuthFooter = (): ReactElement => {
     // Beep information links for login/registration pages
+    // Get version from process.env.VERSION (set by webpack) or fallback to package.json version
+    const appVersion = process.env.VERSION || "4.1.1";
 
     return (
         <footer className="mx_AuthFooter" role="contentinfo">
-            <span className="mx_AuthFooter_version">Version 4.1</span>
+            <span className="mx_AuthFooter_version">Version {appVersion}</span>
         </footer>
     );
 };
