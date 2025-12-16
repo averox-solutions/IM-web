@@ -276,51 +276,22 @@ async function start(): Promise<void> {
     })();
     }
 
-    // Disable browser context menu but allow app context menus to work
-    // We check for app-specific elements that should have context menus
-    document.addEventListener('contextmenu', (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        if (!target) return;
-        
-        // Check if clicking on elements that should have app context menus
-        // These are elements where the app has custom right-click functionality
-        const hasAppContextMenu = 
-            // Message tiles and related elements
-            target.closest('.mx_EventTile') ||
-            target.closest('.mx_EventTile_line') ||
-            target.closest('.mx_EventTileBubble') ||
-            target.closest('.mx_MessageTimestamp') ||
-            // Room tiles and list items
-            target.closest('.mx_RoomTile') ||
-            target.closest('.mx_RoomList') ||
-            // Context menu buttons and menus
-            target.closest('.mx_ContextMenuButton') ||
-            target.closest('[class*="ContextMenu"]') ||
-            target.closest('[class*="IconizedContextMenu"]') ||
-            // Space panels
-            target.closest('.mx_SpacePanel') ||
-            // User avatars
-            target.closest('.mx_BaseAvatar') ||
-            target.closest('.mx_UserMenu') ||
-            // Right panel elements
-            target.closest('.mx_RightPanel') ||
-            // Any element with data attributes indicating context menu support
-            target.closest('[data-context-menu]') ||
-            // Input fields and text areas (allow browser context menu for text selection)
-            target.tagName === 'INPUT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.isContentEditable ||
-            // Links (allow browser context menu for links)
-            target.tagName === 'A' ||
-            target.closest('a');
-        
-        // If no app context menu element found, prevent browser context menu
-        // This allows React's onContextMenu handlers to work for app elements
-        if (!hasAppContextMenu) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    }, true); // Use capture phase to intercept before React, but allow app elements through
+    // Disable browser's native right-click context menu everywhere
+    // This prevents the browser's default context menu from appearing
+    // but allows React's onContextMenu handlers to work normally
+    const preventBrowserContextMenu = (e: MouseEvent) => {
+        // Only prevent the default browser context menu
+        // Don't stop propagation so React handlers can still fire
+        e.preventDefault();
+    };
+    
+    // Use capture phase on document to catch ALL contextmenu events early,
+    // including those in dialogs, menus, and dynamically created elements
+    // Capture phase fires before any child element handlers, ensuring we catch everything
+    document.addEventListener('contextmenu', preventBrowserContextMenu, true);
+    
+    // Also add to window as a fallback for edge cases
+    window.addEventListener('contextmenu', preventBrowserContextMenu, true);
 
     const {
         rageshakePromise,
