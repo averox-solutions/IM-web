@@ -598,10 +598,10 @@ const AddThreepidSection: React.FC<{ medium: "email" | "msisdn"; disabled?: bool
                     } else {
                         // Use getCustomThreepidErrorMessage for other errors
                         const customErrorMsg = getCustomThreepidErrorMessage(err, medium);
-                        Modal.createDialog(ErrorDialog, {
-                            title: medium === "email" ? _t("settings|general|error_add_email") : _t("common|error"),
+                    Modal.createDialog(ErrorDialog, {
+                        title: medium === "email" ? _t("settings|general|error_add_email") : _t("common|error"),
                             description: customErrorMsg,
-                        });
+                    });
                     }
                 });
         },
