@@ -83,6 +83,8 @@ import { getLateEventInfo } from "../../structures/grouper/LateEventGrouper";
 import PinningUtils from "../../../utils/PinningUtils";
 import { PinnedMessageBadge } from "../messages/PinnedMessageBadge";
 import { EventPreview } from "./EventPreview";
+import DMRoomMap from "../../../utils/DMRoomMap";
+import { MEGOLM_ENCRYPTION_ALGORITHM } from "../../../utils/crypto";
 
 export type GetRelationsForEvent = (
     eventId: string,
@@ -910,6 +912,27 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
             ev.preventDefault();
             ev.stopPropagation();
             return;
+        }
+
+        // Don't show context menu for encryption enabled events (especially enabled_dm pattern)
+        if (this.props.mxEvent.getType() === EventType.RoomEncryption) {
+            const content = this.props.mxEvent.getContent();
+            const prevContent = this.props.mxEvent.getPrevContent();
+            const roomId = this.props.mxEvent.getRoomId();
+            
+            // Check if it's the "enabled_dm" pattern: encryption just enabled in a DM
+            // This matches the logic in EncryptionEvent.tsx line 44-46
+            if (roomId && content.algorithm === MEGOLM_ENCRYPTION_ALGORITHM) {
+                const dmPartner = DMRoomMap.shared().getUserIdForRoomId(roomId);
+                
+                // If it's a DM and encryption was just enabled (prevContent doesn't have algorithm)
+                // This is the "enabled_dm" pattern
+                if (dmPartner && prevContent?.algorithm !== MEGOLM_ENCRYPTION_ALGORITHM) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    return;
+                }
+            }
         }
 
         ev.preventDefault();

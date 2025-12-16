@@ -149,7 +149,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
     };
 
     const isFavorite = roomTags.includes(DefaultTagID.Favourite);
-    const favoriteOption: JSX.Element = (
+    const favoriteOption: React.ReactElement = (
         <IconizedContextMenuCheckbox
             onClick={wrapHandler((ev) => onTagRoom(ev, DefaultTagID.Favourite), onPostFavoriteClick, true)}
             active={isFavorite}
@@ -159,7 +159,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
     );
 
     const isLowPriority = roomTags.includes(DefaultTagID.LowPriority);
-    const lowPriorityOption: JSX.Element = (
+    const lowPriorityOption: React.ReactElement = (
         <IconizedContextMenuCheckbox
             onClick={wrapHandler((ev) => onTagRoom(ev, DefaultTagID.LowPriority), onPostLowPriorityClick, true)}
             active={isLowPriority}
@@ -168,7 +168,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
         />
     );
 
-    let inviteOption: JSX.Element | null = null;
+    let inviteOption: React.ReactElement | null = null;
     if (room.canInvite(cli.getUserId()!) && !isDm && shouldShowComponent(UIComponent.InviteUsers)) {
         inviteOption = (
             <IconizedContextMenuOption
@@ -186,40 +186,26 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
         );
     }
 
-    let copyLinkOption: JSX.Element | null = null;
-    if (!isDm) {
-        copyLinkOption = (
-            <IconizedContextMenuOption
-                onClick={wrapHandler(
-                    () =>
-                        dis.dispatch({
-                            action: "copy_room",
-                            room_id: room.roomId,
-                        }),
-                    onPostCopyLinkClick,
-                )}
-                label={_t("room|context_menu|copy_link")}
-                iconClassName="mx_RoomGeneralContextMenu_iconCopyLink"
-            />
-        );
-    }
+    // let copyLinkOption: JSX.Element | null = null;
+    // if (!isDm) {
+    //     copyLinkOption = (
+    //         <IconizedContextMenuOption
+    //             onClick={wrapHandler(
+    //                 () =>
+    //                     dis.dispatch({
+    //                         action: "copy_room",
+    //                         room_id: room.roomId,
+    //                     }),
+    //                 onPostCopyLinkClick,
+    //             )}
+    //             label={_t("room|context_menu|copy_link")}
+    //             iconClassName="mx_RoomGeneralContextMenu_iconCopyLink"
+    //         />
+    //     );
+    // }
 
-    const settingsOption: JSX.Element = (
-        <IconizedContextMenuOption
-            onClick={wrapHandler(
-                () =>
-                    dis.dispatch({
-                        action: "open_room_settings",
-                        room_id: room.roomId,
-                    }),
-                onPostSettingsClick,
-            )}
-            label={_t("common|settings")}
-            iconClassName="mx_RoomGeneralContextMenu_iconSettings"
-        />
-    );
 
-    let leaveOption: JSX.Element;
+    let leaveOption: React.ReactElement;
     if (roomTags.includes(DefaultTagID.Archived)) {
         leaveOption = (
             <IconizedContextMenuOption
@@ -255,7 +241,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
     }
 
     const { level } = useUnreadNotifications(room);
-    const markAsReadOption: JSX.Element | null = (() => {
+    const markAsReadOption: React.ReactElement | null = (() => {
         if (level > NotificationLevel.None) {
             return (
                 <IconizedContextMenuOption
