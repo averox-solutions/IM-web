@@ -76,6 +76,10 @@ import { isVideoRoom as calcIsVideoRoom } from "../../../utils/video-rooms";
 import { usePinnedEvents } from "../../../hooks/usePinnedEvents";
 import { ReleaseAnnouncement } from "../../structures/ReleaseAnnouncement.tsx";
 import { useScopedRoomContext } from "../../../contexts/ScopedRoomContext.tsx";
+import RoomListActions from "../../../actions/RoomListActions";
+import { bulkDeleteEventsForMe } from "../../../utils/room/deleteForMe";
+import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
+import { SdkContextClass } from "../../../contexts/SDKContext";
 
 interface IProps {
     room: Room;
@@ -165,11 +169,42 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
         Modal.createDialog(PollHistoryDialog, { room, matrixClient: cli, permalinkCreator });
     };
 
-    const onLeaveRoomClick = (): void => {
+    const onLeaveRoomClick = async (): Promise<void> => {
+        if (isDirectMessage) {
+            // For 1‑1 chats, treat "leave" as applying the 1‑1 leave tag instead of actually leaving the room.
+            // Mirrors the behaviour of the left-panel 1‑1 Leave Chat option.
+            defaultDispatcher.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+
+            // Close right panel and, if we're currently viewing this DM, go back to home.
+            RightPanelStore.instance.hide(null);
+            RightPanelStore.instance.reset();
+            if (SdkContextClass.instance.roomViewStore.getRoomId() === room.roomId) {
+                defaultDispatcher.dispatch({ action: Action.ViewHomePage });
+            }
+
+            // Delete all messages for current user via custom API and hide them locally.
+            try {
+                const ok = await bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true });
+                if (ok) {
+                    const events = room.getLiveTimeline().getEvents();
+                    const ids = events.map((e) => e.getId()).filter((id): id is string => !!id);
+                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
+                }
+            } catch (e) {
+                console.error(
+                    `Failed to bulk delete events for room ${room.roomId} after applying leave tag from RoomSummaryCard:`,
+                    e,
+                );
+            }
+
+            return;
+        }
+
+        // Non‑DM: keep existing "leave room" behaviour.
         defaultDispatcher.dispatch({
             action: (Action as any)?.LeaveRoom ?? "leave_room",
             room_id: room.roomId,
-          });
+        });
     };
 
     const isRoomEncrypted = useIsEncrypted(cli, room);
@@ -347,7 +382,9 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
                 <MenuItem
                     Icon={LeaveIcon}
                     kind="critical"
-                    label={_t("action|leave_room")}
+                    label={
+                        isDirectMessage ? _t("room|context_menu|leave_1_1_chat") : _t("action|leave_room")
+                    }
                     onSelect={onLeaveRoomClick}
                 />
             </div>

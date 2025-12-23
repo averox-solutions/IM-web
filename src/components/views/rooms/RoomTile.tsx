@@ -533,13 +533,13 @@ class RoomTile extends React.PureComponent<Props, State> {
         });
 
         const tagLabel = this.getTagLabel();
-        const displayName = tagLabel ? `${name} [${tagLabel}]` : name;
+        const displayName = /* tagLabel ? `${name} [${tagLabel}]` : */ name;
 
         const titleContainer = this.props.isMinimized ? null : (
             <div className="mx_RoomTile_titleContainer">
                 <div title={displayName} className={titleClasses} tabIndex={-1}>
                     <span dir="auto">{name}</span>
-                    {tagLabel && <span className="mx_RoomTile_tagLabel"> [{tagLabel}]</span>}
+                    {/* {tagLabel && <span className="mx_RoomTile_tagLabel"> [{tagLabel}]</span>} */}
                 </div>
                 {subtitle}
             </div>

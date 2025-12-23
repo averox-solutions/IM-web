@@ -23,6 +23,8 @@ import { getOtherUserTagStatus } from "../../../../../utils/room/getOtherUserTag
 import { bulkUpdateRoomTags } from "../../../../../utils/room/bulkUpdateRoomTags";
 import SettingsStore from "../../../../../settings/SettingsStore";
 import RoomListActions from "../../../../../actions/RoomListActions";
+import RoomListStore from "../../../../../stores/room-list/RoomListStore";
+import { DefaultTagID } from "../../../../../stores/room-list/models";
 import dis from "../../../../../dispatcher/dispatcher";
 import { decorateStartSendingTime, sendRoundTripMetric } from "../../../../../sendTimePerformanceMetrics";
 import { doMaybeLocalRoomAction } from "../../../../../utils/local-room";
@@ -212,61 +214,75 @@ async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: stri
             return;
         }
 
+        // First check *our* side: is this DM in our 1-1 Leave section?
+        const myRoomListTags = RoomListStore.instance.getTagsForRoom(room);
+        const currentUserHasLeaveTag = myRoomListTags.includes(DefaultTagID.OneOnOneChatLeave);
+        logger.log(
+            `[checkAndUpdateTagsAfterMessage] Current user RoomList tags for ${roomId}: ${JSON.stringify(
+                myRoomListTags,
+            )}, hasLeave=${currentUserHasLeaveTag}`,
+        );
+
+        // Then check the other user's tag status (their side)
         logger.log(`[checkAndUpdateTagsAfterMessage] Fetching other user's tag status...`);
-        // Fetch the other user's tag status first
         const otherUserTagStatus = await getOtherUserTagStatus(client, room);
         logger.log(`[checkAndUpdateTagsAfterMessage] Other user tag status:`, otherUserTagStatus);
-        
-        if (!otherUserTagStatus?.tags) {
-            // Could not fetch other user's tags, skip
-            logger.log(`[checkAndUpdateTagsAfterMessage] Could not fetch other user's tag status for room ${roomId}`);
+
+        const otherUserHasLeaveTag = !!otherUserTagStatus?.tags?.["m.leave-1-1-chat"];
+        logger.log(`[checkAndUpdateTagsAfterMessage] Other user has leave tag: ${otherUserHasLeaveTag}`);
+
+        // If neither side has the leave tag, nothing to do
+        if (!currentUserHasLeaveTag && !otherUserHasLeaveTag) {
+            logger.log(
+                `[checkAndUpdateTagsAfterMessage] Neither current user nor other user has leave tag for room ${roomId}, skipping`,
+            );
             return;
         }
 
-        // Check if other user has the "leave" tag
-        const otherUserHasLeaveTag = !!otherUserTagStatus.tags["m.leave-1-1-chat"];
-        logger.log(`[checkAndUpdateTagsAfterMessage] Other user has leave tag: ${otherUserHasLeaveTag}`);
-
-        if (otherUserHasLeaveTag) {
-            // Only proceed if *this* user's room currently has the leave tag.
-            // If we don't have the tag locally, there's nothing to remove, so don't hit the bulk API.
-            const myLeaveTag = room.tags["m.leave-1-1-chat"];
-            const currentUserHasLeaveTag = !!myLeaveTag;
-            logger.log(
-                `[checkAndUpdateTagsAfterMessage] Current user has leave tag: ${currentUserHasLeaveTag} for room ${roomId}`,
-            );
-
-            if (!currentUserHasLeaveTag) {
-                logger.log(
-                    `[checkAndUpdateTagsAfterMessage] Current user does not have leave tag for room ${roomId}, skipping bulkUpdateRoomTags`,
+        // Determine IDs once
+        const myUserId = client.getSafeUserId();
+        let otherUserId = DMRoomMap.shared().getUserIdForRoomId(roomId);
+        if (!otherUserId) {
+            const otherMember = room.getJoinedMembers().find((m) => m.userId !== myUserId);
+            if (!otherMember) {
+                logger.warn(
+                    `[checkAndUpdateTagsAfterMessage] Could not determine other user ID for room ${roomId} when calling bulkUpdateRoomTags`,
                 );
-                return;
-            }
-
-            // Other user has leave tag (their chat is in leave section)
-            // Remove leave tag from current user to move chat to People section
-            logger.log(
-                `[checkAndUpdateTagsAfterMessage] Other user has leave tag, removing it from current user's tags for room ${roomId} to move chat to People section`,
-            );
-
-            // Determine the other user's ID (targetUserId for bulk_tag_update)
-            let otherUserId = DMRoomMap.shared().getUserIdForRoomId(roomId);
-            if (!otherUserId) {
-                const myUserId = client.getSafeUserId();
-                const otherMember = room.getJoinedMembers().find((m) => m.userId !== myUserId);
-                if (!otherMember) {
-                    logger.warn(
-                        `[checkAndUpdateTagsAfterMessage] Could not determine other user ID for room ${roomId} when calling bulkUpdateRoomTags`,
-                    );
-                    return;
-                }
+            } else {
                 otherUserId = otherMember.userId;
             }
+        }
 
-            // Call custom bulk update API so you can see it on the server side
+        // 1) If *we* have the leave tag, remove it for ourselves (move chat from 1-1 Leave to People)
+        if (currentUserHasLeaveTag) {
             try {
                 logger.log(
-                    `[checkAndUpdateTagsAfterMessage] Calling bulkUpdateRoomTags to remove m.leave-1-1-chat for room ${roomId} and user ${otherUserId}`,
+                    `[checkAndUpdateTagsAfterMessage] Current user has leave tag, removing it for user ${myUserId} in room ${roomId}`,
+                );
+                await bulkUpdateRoomTags(client, myUserId, [
+                    {
+                        room_id: roomId,
+                        action: "remove",
+                        tag: "m.leave-1-1-chat",
+                    },
+                ]);
+                dis.dispatch(RoomListActions.tagRoom(client, room, "m.leave-1-1-chat", null, 0));
+                logger.log(
+                    `[checkAndUpdateTagsAfterMessage] Removed leave tag for current user and updated RoomList for room ${roomId}`,
+                );
+            } catch (e) {
+                logger.error(
+                    `[checkAndUpdateTagsAfterMessage] Failed to remove leave tag for current user via bulkUpdateRoomTags in room ${roomId}:`,
+                    e,
+                );
+            }
+        }
+
+        // 2) If the *other user* has leave tag, remove it on their side too
+        if (otherUserHasLeaveTag && otherUserId) {
+            try {
+                logger.log(
+                    `[checkAndUpdateTagsAfterMessage] Removing leave tag for other user ${otherUserId} in room ${roomId} via bulkUpdateRoomTags`,
                 );
                 await bulkUpdateRoomTags(client, otherUserId, [
                     {
@@ -276,30 +292,14 @@ async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: stri
                     },
                 ]);
                 logger.log(
-                    `[checkAndUpdateTagsAfterMessage] bulkUpdateRoomTags completed successfully for room ${roomId}`,
+                    `[checkAndUpdateTagsAfterMessage] Successfully requested leave tag removal for other user ${otherUserId} in room ${roomId}`,
                 );
-            } catch (bulkError) {
+            } catch (e) {
                 logger.error(
-                    `[checkAndUpdateTagsAfterMessage] bulkUpdateRoomTags failed for room ${roomId}:`,
-                    bulkError,
+                    `[checkAndUpdateTagsAfterMessage] Failed to remove leave tag for other user ${otherUserId} via bulkUpdateRoomTags in room ${roomId}:`,
+                    e,
                 );
             }
-
-            // Also update local/UI state using the existing dispatcher/tagRoom flow
-            try {
-                logger.log(
-                    `[checkAndUpdateTagsAfterMessage] Dispatching RoomListActions.tagRoom to update UI state for room ${roomId}`,
-                );
-                dis.dispatch(RoomListActions.tagRoom(client, room, "m.leave-1-1-chat", null, 0));
-                logger.log(`[checkAndUpdateTagsAfterMessage] Dispatched tag removal action for room ${roomId}`);
-            } catch (dispatchError) {
-                logger.error(
-                    `[checkAndUpdateTagsAfterMessage] Failed to dispatch tag removal action for room ${roomId}:`,
-                    dispatchError,
-                );
-            }
-        } else {
-            logger.log(`[checkAndUpdateTagsAfterMessage] Other user does not have leave tag for room ${roomId}, no action needed`);
         }
     } catch (error) {
         logger.error("[checkAndUpdateTagsAfterMessage] Error checking and updating tags after message:", error);

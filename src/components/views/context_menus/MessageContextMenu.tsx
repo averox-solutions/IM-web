@@ -407,7 +407,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
             redactButton = (
                 <IconizedContextMenuOption
                     iconClassName="mx_MessageContextMenu_iconRedact"
-                    label={_t("action|remove")}
+                    label={"Remove for everyone"}
                     onClick={this.onRedactClick}
                 />
             );

@@ -122,7 +122,7 @@
 //     const showInviteUsers = shouldShowComponent(UIComponent.InviteUsers);
 
 //     if (activeSpace && (showCreateRooms || showInviteUsers)) {
-//         let contextMenu: JSX.Element | undefined;
+//         let contextMenu: React.ReactNode;
 //         if (menuDisplayed && handle.current) {
 //             const canInvite = shouldShowSpaceInvite(activeSpace);
 
@@ -224,7 +224,7 @@
 //     const videoRoomsEnabled = useFeatureEnabled("feature_video_rooms");
 //     const elementCallVideoRoomsEnabled = useFeatureEnabled("feature_element_call_video_rooms");
 
-//     let contextMenuContent: JSX.Element | undefined;
+//     let contextMenuContent: React.ReactNode;
 //     if (menuDisplayed && activeSpace) {
 //         const canAddRooms = activeSpace.currentState.maySendStateEvent(
 //             EventType.SpaceChild,
@@ -352,7 +352,7 @@
 //         );
 //     }
 
-//     let contextMenu: JSX.Element | null = null;
+//     let contextMenu: React.ReactNode = null;
 //     if (menuDisplayed && handle.current) {
 //         contextMenu = (
 //             <IconizedContextMenu {...auxButtonContextMenuPosition(handle.current)} onFinished={closeMenu} compact>
@@ -891,7 +891,6 @@ export const TAG_ORDER: TagID[] = [
     DefaultTagID.Conference,
     DefaultTagID.LowPriority,
     DefaultTagID.OneOnOneLeftChat,
-    DefaultTagID.OneOnOneChatLeave,
     DefaultTagID.Suggested,
     // DefaultTagID.Archived isn't here any more: we don't show it at all.
     // The section still exists in the code as a place for rooms that we know
@@ -931,7 +930,7 @@ const DmAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex, dispatcher = default
     const showInviteUsers = shouldShowComponent(UIComponent.InviteUsers);
 
     if (activeSpace && (showCreateRooms || showInviteUsers)) {
-        let contextMenu: JSX.Element | undefined;
+        let contextMenu: React.ReactNode;
         if (menuDisplayed && handle.current) {
             const canInvite = shouldShowSpaceInvite(activeSpace);
 
@@ -1034,7 +1033,7 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
     const videoRoomsEnabled = useFeatureEnabled("feature_video_rooms");
     const elementCallVideoRoomsEnabled = useFeatureEnabled("feature_element_call_video_rooms");
 
-    let contextMenuContent: JSX.Element | undefined;
+    let contextMenuContent: React.ReactNode;
     if (menuDisplayed && activeSpace) {
         const canAddRooms = activeSpace.currentState.maySendStateEvent(
             EventType.SpaceChild,
@@ -1162,7 +1161,7 @@ const UntaggedAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex }) => {
         );
     }
 
-    let contextMenu: JSX.Element | null = null;
+    let contextMenu: React.ReactNode = null;
     if (menuDisplayed && handle.current) {
         contextMenu = (
             <IconizedContextMenu {...auxButtonContextMenuPosition(handle.current)} onFinished={closeMenu} compact>
@@ -1247,12 +1246,12 @@ const TAG_AESTHETICS: TagAestheticsMap = {
     [DefaultTagID.OneOnOneLeftChat]: {
         sectionLabel: _td("common|1-1_left_chat"),
         isInvite: false,
-        defaultHidden: false,
+        defaultHidden: true,
     },
     [DefaultTagID.OneOnOneChatLeave]: {
         sectionLabel: _td("common|1-1_leave_chat"),
         isInvite: false,
-        defaultHidden: false,
+        defaultHidden: true,
     },
 
     // TODO: Replace with archived view: https://github.com/vector-im/element-web/issues/14038

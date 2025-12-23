@@ -1236,7 +1236,7 @@
     },
     "file_panel": {
         "empty_description": "Attach files from chat or just drag and drop them anywhere in a Group.",
-        "empty_heading": "No files visible in this Group",
+        "empty_heading": "No files Found",
         "guest_note": "You must <a>register</a> to use this functionality",
         "peek_note": "You must join the Groups to see its files"
     },
@@ -1914,7 +1914,7 @@
             "copy_link": "Copy Groups link",
             "favourite": "Favourite",
             "forget": "Forget Group",
-            "leave_1_1_chat": "Leave 1-1 chat",
+            "leave_1_1_chat": "Leave",
             "low_priority": "Archive",
             "mark_read": "Mark as read",
             "mark_unread": "Mark as unread",

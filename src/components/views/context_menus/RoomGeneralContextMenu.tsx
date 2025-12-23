@@ -27,6 +27,8 @@ import { getOtherUserTagStatus, type TagStatusResponse } from "../../../utils/ro
 import { bulkDeleteEventsForMe } from "../../../utils/room/deleteForMe";
 import RightPanelStore from "../../../stores/right-panel/RightPanelStore";
 import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
+import { SdkContextClass } from "../../../contexts/SDKContext";
+import { Action } from "../../../dispatcher/actions";
 import { type IProps as IContextMenuProps } from "../../structures/ContextMenu";
 import IconizedContextMenu, {
     IconizedContextMenuCheckbox,
@@ -234,8 +236,13 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                         .then(async () => {
                             dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
                             if (isDm) {
-                                // Close right panel for the currently viewed room
+                                // Close right panel and clear its selection/history
                                 RightPanelStore.instance.hide(null);
+                                RightPanelStore.instance.reset();
+                                // If we are currently viewing this DM, leave the room view as well
+                                if (SdkContextClass.instance.roomViewStore.getRoomId() === room.roomId) {
+                                    dis.dispatch({ action: Action.ViewHomePage });
+                                }
 
                                 // Call backend to delete all messages for me
                                 const ok = await bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true });
@@ -253,6 +260,10 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                             dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
                             if (isDm) {
                                 RightPanelStore.instance.hide(null);
+                                RightPanelStore.instance.reset();
+                                if (SdkContextClass.instance.roomViewStore.getRoomId() === room.roomId) {
+                                    dis.dispatch({ action: Action.ViewHomePage });
+                                }
                                 bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true })
                                     .then((ok) => {
                                         if (ok) {
@@ -276,6 +287,10 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                     dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
                     if (isDm) {
                         RightPanelStore.instance.hide(null);
+                        RightPanelStore.instance.reset();
+                        if (SdkContextClass.instance.roomViewStore.getRoomId() === room.roomId) {
+                            dis.dispatch({ action: Action.ViewHomePage });
+                        }
                         bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true })
                             .then((ok) => {
                                 if (ok) {
@@ -318,12 +333,13 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
         />
     );
 
-    // Only show leave 1-1 chat option for direct messages
+    // Only show leave 1-1 chat option for direct messages.
+    // For DMs, this is the primary "leave" action and is styled as a red option.
     const leaveOneOnOneChatOption: React.ReactElement | null = isDm ? (
-        <IconizedContextMenuCheckbox
+        <IconizedContextMenuOption
             onClick={wrapHandler((ev) => onTagRoom(ev, "m.leave-1-1-chat"), undefined, true)}
-            active={hasLeaveTag}
             label={_t("room|context_menu|leave_1_1_chat")}
+            className="mx_IconizedContextMenu_option_red"
             iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
         />
     ) : null;
@@ -365,39 +381,42 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
     // }
 
 
-    let leaveOption: React.ReactElement;
-    if (roomTags.includes(DefaultTagID.Archived)) {
-        leaveOption = (
-            <IconizedContextMenuOption
-                iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
-                label={_t("room|context_menu|forget")}
-                className="mx_IconizedContextMenu_option_red"
-                onClick={wrapHandler(
-                    () =>
-                        dis.dispatch({
-                            action: "forget_room",
-                            room_id: room.roomId,
-                        }),
-                    onPostForgetClick,
-                )}
-            />
-        );
-    } else {
-        leaveOption = (
-            <IconizedContextMenuOption
-                onClick={wrapHandler(
-                    () =>
-                        dis.dispatch({
-                            action: "leave_room",
-                            room_id: room.roomId,
-                        }),
-                    onPostLeaveClick,
-                )}
-                label={_t("action|leave")}
-                className="mx_IconizedContextMenu_option_red"
-                iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
-            />
-        );
+    let leaveOption: React.ReactElement | null = null;
+    // Hide the standard "Leave room" button for pure 1-1 DMs; use the red "Leave 1-1 chat" instead.
+    if (!isDm) {
+        if (roomTags.includes(DefaultTagID.Archived)) {
+            leaveOption = (
+                <IconizedContextMenuOption
+                    iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
+                    label={_t("room|context_menu|forget")}
+                    className="mx_IconizedContextMenu_option_red"
+                    onClick={wrapHandler(
+                        () =>
+                            dis.dispatch({
+                                action: "forget_room",
+                                room_id: room.roomId,
+                            }),
+                        onPostForgetClick,
+                    )}
+                />
+            );
+        } else {
+            leaveOption = (
+                <IconizedContextMenuOption
+                    onClick={wrapHandler(
+                        () =>
+                            dis.dispatch({
+                                action: "leave_room",
+                                room_id: room.roomId,
+                            }),
+                        onPostLeaveClick,
+                    )}
+                    label={_t("action|leave")}
+                    className="mx_IconizedContextMenu_option_red"
+                    iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
+                />
+            );
+        }
     }
 
     const { level } = useUnreadNotifications(room);
@@ -452,7 +471,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                 )}
                 {developerToolsOption}
             </IconizedContextMenuOptionList>
-            <IconizedContextMenuOptionList red>{leaveOption}</IconizedContextMenuOptionList>
+            {leaveOption && <IconizedContextMenuOptionList red>{leaveOption}</IconizedContextMenuOptionList>}
         </IconizedContextMenu>
     );
 };
