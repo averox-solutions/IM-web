@@ -60,11 +60,3 @@ try {
     // Don't fail the build if extraction fails
     process.exit(0);
 }
-
-
-
-
-
-
-
-

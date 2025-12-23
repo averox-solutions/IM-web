@@ -7,14 +7,14 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { logger } from "matrix-js-sdk/src/logger";
-import { type Room } from "matrix-js-sdk/src/matrix";
-import React, { useContext } from "react";
+import { type Room, RoomEvent } from "matrix-js-sdk/src/matrix";
+import React, { useContext, useMemo, useState, useCallback, useEffect } from "react";
 
 import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
 import RoomListActions from "../../../actions/RoomListActions";
 import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import dis from "../../../dispatcher/dispatcher";
-import { useEventEmitterState } from "../../../hooks/useEventEmitter";
+import { useEventEmitterState, useEventEmitter } from "../../../hooks/useEventEmitter";
 import { useUnreadNotifications } from "../../../hooks/useUnreadNotifications";
 import { getKeyBindingsManager } from "../../../KeyBindingsManager";
 import { _t } from "../../../languageHandler";
@@ -23,6 +23,7 @@ import { DefaultTagID, type TagID } from "../../../stores/room-list/models";
 import RoomListStore, { LISTS_UPDATE_EVENT } from "../../../stores/room-list/RoomListStore";
 import DMRoomMap from "../../../utils/DMRoomMap";
 import { clearRoomNotification, setMarkedUnreadState } from "../../../utils/notifications";
+import { getOtherUserTagStatus, type TagStatusResponse } from "../../../utils/room/getOtherUserTagStatus";
 import { type IProps as IContextMenuProps } from "../../structures/ContextMenu";
 import IconizedContextMenu, {
     IconizedContextMenuCheckbox,
@@ -116,6 +117,45 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
         RoomListStore.instance.getTagsForRoom(room),
     );
     const isDm = DMRoomMap.shared().getUserIdForRoomId(room.roomId);
+    
+    // State for other user's tag status
+    const [otherUserTagStatus, setOtherUserTagStatus] = useState<TagStatusResponse | null>(null);
+    const [isLoadingOtherUserTags, setIsLoadingOtherUserTags] = useState(false);
+    
+    // Fetch other user's tag status when menu opens for a 1-1 chat
+    useEffect(() => {
+        if (isDm && cli) {
+            setIsLoadingOtherUserTags(true);
+            getOtherUserTagStatus(cli, room)
+                .then((status) => {
+                    setOtherUserTagStatus(status);
+                    if (status) {
+                        logger.log("Other user's tag status:", status);
+                    }
+                })
+                .catch((error) => {
+                    logger.error("Failed to fetch other user's tag status:", error);
+                })
+                .finally(() => {
+                    setIsLoadingOtherUserTags(false);
+                });
+        }
+    }, [isDm, cli, room]);
+    
+    // Create a state that updates when room tags change
+    const [tagsUpdateTrigger, setTagsUpdateTrigger] = useState(0);
+    const onRoomTagsUpdate = useCallback(() => {
+        // Force a re-render by updating the trigger
+        setTagsUpdateTrigger((prev) => prev + 1);
+    }, []);
+    
+    // Listen to room tag changes to trigger re-render
+    // Tags are stored as account data, so we listen to both Tags and AccountData events
+    useEventEmitter(room, RoomEvent.Tags, onRoomTagsUpdate);
+    useEventEmitter(room, RoomEvent.AccountData, onRoomTagsUpdate);
+    
+    // Check room.tags directly for the actual Matrix tag name - update when tags change
+    const hasLeaveTag = useMemo(() => !!(room.tags && room.tags["m.leave-1-1-chat"]), [room.tags, tagsUpdateTrigger]);
     const wrapHandler = (
         handler: (ev: ButtonEvent) => void,
         postHandler?: (ev: ButtonEvent) => void,
@@ -142,7 +182,63 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
             const isApplied = RoomListStore.instance.getTagsForRoom(room).includes(tagId);
             const removeTag = isApplied ? tagId : inverseTag;
             const addTag = isApplied ? null : tagId;
-            dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
+            
+            // Also remove leave tag if it exists (mutually exclusive)
+            const hasLeaveTag = !!(room.tags && room.tags["m.leave-1-1-chat"]);
+            if (hasLeaveTag && !isApplied) {
+                // Remove leave tag first, then add the new tag
+                cli.deleteRoomTag(room.roomId, "m.leave-1-1-chat")
+                    .then(() => {
+                        dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
+                    })
+                    .catch((err) => {
+                        logger.error("Failed to remove leave tag: " + err);
+                        // Still proceed with adding the new tag
+                        dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
+                    });
+            } else {
+                dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
+            }
+        } else if (tagId === "m.leave-1-1-chat") {
+            // Check room.tags directly for the actual Matrix tag name
+            const isApplied = !!(room.tags && room.tags["m.leave-1-1-chat"]);
+            
+            if (isApplied) {
+                // Just remove the leave tag
+                dis.dispatch(RoomListActions.tagRoom(cli, room, "m.leave-1-1-chat", null, 0));
+            } else {
+                // Remove favourite and low priority tags first (mutually exclusive)
+                const hasFavourite = !!(room.tags && room.tags[DefaultTagID.Favourite]);
+                const hasLowPriority = !!(room.tags && room.tags[DefaultTagID.LowPriority]);
+                
+                const promises: Promise<any>[] = [];
+                
+                if (hasFavourite) {
+                    promises.push(cli.deleteRoomTag(room.roomId, DefaultTagID.Favourite).catch((err) => {
+                        logger.error("Failed to remove favourite tag: " + err);
+                    }));
+                }
+                
+                if (hasLowPriority) {
+                    promises.push(cli.deleteRoomTag(room.roomId, DefaultTagID.LowPriority).catch((err) => {
+                        logger.error("Failed to remove low priority tag: " + err);
+                    }));
+                }
+                
+                // Wait for other tags to be removed, then add leave tag
+                if (promises.length > 0) {
+                    Promise.all(promises).then(() => {
+                        dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+                    }).catch((err) => {
+                        logger.error("Failed to remove conflicting tags: " + err);
+                        // Still try to add the leave tag even if removal failed
+                        dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+                    });
+                } else {
+                    // No conflicting tags, just add the leave tag
+                    dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+                }
+            }
         } else {
             logger.warn(`Unexpected tag ${tagId} applied to ${room.roomId}`);
         }
@@ -167,6 +263,16 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
             iconClassName="mx_RoomGeneralContextMenu_iconArrowDown"
         />
     );
+
+    // Only show leave 1-1 chat option for direct messages
+    const leaveOneOnOneChatOption: React.ReactElement | null = isDm ? (
+        <IconizedContextMenuCheckbox
+            onClick={wrapHandler((ev) => onTagRoom(ev, "m.leave-1-1-chat"), undefined, true)}
+            active={hasLeaveTag}
+            label={_t("room|context_menu|leave_1_1_chat")}
+            iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
+        />
+    ) : null;
 
     let inviteOption: React.ReactElement | null = null;
     if (room.canInvite(cli.getUserId()!) && !isDm && shouldShowComponent(UIComponent.InviteUsers)) {
@@ -285,6 +391,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                         {favoriteOption}
                         {lowPriorityOption}
                         {inviteOption}
+                        {leaveOneOnOneChatOption}
                         {/* {copyLinkOption} */}
                         {/* {settingsOption} */}
                     </>

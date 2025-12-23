@@ -15,15 +15,20 @@ import {
     THREAD_RELATION_TYPE,
 } from "matrix-js-sdk/src/matrix";
 import { type RoomMessageEventContent } from "matrix-js-sdk/src/types";
+import { logger } from "matrix-js-sdk/src/logger";
 
 import { PosthogAnalytics } from "../../../../../PosthogAnalytics";
+import DMRoomMap from "../../../../../utils/DMRoomMap";
+import { getOtherUserTagStatus } from "../../../../../utils/room/getOtherUserTagStatus";
+import { bulkUpdateRoomTags } from "../../../../../utils/room/bulkUpdateRoomTags";
 import SettingsStore from "../../../../../settings/SettingsStore";
+import RoomListActions from "../../../../../actions/RoomListActions";
+import dis from "../../../../../dispatcher/dispatcher";
 import { decorateStartSendingTime, sendRoundTripMetric } from "../../../../../sendTimePerformanceMetrics";
 import { doMaybeLocalRoomAction } from "../../../../../utils/local-room";
 import { CHAT_EFFECTS } from "../../../../../effects";
 import { containsEmoji } from "../../../../../effects/utils";
 import { type IRoomState } from "../../../../structures/RoomView";
-import dis from "../../../../../dispatcher/dispatcher";
 import { createRedactEventDialog } from "../../../dialogs/ConfirmRedactDialog";
 import { endEditing, cancelPreviousPendingEdit } from "./editing";
 import type EditorStateTransfer from "../../../../../utils/EditorStateTransfer";
@@ -145,6 +150,17 @@ export async function sendMessage(
     }
 
     dis.dispatch({ action: "message_sent" });
+    
+    // Wait for message to be sent, then check if this is a 1-1 chat and update tags if the other user has "leave" tag
+    prom.then(() => {
+        logger.log(`[sendMessage] Message sent successfully, checking tags for room ${roomId}`);
+        checkAndUpdateTagsAfterMessage(mxClient, roomId).catch((error) => {
+            logger.error("Error checking and updating tags after message:", error);
+        });
+    }).catch((error) => {
+        logger.error(`[sendMessage] Message send failed, skipping tag check:`, error);
+    });
+    
     CHAT_EFFECTS.forEach((effect) => {
         if (content && containsEmoji(content, effect.emojis)) {
             // For initial threads launch, chat effects are disabled
@@ -173,6 +189,107 @@ export async function sendMessage(
     }
 
     return prom;
+}
+
+/**
+ * Check the other user's tag status after sending a message
+ * If the other user has "m.leave-1-1-chat" tag, remove it from current user's tags
+ */
+async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: string): Promise<void> {
+    logger.log(`[checkAndUpdateTagsAfterMessage] Starting check for room ${roomId}`);
+    try {
+        const isDm = DMRoomMap.shared().getUserIdForRoomId(roomId);
+        logger.log(`[checkAndUpdateTagsAfterMessage] Is DM: ${!!isDm}`);
+        if (!isDm) {
+            // Not a 1-1 chat, skip
+            logger.log(`[checkAndUpdateTagsAfterMessage] Not a DM, skipping`);
+            return;
+        }
+
+        const room = client.getRoom(roomId);
+        if (!room) {
+            logger.warn(`[checkAndUpdateTagsAfterMessage] Room ${roomId} not found`);
+            return;
+        }
+
+        logger.log(`[checkAndUpdateTagsAfterMessage] Fetching other user's tag status...`);
+        // Fetch the other user's tag status first
+        const otherUserTagStatus = await getOtherUserTagStatus(client, room);
+        logger.log(`[checkAndUpdateTagsAfterMessage] Other user tag status:`, otherUserTagStatus);
+        
+        if (!otherUserTagStatus?.tags) {
+            // Could not fetch other user's tags, skip
+            logger.log(`[checkAndUpdateTagsAfterMessage] Could not fetch other user's tag status for room ${roomId}`);
+            return;
+        }
+
+        // Check if other user has the "leave" tag
+        const otherUserHasLeaveTag = !!(otherUserTagStatus.tags["m.leave-1-1-chat"]);
+        logger.log(`[checkAndUpdateTagsAfterMessage] Other user has leave tag: ${otherUserHasLeaveTag}`);
+        
+        if (otherUserHasLeaveTag) {
+            // Other user has leave tag (their chat is in leave section)
+            // Remove leave tag from current user to move chat to People section
+            logger.log(
+                `[checkAndUpdateTagsAfterMessage] Other user has leave tag, removing it from current user's tags for room ${roomId} to move chat to People section`,
+            );
+
+            // Determine the other user's ID (targetUserId for bulk_tag_update)
+            let otherUserId = DMRoomMap.shared().getUserIdForRoomId(roomId);
+            if (!otherUserId) {
+                const myUserId = client.getSafeUserId();
+                const otherMember = room.getJoinedMembers().find((m) => m.userId !== myUserId);
+                if (!otherMember) {
+                    logger.warn(
+                        `[checkAndUpdateTagsAfterMessage] Could not determine other user ID for room ${roomId} when calling bulkUpdateRoomTags`,
+                    );
+                    return;
+                }
+                otherUserId = otherMember.userId;
+            }
+
+            // Call custom bulk update API so you can see it on the server side
+            try {
+                logger.log(
+                    `[checkAndUpdateTagsAfterMessage] Calling bulkUpdateRoomTags to remove m.leave-1-1-chat for room ${roomId} and user ${otherUserId}`,
+                );
+                await bulkUpdateRoomTags(client, otherUserId, [
+                    {
+                        room_id: roomId,
+                        action: "remove",
+                        tag: "m.leave-1-1-chat",
+                    },
+                ]);
+                logger.log(
+                    `[checkAndUpdateTagsAfterMessage] bulkUpdateRoomTags completed successfully for room ${roomId}`,
+                );
+            } catch (bulkError) {
+                logger.error(
+                    `[checkAndUpdateTagsAfterMessage] bulkUpdateRoomTags failed for room ${roomId}:`,
+                    bulkError,
+                );
+            }
+
+            // Also update local/UI state using the existing dispatcher/tagRoom flow
+            try {
+                logger.log(
+                    `[checkAndUpdateTagsAfterMessage] Dispatching RoomListActions.tagRoom to update UI state for room ${roomId}`,
+                );
+                dis.dispatch(RoomListActions.tagRoom(client, room, "m.leave-1-1-chat", null, 0));
+                logger.log(`[checkAndUpdateTagsAfterMessage] Dispatched tag removal action for room ${roomId}`);
+            } catch (dispatchError) {
+                logger.error(
+                    `[checkAndUpdateTagsAfterMessage] Failed to dispatch tag removal action for room ${roomId}:`,
+                    dispatchError,
+                );
+            }
+        } else {
+            logger.log(`[checkAndUpdateTagsAfterMessage] Other user does not have leave tag for room ${roomId}, no action needed`);
+        }
+    } catch (error) {
+        logger.error("[checkAndUpdateTagsAfterMessage] Error checking and updating tags after message:", error);
+    }
+    logger.log(`[checkAndUpdateTagsAfterMessage] Finished check for room ${roomId}`);
 }
 
 interface EditMessageParams {

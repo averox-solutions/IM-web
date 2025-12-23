@@ -35,6 +35,7 @@ const filterConditions: Record<TagID, MSC3575Filter> = {
     },
     [DefaultTagID.Favourite]: {
         tags: ["m.favourite"],
+        not_tags: ["m.leave-1-1-chat"],
     },
     [DefaultTagID.DM]: {
         is_dm: true,
@@ -52,11 +53,15 @@ const filterConditions: Record<TagID, MSC3575Filter> = {
     [DefaultTagID.LowPriority]: {
         tags: ["m.lowpriority"],
         // If a room has both Favourite & Low Prio tags then it'll be shown under Favourites
-        not_tags: ["m.favourite"],
+        not_tags: ["m.favourite", "m.leave-1-1-chat"],
     },
     [DefaultTagID.OneOnOneLeftChat]: {
         tags: ["1-1_left_chat"],
-        not_tags: ["m.favourite"],
+        not_tags: ["m.favourite", "m.lowpriority", "m.leave-1-1-chat"],
+    },
+    [DefaultTagID.OneOnOneChatLeave]: {
+        tags: ["m.leave-1-1-chat"],
+        not_tags: ["m.favourite", "m.lowpriority"],
     },
     // TODO https://github.com/vector-im/element-web/issues/23207
     // DefaultTagID.ServerNotice,

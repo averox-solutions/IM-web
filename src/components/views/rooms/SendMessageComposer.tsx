@@ -48,6 +48,10 @@ import { CHAT_EFFECTS } from "../../../effects";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import { getKeyBindingsManager } from "../../../KeyBindingsManager";
 import SettingsStore from "../../../settings/SettingsStore";
+import DMRoomMap from "../../../utils/DMRoomMap";
+import { getOtherUserTagStatus } from "../../../utils/room/getOtherUserTagStatus";
+import { bulkUpdateRoomTags } from "../../../utils/room/bulkUpdateRoomTags";
+import RoomListActions from "../../../actions/RoomListActions";
 import { type ActionPayload } from "../../../dispatcher/payloads";
 import { decorateStartSendingTime, sendRoundTripMetric } from "../../../sendTimePerformanceMetrics";
 import RoomContext, { TimelineRenderingType } from "../../../contexts/RoomContext";
@@ -558,6 +562,16 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             }
             dis.dispatch({ action: "message_sent" });
 
+            // Wait for message to be sent, then check if this is a 1-1 chat and update tags if the other user has "leave" tag
+            prom.then(() => {
+                logger.log(`[SendMessageComposer.sendMessage] Message sent successfully, checking tags for room ${roomId}`);
+                this.checkAndUpdateTagsAfterMessage(roomId).catch((error) => {
+                    logger.error("Error checking and updating tags after message:", error);
+                });
+            }).catch((error) => {
+                logger.error(`[SendMessageComposer.sendMessage] Message send failed, skipping tag check:`, error);
+            });
+
             try {
                 await this.notifyPushNotifications();
             } catch {}
@@ -616,6 +630,111 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             }
         }
     }
+
+    /**
+     * Check the other user's tag status after sending a message
+     * If the other user has "m.leave-1-1-chat" tag, remove it from current user's tags
+     */
+    private async checkAndUpdateTagsAfterMessage(roomId: string): Promise<void> {
+        logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Starting check for room ${roomId}`);
+        try {
+            const isDm = DMRoomMap.shared().getUserIdForRoomId(roomId);
+            logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Is DM: ${!!isDm}`);
+            if (!isDm) {
+                // Not a 1-1 chat, skip
+                logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Not a DM, skipping`);
+                return;
+            }
+
+            const client = this.props.mxClient;
+            const room = client.getRoom(roomId);
+            if (!room) {
+                logger.warn(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Room ${roomId} not found`);
+                return;
+            }
+
+            logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Fetching other user's tag status...`);
+            // Fetch the other user's tag status first
+            const otherUserTagStatus = await getOtherUserTagStatus(client, room);
+            logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Other user tag status:`, otherUserTagStatus);
+            
+            if (!otherUserTagStatus?.tags) {
+                // Could not fetch other user's tags, skip
+                logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Could not fetch other user's tag status for room ${roomId}`);
+                return;
+            }
+
+            // Check if other user has the "leave" tag
+            const otherUserHasLeaveTag = !!(otherUserTagStatus.tags["m.leave-1-1-chat"]);
+            logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Other user has leave tag: ${otherUserHasLeaveTag}`);
+            
+            if (otherUserHasLeaveTag) {
+                // Other user has leave tag (their chat is in leave section)
+                // Remove leave tag from current user to move chat to People section
+                logger.log(
+                    `[SendMessageComposer.checkAndUpdateTagsAfterMessage] Other user has leave tag, removing it from current user's tags for room ${roomId} to move chat to People section`,
+                );
+
+                // Determine the other user's ID (targetUserId for bulk_tag_update)
+                let otherUserId = DMRoomMap.shared().getUserIdForRoomId(roomId);
+                if (!otherUserId) {
+                    const myUserId = client.getSafeUserId();
+                    const otherMember = room.getJoinedMembers().find((m) => m.userId !== myUserId);
+                    if (!otherMember) {
+                        logger.warn(
+                            `[SendMessageComposer.checkAndUpdateTagsAfterMessage] Could not determine other user ID for room ${roomId} when calling bulkUpdateRoomTags`,
+                        );
+                        return;
+                    }
+                    otherUserId = otherMember.userId;
+                }
+
+                // Call custom bulk update API so you can see it on the server side
+                try {
+                    logger.log(
+                        `[SendMessageComposer.checkAndUpdateTagsAfterMessage] Calling bulkUpdateRoomTags to remove m.leave-1-1-chat for room ${roomId} and user ${otherUserId}`,
+                    );
+                    await bulkUpdateRoomTags(client, otherUserId, [
+                        {
+                            room_id: roomId,
+                            action: "remove",
+                            tag: "m.leave-1-1-chat",
+                        },
+                    ]);
+                    logger.log(
+                        `[SendMessageComposer.checkAndUpdateTagsAfterMessage] bulkUpdateRoomTags completed successfully for room ${roomId}`,
+                    );
+                } catch (bulkError) {
+                    logger.error(
+                        `[SendMessageComposer.checkAndUpdateTagsAfterMessage] bulkUpdateRoomTags failed for room ${roomId}:`,
+                        bulkError,
+                    );
+                }
+
+                // Also update local/UI state using the existing dispatcher/tagRoom flow
+                try {
+                    logger.log(
+                        `[SendMessageComposer.checkAndUpdateTagsAfterMessage] Dispatching RoomListActions.tagRoom to update UI state for room ${roomId}`,
+                    );
+                    dis.dispatch(RoomListActions.tagRoom(client, room, "m.leave-1-1-chat", null, 0));
+                    logger.log(
+                        `[SendMessageComposer.checkAndUpdateTagsAfterMessage] Dispatched tag removal action for room ${roomId}`,
+                    );
+                } catch (dispatchError) {
+                    logger.error(
+                        `[SendMessageComposer.checkAndUpdateTagsAfterMessage] Failed to dispatch tag removal action for room ${roomId}:`,
+                        dispatchError,
+                    );
+                }
+            } else {
+                logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Other user does not have leave tag for room ${roomId}, no action needed`);
+            }
+        } catch (error) {
+            logger.error("[SendMessageComposer.checkAndUpdateTagsAfterMessage] Error checking and updating tags after message:", error);
+        }
+        logger.log(`[SendMessageComposer.checkAndUpdateTagsAfterMessage] Finished check for room ${roomId}`);
+    }
+
     public componentWillUnmount(): void {
         dis.unregister(this.dispatcherRef);
         window.removeEventListener("beforeunload", this.saveStoredEditorState);

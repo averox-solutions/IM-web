@@ -10,6 +10,7 @@ Please see LICENSE files in the repository root for full details.
 import React, { createRef } from "react";
 import { type Room, RoomEvent } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
+import { logger } from "matrix-js-sdk/src/logger";
 import classNames from "classnames";
 
 import type { Call } from "../../../models/Call";
@@ -21,6 +22,9 @@ import { _t } from "../../../languageHandler";
 import { ChevronFace, ContextMenuTooltipButton, type MenuProps } from "../../structures/ContextMenu";
 import { DefaultTagID, type TagID } from "../../../stores/room-list/models";
 import { type MessagePreview, MessagePreviewStore } from "../../../stores/room-list/MessagePreviewStore";
+import RoomListStore from "../../../stores/room-list/RoomListStore";
+import DMRoomMap from "../../../utils/DMRoomMap";
+import { getOtherUserTagStatus, type TagStatusResponse } from "../../../utils/room/getOtherUserTagStatus";
 import DecoratedRoomAvatar from "../avatars/DecoratedRoomAvatar";
 import { RoomNotifState } from "../../../RoomNotifs";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
@@ -60,6 +64,7 @@ interface State {
     generalMenuPosition: PartialDOMRect | null;
     call: Call | null;
     messagePreview: MessagePreview | null;
+    otherUserTagStatus: TagStatusResponse | null;
 }
 
 const messagePreviewId = (roomId: string): string => `mx_RoomTile_messagePreview_${roomId}`;
@@ -77,6 +82,7 @@ class RoomTile extends React.PureComponent<Props, State> {
     private roomTileRef = createRef<HTMLDivElement>();
     private notificationState: NotificationState;
     private roomProps: RoomEchoChamber;
+    private tagStatusRefreshInterval?: number;
 
     public constructor(props: Props) {
         super(props);
@@ -88,6 +94,7 @@ class RoomTile extends React.PureComponent<Props, State> {
             call: CallStore.instance.getCall(this.props.room.roomId),
             // generatePreview() will return nothing if the user has previews disabled
             messagePreview: null,
+            otherUserTagStatus: null,
         };
 
         this.notificationState = RoomNotificationStateStore.instance.getRoomState(this.props.room);
@@ -137,6 +144,23 @@ class RoomTile extends React.PureComponent<Props, State> {
             );
             prevProps.room?.off(RoomEvent.Name, this.onRoomNameUpdate);
             this.props.room?.on(RoomEvent.Name, this.onRoomNameUpdate);
+            
+            // Clear old interval if it exists
+            if (this.tagStatusRefreshInterval) {
+                clearInterval(this.tagStatusRefreshInterval);
+                this.tagStatusRefreshInterval = undefined;
+            }
+            
+            // Fetch other user's tag status for the new room
+            this.fetchOtherUserTagStatus();
+            
+            // Set up new interval for the new room if it's a DM
+            const isDm = DMRoomMap.shared().getUserIdForRoomId(this.props.room.roomId);
+            if (isDm) {
+                this.tagStatusRefreshInterval = window.setInterval(() => {
+                    this.fetchOtherUserTagStatus();
+                }, 10000); // Refresh every 10 seconds
+            }
         }
     }
 
@@ -157,11 +181,24 @@ class RoomTile extends React.PureComponent<Props, State> {
         this.notificationState.on(NotificationStateEvents.Update, this.onNotificationUpdate);
         this.roomProps.on(PROPERTY_UPDATED, this.onRoomPropertyUpdate);
         this.props.room.on(RoomEvent.Name, this.onRoomNameUpdate);
+        this.props.room.on(RoomEvent.Tags, this.onRoomNameUpdate);
+        this.props.room.on(RoomEvent.AccountData, this.onRoomNameUpdate);
         CallStore.instance.on(CallStoreEvent.Call, this.onCallChanged);
 
         // Recalculate the call for this room, since it could've changed between
         // construction and mounting
         this.setState({ call: CallStore.instance.getCall(this.props.room.roomId) });
+
+        // Fetch other user's tag status if this is a 1-1 chat
+        this.fetchOtherUserTagStatus();
+        
+        // Set up periodic refresh for other user's tag status (every 10 seconds)
+        const isDm = DMRoomMap.shared().getUserIdForRoomId(this.props.room.roomId);
+        if (isDm) {
+            this.tagStatusRefreshInterval = window.setInterval(() => {
+                this.fetchOtherUserTagStatus();
+            }, 10000); // Refresh every 10 seconds
+        }
     }
 
     public componentWillUnmount(): void {
@@ -171,10 +208,18 @@ class RoomTile extends React.PureComponent<Props, State> {
             this.onRoomPreviewChanged,
         );
         this.props.room.off(RoomEvent.Name, this.onRoomNameUpdate);
+        this.props.room.off(RoomEvent.Tags, this.onRoomNameUpdate);
+        this.props.room.off(RoomEvent.AccountData, this.onRoomNameUpdate);
         defaultDispatcher.unregister(this.dispatcherRef);
         this.notificationState.off(NotificationStateEvents.Update, this.onNotificationUpdate);
         this.roomProps.off(PROPERTY_UPDATED, this.onRoomPropertyUpdate);
         CallStore.instance.off(CallStoreEvent.Call, this.onCallChanged);
+        
+        // Clear the tag status refresh interval
+        if (this.tagStatusRefreshInterval) {
+            clearInterval(this.tagStatusRefreshInterval);
+            this.tagStatusRefreshInterval = undefined;
+        }
     }
 
     private onAction = (payload: ActionPayload): void => {
@@ -197,6 +242,22 @@ class RoomTile extends React.PureComponent<Props, State> {
 
     private onCallChanged = (call: Call, roomId: string): void => {
         if (roomId === this.props.room?.roomId) this.setState({ call });
+    };
+
+    private fetchOtherUserTagStatus = async (): Promise<void> => {
+        const isDm = DMRoomMap.shared().getUserIdForRoomId(this.props.room.roomId);
+        if (isDm) {
+            const client = MatrixClientPeg.safeGet();
+            try {
+                const tagStatus = await getOtherUserTagStatus(client, this.props.room);
+                logger.log(`Fetched other user tag status for room ${this.props.room.roomId}:`, tagStatus);
+                this.setState({ otherUserTagStatus: tagStatus });
+            } catch (error) {
+                logger.error("Failed to fetch other user tag status:", error);
+                // Set to null so we fall back to current user's tags
+                this.setState({ otherUserTagStatus: null });
+            }
+        }
     };
 
     private async generatePreview(): Promise<void> {
@@ -371,6 +432,66 @@ class RoomTile extends React.PureComponent<Props, State> {
         return !!this.state.call || (this.props.showMessagePreview && !!this.state.messagePreview);
     }
 
+    /**
+     * Get the tag label to display next to the room name
+     * For 1-1 chats, shows the other user's tags instead of the current user's tags
+     */
+    private getTagLabel(): string | null {
+        const isDm = DMRoomMap.shared().getUserIdForRoomId(this.props.room.roomId);
+        
+        // For 1-1 chats, use the other user's tag status
+        if (isDm && this.state.otherUserTagStatus?.tags) {
+            const otherUserTags = this.state.otherUserTagStatus.tags;
+            
+            logger.log(`Checking other user tags for room ${this.props.room.roomId}:`, otherUserTags);
+
+            // Check for leave tag (m.leave-1-1-chat)
+            if (otherUserTags["m.leave-1-1-chat"]) {
+                logger.log("Found leave tag in other user's tags");
+                return "leave";
+            }
+
+            // Check for low priority tag
+            if (otherUserTags[DefaultTagID.LowPriority] || otherUserTags["m.lowpriority"]) {
+                logger.log("Found low priority tag in other user's tags");
+                return "low priority";
+            }
+
+            // Check for favourite tag
+            if (otherUserTags[DefaultTagID.Favourite] || otherUserTags["m.favourite"]) {
+                logger.log("Found favourite tag in other user's tags");
+                return "fav";
+            }
+            
+            logger.log("No matching tags found in other user's tags");
+
+            return null;
+        } else if (isDm) {
+            logger.log(`Room ${this.props.room.roomId} is DM but no other user tag status available yet`);
+        }
+
+        // For non-DM rooms, use the current user's tags
+        const roomTags = RoomListStore.instance.getTagsForRoom(this.props.room);
+        const roomTagsMap = this.props.room.tags || {};
+
+        // Check for leave tag (m.leave-1-1-chat)
+        if (roomTagsMap["m.leave-1-1-chat"]) {
+            return "leave";
+        }
+
+        // Check for low priority tag
+        if (roomTags.includes(DefaultTagID.LowPriority) || roomTagsMap[DefaultTagID.LowPriority]) {
+            return "low priority";
+        }
+
+        // Check for favourite tag
+        if (roomTags.includes(DefaultTagID.Favourite) || roomTagsMap[DefaultTagID.Favourite]) {
+            return "fav";
+        }
+
+        return null;
+    }
+
     public render(): React.ReactElement {
         const classes = classNames({
             mx_RoomTile: true,
@@ -411,16 +532,20 @@ class RoomTile extends React.PureComponent<Props, State> {
             mx_RoomTile_titleHasUnreadEvents: this.notificationState.isUnread,
         });
 
+        const tagLabel = this.getTagLabel();
+        const displayName = tagLabel ? `${name} [${tagLabel}]` : name;
+
         const titleContainer = this.props.isMinimized ? null : (
             <div className="mx_RoomTile_titleContainer">
-                <div title={name} className={titleClasses} tabIndex={-1}>
+                <div title={displayName} className={titleClasses} tabIndex={-1}>
                     <span dir="auto">{name}</span>
+                    {tagLabel && <span className="mx_RoomTile_tagLabel"> [{tagLabel}]</span>}
                 </div>
                 {subtitle}
             </div>
         );
 
-        let ariaLabel = name;
+        let ariaLabel = displayName;
         // The following labels are written in such a fashion to increase screen reader efficiency (speed).
         if (this.props.tag === DefaultTagID.Invite) {
             // append nothing

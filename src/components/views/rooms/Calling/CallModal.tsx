@@ -182,7 +182,7 @@ const CallModal: React.FC = () => {
     const { isIncoming, isOngoing, roomId, isVideo, localStream, remoteStreams, participants, callerInfo } =
         useSelector((state: any) => state.call);
 
-    console.log("incomming call data", isIncoming);
+    // console.log("incomming call data", isIncoming);
 
     const incomingCallUrl =
         "https://firebasestorage.googleapis.com/v0/b/laaleh-2451e.appspot.com/o/ring.ogg?alt=media&token=f7ff8103-a1e5-42a6-a7d3-12c73b5bda2e";

@@ -891,6 +891,7 @@ export const TAG_ORDER: TagID[] = [
     DefaultTagID.Conference,
     DefaultTagID.LowPriority,
     DefaultTagID.OneOnOneLeftChat,
+    DefaultTagID.OneOnOneChatLeave,
     DefaultTagID.Suggested,
     // DefaultTagID.Archived isn't here any more: we don't show it at all.
     // The section still exists in the code as a place for rooms that we know
@@ -1245,6 +1246,11 @@ const TAG_AESTHETICS: TagAestheticsMap = {
     },
     [DefaultTagID.OneOnOneLeftChat]: {
         sectionLabel: _td("common|1-1_left_chat"),
+        isInvite: false,
+        defaultHidden: false,
+    },
+    [DefaultTagID.OneOnOneChatLeave]: {
+        sectionLabel: _td("common|1-1_leave_chat"),
         isInvite: false,
         defaultHidden: false,
     },

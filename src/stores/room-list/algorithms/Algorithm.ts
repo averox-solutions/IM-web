@@ -1661,6 +1661,22 @@ export class Algorithm extends EventEmitter {
                 }
             }
         }
+        
+        // Map Matrix tag names to DefaultTagID values for proper categorization
+        // Some tags like "m.favourite" already match DefaultTagID values, but custom tags need mapping
+        tags = tags.map(tag => {
+            // Map "m.leave-1-1-chat" Matrix tag to DefaultTagID.OneOnOneChatLeave
+            if (tag === "m.leave-1-1-chat") {
+                return DefaultTagID.OneOnOneChatLeave;
+            }
+            // Map "1-1_left_chat" Matrix tag to DefaultTagID.OneOnOneLeftChat
+            if (tag === "1-1_left_chat") {
+                return DefaultTagID.OneOnOneLeftChat;
+            }
+            // Other tags like "m.favourite" and "m.lowpriority" already match DefaultTagID values
+            return tag;
+        });
+        
         if (room.isCallRoom() && (room.getJoinRule() === JoinRule.Public || room.getJoinRule() === JoinRule.Knock)) {
             tags.push(DefaultTagID.Conference);
         }
@@ -1782,17 +1798,36 @@ export class Algorithm extends EventEmitter {
             const newTags = this.getTagsForRoom(room);
             const diff = arrayDiff(oldTags, newTags);
             if (diff.removed.length > 0 || diff.added.length > 0) {
+                if (!this.algorithms) {
+                    logger.warn("Algorithms not initialized, cannot process tag changes");
+                    return false;
+                }
+                
+                // Filter to only process tags that have algorithms
+                const validRemovedTags = diff.removed.filter((tag) => !!this.algorithms![tag]);
+                const validAddedTags = diff.added.filter((tag) => !!this.algorithms![tag]);
+                
+                // Log warnings for tags without algorithms
                 for (const rmTag of diff.removed) {
+                    if (!this.algorithms[rmTag]) {
+                        logger.debug(`Skipping removal of tag "${rmTag}" for room ${room.roomId} - no algorithm available`);
+                    }
+                }
+                for (const addTag of diff.added) {
+                    if (!this.algorithms[addTag]) {
+                        logger.debug(`Skipping addition of tag "${addTag}" for room ${room.roomId} - no algorithm available`);
+                    }
+                }
+                
+                for (const rmTag of validRemovedTags) {
                     const algorithm: OrderingAlgorithm = this.algorithms[rmTag];
-                    if (!algorithm) throw new Error(`No algorithm for ${rmTag}`);
                     algorithm.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
                     this._cachedRooms[rmTag] = algorithm.orderedRooms;
                     this.recalculateStickyRoom(rmTag); // update sticky room to make sure it moves if needed
                     this.recalculateActiveCallRooms(rmTag);
                 }
-                for (const addTag of diff.added) {
+                for (const addTag of validAddedTags) {
                     const algorithm: OrderingAlgorithm = this.algorithms[addTag];
-                    if (!algorithm) throw new Error(`No algorithm for ${addTag}`);
                     algorithm.handleRoomUpdate(room, RoomUpdateCause.NewRoom);
                     this._cachedRooms[addTag] = algorithm.orderedRooms;
                 }
@@ -1854,10 +1889,42 @@ export class Algorithm extends EventEmitter {
             return false;
         }
 
+        // Filter out tags that don't have algorithms (e.g., custom tags)
+        const validTags = tags.filter((tag) => {
+            const hasAlgorithm = !!(this.algorithms && this.algorithms[tag]);
+            if (!hasAlgorithm) {
+                logger.debug(`Skipping tag "${tag}" for room ${room.roomId} - no algorithm available`);
+            }
+            return hasAlgorithm;
+        });
+
+        if (validTags.length === 0) {
+            // If no valid tags, assign to Untagged if it exists
+            if (this.algorithms && this.algorithms[DefaultTagID.Untagged]) {
+                const untaggedAlgorithm = this.algorithms[DefaultTagID.Untagged];
+                untaggedAlgorithm.handleRoomUpdate(room, cause);
+                this._cachedRooms[DefaultTagID.Untagged] = untaggedAlgorithm.orderedRooms;
+                this.recalculateStickyRoom(DefaultTagID.Untagged);
+                this.recalculateActiveCallRooms(DefaultTagID.Untagged);
+                // Update the tag map to reflect Untagged
+                this.roomIdsToTags[room.roomId] = [DefaultTagID.Untagged];
+                return true;
+            }
+            logger.warn(`No valid tags for room "${room.name}" (${room.roomId}) and no Untagged algorithm available`);
+            return false;
+        }
+
         let changed = didTagChange;
-        for (const tag of tags) {
+        for (const tag of validTags) {
+            if (!this.algorithms) {
+                logger.warn("Algorithms not initialized");
+                return false;
+            }
             const algorithm: OrderingAlgorithm = this.algorithms[tag];
-            if (!algorithm) throw new Error(`No algorithm for ${tag}`);
+            if (!algorithm) {
+                logger.warn(`Algorithm missing for tag "${tag}" despite validation`);
+                continue;
+            }
 
             algorithm.handleRoomUpdate(room, cause);
             this._cachedRooms[tag] = algorithm.orderedRooms;

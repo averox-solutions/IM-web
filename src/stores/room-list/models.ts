@@ -29,6 +29,7 @@ export const OrderedDefaultTagIDs = [
     DefaultTagID.Untagged,
     DefaultTagID.LowPriority,
     DefaultTagID.OneOnOneLeftChat,
+    DefaultTagID.OneOnOneChatLeave,
     DefaultTagID.ServerNotice,
     DefaultTagID.Suggested,
     DefaultTagID.Archived,
