@@ -29,6 +29,7 @@ import { type IInviteResult, inviteMultipleToRoom, showAnyInviteErrors } from ".
 import { Action } from "../../../dispatcher/actions";
 import { DefaultTagID } from "../../../stores/room-list/models";
 import RoomListStore from "../../../stores/room-list/RoomListStore";
+import RoomListActions from "../../../actions/RoomListActions";
 import SettingsStore from "../../../settings/SettingsStore";
 import { UIFeature } from "../../../settings/UIFeature";
 import { mediaFromMxc } from "../../../customisations/Media";
@@ -64,6 +65,7 @@ import { UNKNOWN_PROFILE_ERRORS } from "../../../utils/MultiInviter";
 import AskInviteAnywayDialog, { type UnknownProfiles } from "./AskInviteAnywayDialog";
 import { SdkContextClass } from "../../../contexts/SDKContext";
 import { type UserProfilesStore } from "../../../stores/UserProfilesStore";
+import { bulkUpdateRoomTags } from "../../../utils/room/bulkUpdateRoomTags";
 
 // we have a number of types defined from the Matrix spec which can't reasonably be altered here.
 /* eslint-disable camelcase */
@@ -218,7 +220,7 @@ class DMRoomTile extends React.PureComponent<IDMRoomTileProps> {
         const lowerStr = str.toLowerCase();
         const filterStr = this.props.highlightWord.toLowerCase();
 
-        const result: JSX.Element[] = [];
+        const result: React.ReactNode[] = [];
 
         let i = 0;
         let ii: number;
@@ -250,7 +252,7 @@ class DMRoomTile extends React.PureComponent<IDMRoomTileProps> {
     }
 
     public render(): React.ReactNode {
-        let timestamp: JSX.Element | undefined;
+        let timestamp: React.ReactNode;
         if (this.props.lastActiveTs) {
             const humanTs = humanizeTime(this.props.lastActiveTs);
             timestamp = <span className="mx_InviteDialog_tile--room_time">{humanTs}</span>;
@@ -274,7 +276,7 @@ class DMRoomTile extends React.PureComponent<IDMRoomTileProps> {
             />
         );
 
-        let checkmark: JSX.Element | undefined;
+        let checkmark: React.ReactNode;
         if (this.props.isSelected) {
             // To reduce flickering we put the 'selected' room tile above the real avatar
             checkmark = <div className="mx_InviteDialog_tile--room_selected" />;
@@ -384,7 +386,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
     private debounceTimer: number | null = null; // actually number because we're in the browser
     private editorRef = createRef<HTMLInputElement>();
-    private numberEntryFieldRef: React.RefObject<Field> = createRef();
+    private numberEntryFieldRef: React.RefObject<Field | null> = createRef();
     private unmounted = false;
     private encryptionByDefault = false;
     private profilesStore: UserProfilesStore;
@@ -673,6 +675,44 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         }
 
         try {
+            // If this room is in our 1-1 Leave section, clear the leave tag before inviting.
+            // Use RoomListStore tags (DefaultTagID.OneOnOneChatLeave) instead of raw room.tags,
+            // because the room's account-data tags may not be loaded at this point.
+            const roomTags = RoomListStore.instance.getTagsForRoom(room);
+            console.log("roomTags", roomTags);
+            const hasLeaveTag = roomTags.includes(DefaultTagID.OneOnOneChatLeave);
+
+            logger.log(
+                `[InviteDialog] inviteUsers: roomId=${room.roomId}, tags=${JSON.stringify(
+                    roomTags,
+                )}, hasLeaveTag=${hasLeaveTag}`,
+            );
+
+            if (hasLeaveTag) {
+                logger.log(
+                    `[InviteDialog] Room ${room.roomId} is in OneOnOneChatLeave section - calling bulkUpdateRoomTags to remove m.leave-1-1-chat before inviting`,
+                );
+                try {
+                    await bulkUpdateRoomTags(cli, cli.getSafeUserId(), [
+                        {
+                            room_id: room.roomId,
+                            action: "remove",
+                            tag: "m.leave-1-1-chat",
+                        },
+                    ]);
+                    // Update local tag state so the room moves out of the 1-1 leave section
+                    dis.dispatch(RoomListActions.tagRoom(cli, room, "m.leave-1-1-chat", null, 0));
+                    logger.log(
+                        `[InviteDialog] Successfully requested removal of m.leave-1-1-chat tag for current user on room ${room.roomId}`,
+                    );
+                } catch (e) {
+                    logger.error(
+                        `[InviteDialog] Failed to remove m.leave-1-1-chat via bulkUpdateRoomTags before inviting:`,
+                        e,
+                    );
+                }
+            }
+
             const result = await inviteMultipleToRoom(cli, this.props.roomId, targetIds);
             if (!this.shouldAbortAfterInviteError(result, room)) {
                 await this.sendInviteNotifications(targetIds, "Got Invited");
@@ -1155,7 +1195,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         const toRender = sourceMembers.slice(0, showNum);
         const hasMore = toRender.length < sourceMembers.length;
 
-        let showMore: JSX.Element | undefined;
+        let showMore: React.ReactNode;
         if (hasMore) {
             showMore = (
                 <div className="mx_InviteDialog_section_showMore">
@@ -1185,7 +1225,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
         );
     }
 
-    private renderEditor(): JSX.Element {
+    private renderEditor(): React.ReactNode {
         const hasPlaceholder =
             this.props.kind == InviteKind.CallTransfer &&
             this.state.targets.length === 0 &&
@@ -1390,7 +1430,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
     }
 
     public render(): React.ReactNode {
-        let spinner: JSX.Element | undefined;
+        let spinner: React.ReactNode;
         if (this.state.busy) {
             spinner = <Spinner w={20} h={20} />;
         }

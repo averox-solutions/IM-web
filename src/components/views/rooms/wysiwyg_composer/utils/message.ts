@@ -224,10 +224,25 @@ async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: stri
         }
 
         // Check if other user has the "leave" tag
-        const otherUserHasLeaveTag = !!(otherUserTagStatus.tags["m.leave-1-1-chat"]);
+        const otherUserHasLeaveTag = !!otherUserTagStatus.tags["m.leave-1-1-chat"];
         logger.log(`[checkAndUpdateTagsAfterMessage] Other user has leave tag: ${otherUserHasLeaveTag}`);
-        
+
         if (otherUserHasLeaveTag) {
+            // Only proceed if *this* user's room currently has the leave tag.
+            // If we don't have the tag locally, there's nothing to remove, so don't hit the bulk API.
+            const myLeaveTag = room.tags["m.leave-1-1-chat"];
+            const currentUserHasLeaveTag = !!myLeaveTag;
+            logger.log(
+                `[checkAndUpdateTagsAfterMessage] Current user has leave tag: ${currentUserHasLeaveTag} for room ${roomId}`,
+            );
+
+            if (!currentUserHasLeaveTag) {
+                logger.log(
+                    `[checkAndUpdateTagsAfterMessage] Current user does not have leave tag for room ${roomId}, skipping bulkUpdateRoomTags`,
+                );
+                return;
+            }
+
             // Other user has leave tag (their chat is in leave section)
             // Remove leave tag from current user to move chat to People section
             logger.log(

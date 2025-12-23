@@ -77,6 +77,7 @@ import { ReadReceiptGroup } from "./ReadReceiptGroup";
 import { type ShowThreadPayload } from "../../../dispatcher/payloads/ShowThreadPayload";
 import { isLocalRoom } from "../../../utils/localRoom/isLocalRoom";
 import { ElementCall } from "../../../models/Call";
+import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
 import { UnreadNotificationBadge } from "./NotificationBadge/UnreadNotificationBadge";
 import { EventTileThreadToolbar } from "./EventTile/EventTileThreadToolbar";
 import { getLateEventInfo } from "../../structures/grouper/LateEventGrouper";
@@ -301,6 +302,7 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
     declare public context: React.ContextType<typeof RoomContext>;
 
     private unmounted = false;
+    private removeDeletedEventsListener?: () => void;
 
     public constructor(props: EventTileProps, context: React.ContextType<typeof RoomContext>) {
         super(props, context);
@@ -414,6 +416,17 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         const room = client.getRoom(this.props.mxEvent.getRoomId());
         room?.on(ThreadEvent.New, this.onNewThread);
 
+        // Load and listen for per-user deleted events for this room so we can hide tiles locally.
+        const roomId = this.props.mxEvent.getRoomId();
+        DeletedEventsStore.getInstance()
+            .loadRoom(client, roomId)
+            .catch((e) => logger.error(`[EventTile] Failed to load deleted events for room ${roomId}`, e));
+        this.removeDeletedEventsListener = DeletedEventsStore.getInstance().addRoomListener(roomId, () => {
+            if (!this.unmounted) {
+                this.forceUpdate(this.props.onHeightChanged);
+            }
+        });
+
         this.verifyEvent();
     }
 
@@ -444,6 +457,10 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
             this.props.mxEvent.removeListener(MatrixEventEvent.RelationsCreated, this.onReactionsCreated);
         }
         this.props.mxEvent.off(ThreadEvent.Update, this.updateThread);
+        if (this.removeDeletedEventsListener) {
+            this.removeDeletedEventsListener();
+            this.removeDeletedEventsListener = undefined;
+        }
         this.unmounted = false;
     }
 
@@ -1000,6 +1017,13 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
     }
 
     public render(): ReactNode {
+        const roomId = this.props.mxEvent.getRoomId();
+        const eventId = this.props.mxEvent.getId();
+        if (eventId && DeletedEventsStore.getInstance().isDeleted(roomId, eventId)) {
+            // This event has been deleted-for-me for this user: hide it from the timeline.
+            return null;
+        }
+
         const msgtype = this.props.mxEvent.getContent().msgtype;
         const eventType = this.props.mxEvent.getType();
         const {

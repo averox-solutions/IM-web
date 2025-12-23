@@ -24,6 +24,9 @@ import RoomListStore, { LISTS_UPDATE_EVENT } from "../../../stores/room-list/Roo
 import DMRoomMap from "../../../utils/DMRoomMap";
 import { clearRoomNotification, setMarkedUnreadState } from "../../../utils/notifications";
 import { getOtherUserTagStatus, type TagStatusResponse } from "../../../utils/room/getOtherUserTagStatus";
+import { bulkDeleteEventsForMe } from "../../../utils/room/deleteForMe";
+import RightPanelStore from "../../../stores/right-panel/RightPanelStore";
+import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
 import { type IProps as IContextMenuProps } from "../../structures/ContextMenu";
 import IconizedContextMenu, {
     IconizedContextMenuCheckbox,
@@ -197,7 +200,7 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                         dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
                     });
             } else {
-                dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
+            dis.dispatch(RoomListActions.tagRoom(cli, room, removeTag, addTag, 0));
             }
         } else if (tagId === "m.leave-1-1-chat") {
             // Check room.tags directly for the actual Matrix tag name
@@ -227,16 +230,67 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                 
                 // Wait for other tags to be removed, then add leave tag
                 if (promises.length > 0) {
-                    Promise.all(promises).then(() => {
-                        dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
-                    }).catch((err) => {
-                        logger.error("Failed to remove conflicting tags: " + err);
-                        // Still try to add the leave tag even if removal failed
-                        dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
-                    });
+                    Promise.all(promises)
+                        .then(async () => {
+                            dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+                            if (isDm) {
+                                // Close right panel for the currently viewed room
+                                RightPanelStore.instance.hide(null);
+
+                                // Call backend to delete all messages for me
+                                const ok = await bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true });
+                                if (ok) {
+                                    // Immediately hide all existing events in this room for this user
+                                    const events = room.getLiveTimeline().getEvents();
+                                    const ids = events.map((e) => e.getId()).filter((id): id is string => !!id);
+                                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
+                                }
+                            }
+                        })
+                        .catch((err) => {
+                            logger.error("Failed to remove conflicting tags: " + err);
+                            // Still try to add the leave tag even if removal failed
+                            dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+                            if (isDm) {
+                                RightPanelStore.instance.hide(null);
+                                bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true })
+                                    .then((ok) => {
+                                        if (ok) {
+                                            const events = room.getLiveTimeline().getEvents();
+                                            const ids = events
+                                                .map((e) => e.getId())
+                                                .filter((id): id is string => !!id);
+                                            DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
+                                        }
+                                    })
+                                    .catch((error) => {
+                                        logger.error(
+                                            `Failed to bulk delete events for room ${room.roomId} after applying leave tag:`,
+                                            error,
+                                        );
+                                    });
+                            }
+                        });
                 } else {
                     // No conflicting tags, just add the leave tag
                     dis.dispatch(RoomListActions.tagRoom(cli, room, null, "m.leave-1-1-chat", 0));
+                    if (isDm) {
+                        RightPanelStore.instance.hide(null);
+                        bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true })
+                            .then((ok) => {
+                                if (ok) {
+                                    const events = room.getLiveTimeline().getEvents();
+                                    const ids = events.map((e) => e.getId()).filter((id): id is string => !!id);
+                                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
+                                }
+                            })
+                            .catch((err) => {
+                                logger.error(
+                                    `Failed to bulk delete events for room ${room.roomId} after applying leave tag:`,
+                                    err,
+                                );
+                            });
+                    }
                 }
             }
         } else {
