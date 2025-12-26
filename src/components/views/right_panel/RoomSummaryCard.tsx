@@ -38,7 +38,7 @@ import LockIcon from "@vector-im/compound-design-tokens/assets/web/icons/lock-so
 import LockOffIcon from "@vector-im/compound-design-tokens/assets/web/icons/lock-off";
 import ChevronDownIcon from "@vector-im/compound-design-tokens/assets/web/icons/chevron-down";
 
-import { EventType, JoinRule, type Room, RoomStateEvent } from "matrix-js-sdk/src/matrix";
+import { EventType, JoinRule, type Room, RoomStateEvent, M_POLL_START, M_POLL_END } from "matrix-js-sdk/src/matrix";
 
 import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import { useIsEncrypted } from "../../../hooks/useIsEncrypted";
@@ -73,7 +73,7 @@ import { useDispatcher } from "../../../hooks/useDispatcher";
 import { Action } from "../../../dispatcher/actions";
 import { useTransition } from "../../../hooks/useTransition";
 import { isVideoRoom as calcIsVideoRoom } from "../../../utils/video-rooms";
-import { usePinnedEvents } from "../../../hooks/usePinnedEvents";
+import { usePinnedEvents, useSortedFetchedPinnedEvents } from "../../../hooks/usePinnedEvents";
 import { ReleaseAnnouncement } from "../../structures/ReleaseAnnouncement.tsx";
 import { useScopedRoomContext } from "../../../contexts/ScopedRoomContext.tsx";
 import RoomListActions from "../../../actions/RoomListActions";
@@ -182,13 +182,25 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
                 defaultDispatcher.dispatch({ action: Action.ViewHomePage });
             }
 
-            // Delete all messages for current user via custom API and hide them locally.
+            // Delete all messages for current user via custom API and hide them locally (excluding poll events).
             try {
-                const ok = await bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true });
+                const events = room.getLiveTimeline().getEvents();
+                // Filter out poll events - they should remain visible even when chat is "deleted"
+                const nonPollEventIds = events
+                    .filter((e) => {
+                        const eventType = e.getType();
+                        return !M_POLL_START.matches(eventType) && !M_POLL_END.matches(eventType);
+                    })
+                    .map((e) => e.getId())
+                    .filter((id): id is string => !!id);
+                
+                const ok = nonPollEventIds.length > 0
+                    ? await bulkDeleteEventsForMe(cli, room.roomId, { event_ids: nonPollEventIds })
+                    : true; // No events to delete
+                
                 if (ok) {
-                    const events = room.getLiveTimeline().getEvents();
-                    const ids = events.map((e) => e.getId()).filter((id): id is string => !!id);
-                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
+                    // Mark only non-poll events as deleted
+                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, nonPollEventIds);
                 }
             } catch (e) {
                 console.error(
@@ -204,7 +216,7 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
         defaultDispatcher.dispatch({
             action: (Action as any)?.LeaveRoom ?? "leave_room",
             room_id: room.roomId,
-        });
+          });
     };
 
     const isRoomEncrypted = useIsEncrypted(cli, room);
@@ -226,7 +238,34 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
     }, [room, directRoomsList]);
 
     const alias = room.getCanonicalAlias() || room.getAltAliases()[0] || "";
-    const pinCount = usePinnedEvents(room).length;
+    const pinnedEventIds = usePinnedEvents(room);
+    const pinnedEvents = useSortedFetchedPinnedEvents(room, pinnedEventIds);
+    const [deletedEventsStore, setDeletedEventsStore] = useState(DeletedEventsStore.getInstance());
+
+    // Load deleted events for this room and subscribe to changes
+    useEffect(() => {
+        if (!cli) return;
+        const store = DeletedEventsStore.getInstance();
+        store.loadRoom(cli, room.roomId).catch((e) => {
+            // Error already logged in store
+        });
+        const unsubscribe = store.addRoomListener(room.roomId, () => {
+            setDeletedEventsStore(DeletedEventsStore.getInstance());
+        });
+        return unsubscribe;
+    }, [cli, room.roomId]);
+
+    // Filter out deleted events and count visible ones
+    const visiblePinnedCount = pinnedEvents
+        ? pinnedEvents.filter((event) => {
+              if (!event) return false;
+              const eventId = event.getId();
+              const roomId = event.getRoomId();
+              return !eventId || !deletedEventsStore.isDeleted(roomId, eventId);
+          }).length
+        : pinnedEventIds.length; // While loading, show the full count
+
+    const pinCount = visiblePinnedCount;
     const roomTags = useEventEmitterState(RoomListStore.instance, LISTS_UPDATE_EVENT, () =>
         RoomListStore.instance.getTagsForRoom(room),
     );

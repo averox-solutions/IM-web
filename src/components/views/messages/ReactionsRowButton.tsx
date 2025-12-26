@@ -18,6 +18,7 @@ import ReactionsRowButtonTooltip from "./ReactionsRowButtonTooltip";
 import AccessibleButton from "../elements/AccessibleButton";
 import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import { REACTION_SHORTCODE_KEY } from "./ReactionsRow";
+import DMRoomMap from "../../../utils/DMRoomMap";
 
 export interface IProps {
     // The event we're displaying reactions for
@@ -42,10 +43,45 @@ export default class ReactionsRowButton extends React.PureComponent<IProps> {
 
     public onClick = (): void => {
         const { mxEvent, myReactionEvent, content } = this.props;
+        const roomId = mxEvent.getRoomId()!;
+        const cli = this.context;
+        
         if (myReactionEvent) {
-            this.context.redactEvent(mxEvent.getRoomId()!, myReactionEvent.getId()!);
+            this.context.redactEvent(roomId, myReactionEvent.getId()!);
         } else {
-            this.context.sendEvent(mxEvent.getRoomId()!, EventType.Reaction, {
+            // Check if this is a 1-1 DM
+            const isDM = !!DMRoomMap.shared().getUserIdForRoomId(roomId);
+            
+            // If it's a DM, check if user already has a different reaction and remove it
+            if (isDM) {
+                const room = cli.getRoom(roomId);
+                if (room) {
+                    const messageReactions = room.relations.getChildEventsForEvent(
+                        mxEvent.getId()!,
+                        RelationType.Annotation,
+                        EventType.Reaction,
+                    );
+                    
+                    if (messageReactions) {
+                        const userId = cli.getSafeUserId();
+                        const myReactionEvents = messageReactions.getAnnotationsBySender()?.[userId] || new Set<MatrixEvent>();
+                        
+                        // Find any existing reaction that's different from the one being added
+                        for (const reactionEvent of myReactionEvents) {
+                            if (!reactionEvent.isRedacted()) {
+                                const reactionKey = reactionEvent.getRelation()?.key;
+                                // If it's a different reaction, remove it
+                                if (reactionKey && reactionKey !== content) {
+                                    cli.redactEvent(roomId, reactionEvent.getId()!);
+                                    break; // Only remove one (user can only have one in DMs)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            this.context.sendEvent(roomId, EventType.Reaction, {
                 "m.relates_to": {
                     rel_type: RelationType.Annotation,
                     event_id: mxEvent.getId()!,

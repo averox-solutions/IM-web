@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import React, { useCallback, useEffect, type JSX, useContext } from "react";
+import React, { useCallback, useEffect, useState, type JSX, useContext } from "react";
 import { type Room, type MatrixEvent } from "matrix-js-sdk/src/matrix";
 import { Button, Separator } from "@vector-im/compound-web";
 import classNames from "classnames";
@@ -25,9 +25,10 @@ import { filterBoolean } from "../../../utils/arrays";
 import Modal from "../../../Modal";
 import { UnpinAllDialog } from "../dialogs/UnpinAllDialog";
 import EmptyState from "./EmptyState";
-import { usePinnedEvents, useReadPinnedEvents, useSortedFetchedPinnedEvents } from "../../../hooks/usePinnedEvents";
+import { usePinnedEvents, useReadPinnedEvents, useSortedFetchedPinnedEvents, useFetchedPinnedEvents } from "../../../hooks/usePinnedEvents";
 import PinningUtils from "../../../utils/PinningUtils.ts";
 import { ScopedRoomContextProvider } from "../../../contexts/ScopedRoomContext.tsx";
+import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
 
 /**
  * List the pinned messages in a room inside a Card.
@@ -52,7 +53,30 @@ export function PinnedMessagesCard({ room, onClose, permalinkCreator }: PinnedMe
     const roomContext = useContext(RoomContext);
     const pinnedEventIds = usePinnedEvents(room);
     const readPinnedEvents = useReadPinnedEvents(room);
+    const fetchedPinnedEvents = useFetchedPinnedEvents(room, pinnedEventIds);
     const pinnedEvents = useSortedFetchedPinnedEvents(room, pinnedEventIds);
+    const [deletedEventsStore, setDeletedEventsStore] = useState(DeletedEventsStore.getInstance());
+
+    // Load deleted events for this room and subscribe to changes
+    useEffect(() => {
+        if (!cli) return;
+        const store = DeletedEventsStore.getInstance();
+        store.loadRoom(cli, room.roomId).catch((e) => {
+            // Error already logged in store
+        });
+        const unsubscribe = store.addRoomListener(room.roomId, () => {
+            setDeletedEventsStore(DeletedEventsStore.getInstance());
+        });
+        return unsubscribe;
+    }, [cli, room.roomId]);
+
+    // Filter out deleted events
+    const visiblePinnedEvents = pinnedEvents.filter((event) => {
+        if (!event) return false;
+        const eventId = event.getId();
+        const roomId = event.getRoomId();
+        return !eventId || !deletedEventsStore.isDeleted(roomId, eventId);
+    });
 
     useEffect(() => {
         if (!cli || cli.isGuest()) return; // nothing to do
@@ -76,17 +100,33 @@ export function PinnedMessagesCard({ room, onClose, permalinkCreator }: PinnedMe
                 })}
             />
         );
-    } else if (pinnedEvents?.length) {
+    } else if (fetchedPinnedEvents === null) {
+        // Still loading pinned events
+        content = <Spinner />;
+    } else if (visiblePinnedEvents.length > 0) {
+        // Have visible pinned events
         content = (
-            <PinnedMessages events={filterBoolean(pinnedEvents)} room={room} permalinkCreator={permalinkCreator} />
+            <PinnedMessages events={filterBoolean(visiblePinnedEvents)} room={room} permalinkCreator={permalinkCreator} />
         );
     } else {
-        content = <Spinner />;
+        // All pinned events are deleted "for me" or failed to load - show empty state
+        content = (
+            <EmptyState
+                Icon={PinIcon}
+                title={_t("right_panel|pinned_messages|empty_title")}
+                description={_t("right_panel|pinned_messages|empty_description", {
+                    pinAction: _t("action|pin"),
+                })}
+            />
+        );
     }
+
+    // Use visible count for header, but fallback to total count while loading
+    const headerCount = fetchedPinnedEvents !== null ? visiblePinnedEvents.length : pinnedEventIds.length;
 
     return (
         <BaseCard
-            header={_t("right_panel|pinned_messages|header", { count: pinnedEventIds.length })}
+            header={_t("right_panel|pinned_messages|header", { count: headerCount })}
             className="mx_PinnedMessagesCard"
             onClose={onClose}
         >

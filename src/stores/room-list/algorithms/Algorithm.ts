@@ -1574,12 +1574,33 @@ export class Algorithm extends EventEmitter {
                 if (DMRoomMap.shared().getUserIdForRoomId(room.roomId)) {
                     newTags[DefaultTagID.DM].push(room);
                 } else {
-                    // Check if it's a 1-1 chat based on member count
+                    // Check if it's a 1-1 chat based on member count AND is_direct flag
                     const joinedCount = room.getJoinedMemberCount();
-                    if (joinedCount === 2) {
+                    const invitedCount = room.getInvitedMemberCount();
+                    const totalMembers = joinedCount + invitedCount;
+                    
+                    // Check if any member invite events have is_direct flag set (indicates room was created as DM)
+                    let isDirectRoom = false;
+                    const members = room.getMembers();
+                    for (const member of members) {
+                        const memberEvent = member.events.member;
+                        if (memberEvent) {
+                            const memberContent = memberEvent.getContent();
+                            if (memberContent?.is_direct === true) {
+                                isDirectRoom = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Only auto-mark as DM if:
+                    // 1. It has exactly 2 members (joined + invited)
+                    // 2. AND it was created as a DM (has is_direct flag)
+                    if (totalMembers === 2 && isDirectRoom) {
                         // It's a 1-1 chat - find the other user and mark it as DM
                         const myUserId = room.client.getSafeUserId();
-                        const otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId);
+                        const otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId) ||
+                                          room.getMembers().find(m => m.userId !== myUserId && m.membership === KnownMembership.Invite);
                         if (otherMember) {
                             // Automatically mark this room as a DM
                             setDMRoom(room.client, room.roomId, otherMember.userId).catch(err => {
@@ -1645,12 +1666,33 @@ export class Algorithm extends EventEmitter {
             if (DMRoomMap.shared().getUserIdForRoomId(room.roomId)) {
                 tags = [DefaultTagID.DM];
             } else {
-                // If not marked as DM, check if it's a 1-1 chat based on member count
+                // If not marked as DM, check if it's a 1-1 chat based on member count AND is_direct flag
                 const joinedCount = room.getJoinedMemberCount();
-                if (joinedCount === 2) {
+                const invitedCount = room.getInvitedMemberCount();
+                const totalMembers = joinedCount + invitedCount;
+                
+                // Check if any member invite events have is_direct flag set (indicates room was created as DM)
+                let isDirectRoom = false;
+                const members = room.getMembers();
+                for (const member of members) {
+                    const memberEvent = member.events.member;
+                    if (memberEvent) {
+                        const memberContent = memberEvent.getContent();
+                        if (memberContent?.is_direct === true) {
+                            isDirectRoom = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Only auto-mark as DM if:
+                // 1. It has exactly 2 members (joined + invited)
+                // 2. AND it was created as a DM (has is_direct flag)
+                if (totalMembers === 2 && isDirectRoom) {
                     // It's a 1-1 chat - find the other user and mark it as DM
                     const myUserId = room.client.getSafeUserId();
-                    const otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId);
+                    const otherMember = room.getJoinedMembers().find(m => m.userId !== myUserId) ||
+                                      room.getMembers().find(m => m.userId !== myUserId && m.membership === KnownMembership.Invite);
                     if (otherMember) {
                         // Automatically mark this room as a DM
                         setDMRoom(room.client, room.roomId, otherMember.userId).catch(err => {

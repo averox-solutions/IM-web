@@ -156,8 +156,8 @@ export async function sendMessage(
     // Wait for message to be sent, then check if this is a 1-1 chat and update tags if the other user has "leave" tag
     prom.then(() => {
         logger.log(`[sendMessage] Message sent successfully, checking tags for room ${roomId}`);
-        checkAndUpdateTagsAfterMessage(mxClient, roomId).catch((error) => {
-            logger.error("Error checking and updating tags after message:", error);
+    checkAndUpdateTagsAfterMessage(mxClient, roomId).catch((error) => {
+        logger.error("Error checking and updating tags after message:", error);
         });
     }).catch((error) => {
         logger.error(`[sendMessage] Message send failed, skipping tag check:`, error);
@@ -197,7 +197,7 @@ export async function sendMessage(
  * Check the other user's tag status after sending a message
  * If the other user has "m.leave-1-1-chat" tag, remove it from current user's tags
  */
-async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: string): Promise<void> {
+export async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: string): Promise<void> {
     logger.log(`[checkAndUpdateTagsAfterMessage] Starting check for room ${roomId}`);
     try {
         const isDm = DMRoomMap.shared().getUserIdForRoomId(roomId);
@@ -286,9 +286,9 @@ async function checkAndUpdateTagsAfterMessage(client: MatrixClient, roomId: stri
                 );
                 await bulkUpdateRoomTags(client, otherUserId, [
                     {
-                        room_id: roomId,
+                room_id: roomId,
                         action: "remove",
-                        tag: "m.leave-1-1-chat",
+                tag: "m.leave-1-1-chat",
                     },
                 ]);
                 logger.log(

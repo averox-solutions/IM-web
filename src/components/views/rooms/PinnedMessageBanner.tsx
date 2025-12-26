@@ -26,6 +26,8 @@ import MessageEvent from "../messages/MessageEvent";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
 import { EventPreview } from "./EventPreview.tsx";
 import type ResizeNotifier from "../../../utils/ResizeNotifier";
+import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
+import { useMatrixClientContext } from "../../../contexts/MatrixClientContext";
 
 /**
  * The props for the {@link PinnedMessageBanner} component.
@@ -53,18 +55,48 @@ export function PinnedMessageBanner({
     permalinkCreator,
     resizeNotifier,
 }: PinnedMessageBannerProps): JSX.Element | null {
+    const cli = useMatrixClientContext();
     const pinnedEventIds = usePinnedEvents(room);
     const pinnedEvents = useSortedFetchedPinnedEvents(room, pinnedEventIds);
-    const eventCount = pinnedEvents.length;
+    const [deletedEventsStore, setDeletedEventsStore] = useState(DeletedEventsStore.getInstance());
+
+    // Load deleted events for this room and subscribe to changes
+    useEffect(() => {
+        if (!cli) return;
+        const store = DeletedEventsStore.getInstance();
+        store.loadRoom(cli, room.roomId).catch((e) => {
+            // Error already logged in store
+        });
+        const unsubscribe = store.addRoomListener(room.roomId, () => {
+            setDeletedEventsStore(DeletedEventsStore.getInstance());
+        });
+        return unsubscribe;
+    }, [cli, room.roomId]);
+
+    // Filter out deleted events
+    const visiblePinnedEvents = pinnedEvents.filter((event) => {
+        if (!event) return false;
+        const eventId = event.getId();
+        const roomId = event.getRoomId();
+        return !eventId || !deletedEventsStore.isDeleted(roomId, eventId);
+    });
+
+    const eventCount = visiblePinnedEvents.length;
     const isSinglePinnedEvent = eventCount === 1;
 
-    const [currentEventIndex, setCurrentEventIndex] = useState(eventCount - 1);
+    const [currentEventIndex, setCurrentEventIndex] = useState(() => Math.max(0, eventCount - 1));
     // When the number of pinned messages changes, we want to display the last message
     useEffect(() => {
-        setCurrentEventIndex(() => eventCount - 1);
+        if (eventCount > 0) {
+            setCurrentEventIndex(Math.max(0, eventCount - 1));
+        } else {
+            setCurrentEventIndex(0);
+        }
     }, [eventCount]);
 
-    const pinnedEvent = pinnedEvents[currentEventIndex];
+    const pinnedEvent = eventCount > 0 && currentEventIndex < eventCount 
+        ? visiblePinnedEvents[currentEventIndex] 
+        : null;
     useNotifyTimeline(pinnedEvent, resizeNotifier);
 
     if (!pinnedEvent) return null;

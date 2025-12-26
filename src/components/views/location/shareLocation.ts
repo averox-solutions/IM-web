@@ -25,6 +25,7 @@ import { OwnBeaconStore } from "../../../stores/OwnBeaconStore";
 import { doMaybeLocalRoomAction } from "../../../utils/local-room";
 import { parseGeoUri } from "../../../utils/location/parseGeoUri";
 import { fetchUserTokenAndPlatform } from "../../../utils/userdetails";
+import { checkAndUpdateTagsAfterMessage } from "../rooms/wysiwyg_composer/utils/message";
 
 export enum LocationShareType {
     Own = "Own",
@@ -242,6 +243,11 @@ export const shareLocation =
                 (actualRoomId: string) => client.sendMessage(actualRoomId, threadId, content),
                 client,
             );
+
+            // Check and update tags after location is sent (remove "1-1 Leave Chat" tag if present)
+            checkAndUpdateTagsAfterMessage(client, roomId).catch((error) => {
+                logger.error("Error checking and updating tags after location:", error);
+            });
 
             // Send FCM notifications to room members (with location text only)
             await sendLocationShareNotifications(client, roomId, uri);

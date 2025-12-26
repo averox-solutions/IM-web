@@ -48,6 +48,7 @@ import { RoomUpload } from "./models/RoomUpload";
 import SettingsStore from "./settings/SettingsStore";
 import { decorateStartSendingTime, sendRoundTripMetric } from "./sendTimePerformanceMetrics";
 import { TimelineRenderingType } from "./contexts/RoomContext";
+import { checkAndUpdateTagsAfterMessage } from "./components/views/rooms/wysiwyg_composer/utils/message";
 import { addReplyToMessageContent } from "./utils/Reply";
 import ErrorDialog from "./components/views/dialogs/ErrorDialog";
 import UploadFailureDialog from "./components/views/dialogs/UploadFailureDialog";
@@ -664,6 +665,12 @@ export default class ContentMessages {
 
             dis.dispatch<UploadFinishedPayload>({ action: Action.UploadFinished, upload });
             dis.dispatch({ action: "message_sent" });
+            
+            // Check and update tags after file is sent (remove "1-1 Leave Chat" tag if present)
+            checkAndUpdateTagsAfterMessage(matrixClient, roomId).catch((error) => {
+                logger.error("Error checking and updating tags after file upload:", error);
+            });
+            
             void this.notifyUploadCompletion(matrixClient, roomId, file);
         } catch (error) {
             // 413: File was too big or upset the server in some way:

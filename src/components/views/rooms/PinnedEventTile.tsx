@@ -35,6 +35,7 @@ import { createRedactEventDialog } from "../dialogs/ConfirmRedactDialog";
 import { type ShowThreadPayload } from "../../../dispatcher/payloads/ShowThreadPayload";
 import PinningUtils from "../../../utils/PinningUtils.ts";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
+import { DeletedEventsStore } from "../../../stores/DeletedEventsStore";
 
 const AVATAR_SIZE = "32px";
 
@@ -59,10 +60,17 @@ interface PinnedEventTileProps {
 /**
  * A pinned event tile.
  */
-export function PinnedEventTile({ event, room, permalinkCreator }: PinnedEventTileProps): JSX.Element {
+export function PinnedEventTile({ event, room, permalinkCreator }: PinnedEventTileProps): JSX.Element | null {
     const sender = event.getSender();
     if (!sender) {
         throw new Error("Pinned event unexpectedly has no sender");
+    }
+
+    // Hide if this event has been deleted "for me"
+    const eventId = event.getId();
+    const roomId = event.getRoomId();
+    if (eventId && DeletedEventsStore.getInstance().isDeleted(roomId, eventId)) {
+        return null;
     }
 
     const isInThread = Boolean(event.threadRootId);

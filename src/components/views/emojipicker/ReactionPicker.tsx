@@ -16,6 +16,7 @@ import dis from "../../../dispatcher/dispatcher";
 import { Action } from "../../../dispatcher/actions";
 import RoomContext from "../../../contexts/RoomContext";
 import { type FocusComposerPayload } from "../../../dispatcher/payloads/FocusComposerPayload";
+import DMRoomMap from "../../../utils/DMRoomMap";
 
 interface IProps {
     mxEvent: MatrixEvent;
@@ -100,7 +101,23 @@ class ReactionPicker extends React.Component<IProps, IState> {
             // Tell the emoji picker not to bump this in the more frequently used list.
             return false;
         } else {
-            MatrixClientPeg.safeGet().sendEvent(this.props.mxEvent.getRoomId()!, EventType.Reaction, {
+            const roomId = this.props.mxEvent.getRoomId()!;
+            const cli = MatrixClientPeg.safeGet();
+            
+            // Check if this is a 1-1 DM
+            const isDM = !!DMRoomMap.shared().getUserIdForRoomId(roomId);
+            
+            // If it's a DM and user already has a reaction, remove it first
+            if (isDM && Object.keys(myReactions).length > 0) {
+                // Remove the first existing reaction (user can only have one in DMs)
+                const existingReactionKey = Object.keys(myReactions)[0];
+                const existingReactionId = myReactions[existingReactionKey];
+                if (existingReactionId && this.context.canSelfRedact) {
+                    cli.redactEvent(roomId, existingReactionId);
+                }
+            }
+            
+            cli.sendEvent(roomId, EventType.Reaction, {
                 "m.relates_to": {
                     rel_type: RelationType.Annotation,
                     event_id: this.props.mxEvent.getId()!,

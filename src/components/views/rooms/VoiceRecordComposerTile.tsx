@@ -7,7 +7,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React, { type ReactNode } from "react";
-import { type Room, type IEventRelation, type MatrixEvent } from "matrix-js-sdk/src/matrix";
+import { type Room, type IEventRelation, type MatrixEvent, THREAD_RELATION_TYPE } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
 import { type Optional } from "matrix-events-sdk";
 
@@ -34,6 +34,7 @@ import { addReplyToMessageContent } from "../../../utils/Reply";
 import RoomContext from "../../../contexts/RoomContext";
 import { type IUpload, type VoiceMessageRecording } from "../../../audio/VoiceMessageRecording";
 import { createVoiceMessageContent } from "../../../utils/createVoiceMessageContent";
+import { checkAndUpdateTagsAfterMessage } from "./wysiwyg_composer/utils/message";
 import AccessibleButton from "../elements/AccessibleButton";
 import PlayIcon from "@vector-im/compound-design-tokens/assets/web/icons/play-solid";
 import PauseIcon from "@vector-im/compound-design-tokens/assets/web/icons/pause-solid";
@@ -137,11 +138,27 @@ export default class VoiceRecordComposerTile extends React.PureComponent<IProps,
                 });
             }
 
-            doMaybeLocalRoomAction(
+            // Extract threadId from relation if this is a thread reply
+            const threadId = relation?.rel_type === THREAD_RELATION_TYPE.name ? relation.event_id : null;
+
+            const sendPromise = doMaybeLocalRoomAction(
                 this.props.room.roomId,
-                (actualRoomId: string) => MatrixClientPeg.safeGet().sendMessage(actualRoomId, content),
+                (actualRoomId: string) => MatrixClientPeg.safeGet().sendMessage(actualRoomId, threadId, content),
                 this.props.room.client,
             );
+
+            // Wait for the message to be sent and handle errors properly
+            await sendPromise.then(() => {
+                logger.log(`[VoiceRecordComposerTile] Voice message sent successfully, checking tags for room ${this.props.room.roomId}`);
+                // Check and update tags after voice message is sent (remove "1-1 Leave Chat" tag if present)
+                checkAndUpdateTagsAfterMessage(this.props.room.client, this.props.room.roomId).catch((error) => {
+                    logger.error("Error checking and updating tags after voice message send:", error);
+                });
+            }).catch((error) => {
+                logger.error("Error sending voice message:", error);
+                // Re-throw the error so it can be handled by the outer catch block
+                throw error;
+            });
         } catch (e) {
             logger.error("Error sending voice message:", e);
 

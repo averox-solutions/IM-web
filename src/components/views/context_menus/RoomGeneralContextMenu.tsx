@@ -7,7 +7,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import { logger } from "matrix-js-sdk/src/logger";
-import { type Room, RoomEvent } from "matrix-js-sdk/src/matrix";
+import { type Room, RoomEvent, M_POLL_START, M_POLL_END } from "matrix-js-sdk/src/matrix";
 import React, { useContext, useMemo, useState, useCallback, useEffect } from "react";
 
 import { KeyBindingAction } from "../../../accessibility/KeyboardShortcuts";
@@ -244,13 +244,24 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                                     dis.dispatch({ action: Action.ViewHomePage });
                                 }
 
-                                // Call backend to delete all messages for me
-                                const ok = await bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true });
+                                // Call backend to delete all messages for me (excluding poll events)
+                                const events = room.getLiveTimeline().getEvents();
+                                // Filter out poll events - they should remain visible even when chat is "deleted"
+                                const nonPollEventIds = events
+                                    .filter((e) => {
+                                        const eventType = e.getType();
+                                        return !M_POLL_START.matches(eventType) && !M_POLL_END.matches(eventType);
+                                    })
+                                    .map((e) => e.getId())
+                                    .filter((id): id is string => !!id);
+                                
+                                const ok = nonPollEventIds.length > 0
+                                    ? await bulkDeleteEventsForMe(cli, room.roomId, { event_ids: nonPollEventIds })
+                                    : true; // No events to delete
+                                
                                 if (ok) {
-                                    // Immediately hide all existing events in this room for this user
-                                    const events = room.getLiveTimeline().getEvents();
-                                    const ids = events.map((e) => e.getId()).filter((id): id is string => !!id);
-                                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
+                                    // Mark only non-poll events as deleted
+                                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, nonPollEventIds);
                                 }
                             }
                         })
@@ -264,22 +275,29 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                                 if (SdkContextClass.instance.roomViewStore.getRoomId() === room.roomId) {
                                     dis.dispatch({ action: Action.ViewHomePage });
                                 }
-                                bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true })
-                                    .then((ok) => {
-                                        if (ok) {
-                                            const events = room.getLiveTimeline().getEvents();
-                                            const ids = events
-                                                .map((e) => e.getId())
-                                                .filter((id): id is string => !!id);
-                                            DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
-                                        }
+                                const events = room.getLiveTimeline().getEvents();
+                                const nonPollEventIds = events
+                                    .filter((e) => {
+                                        const eventType = e.getType();
+                                        return !M_POLL_START.matches(eventType) && !M_POLL_END.matches(eventType);
                                     })
-                                    .catch((error) => {
-                                        logger.error(
-                                            `Failed to bulk delete events for room ${room.roomId} after applying leave tag:`,
-                                            error,
-                                        );
-                                    });
+                                    .map((e) => e.getId())
+                                    .filter((id): id is string => !!id);
+                                
+                                if (nonPollEventIds.length > 0) {
+                                    bulkDeleteEventsForMe(cli, room.roomId, { event_ids: nonPollEventIds })
+                                        .then((ok) => {
+                                            if (ok) {
+                                                DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, nonPollEventIds);
+                                            }
+                                        })
+                                        .catch((error) => {
+                                            logger.error(
+                                                `Failed to bulk delete events for room ${room.roomId} after applying leave tag:`,
+                                                error,
+                                            );
+                                        });
+                                }
                             }
                         });
                 } else {
@@ -291,20 +309,29 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
                         if (SdkContextClass.instance.roomViewStore.getRoomId() === room.roomId) {
                             dis.dispatch({ action: Action.ViewHomePage });
                         }
-                        bulkDeleteEventsForMe(cli, room.roomId, { delete_all: true })
-                            .then((ok) => {
-                                if (ok) {
-                                    const events = room.getLiveTimeline().getEvents();
-                                    const ids = events.map((e) => e.getId()).filter((id): id is string => !!id);
-                                    DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, ids);
-                                }
+                        const events = room.getLiveTimeline().getEvents();
+                        const nonPollEventIds = events
+                            .filter((e) => {
+                                const eventType = e.getType();
+                                return !M_POLL_START.matches(eventType) && !M_POLL_END.matches(eventType);
                             })
-                            .catch((err) => {
-                                logger.error(
-                                    `Failed to bulk delete events for room ${room.roomId} after applying leave tag:`,
-                                    err,
-                                );
-                            });
+                            .map((e) => e.getId())
+                            .filter((id): id is string => !!id);
+                        
+                        if (nonPollEventIds.length > 0) {
+                            bulkDeleteEventsForMe(cli, room.roomId, { event_ids: nonPollEventIds })
+                                .then((ok) => {
+                                    if (ok) {
+                                        DeletedEventsStore.getInstance().setDeletedForRoom(room.roomId, nonPollEventIds);
+                                    }
+                                })
+                                .catch((err) => {
+                                    logger.error(
+                                        `Failed to bulk delete events for room ${room.roomId} after applying leave tag:`,
+                                        err,
+                                    );
+                                });
+                        }
                     }
                 }
             }
@@ -384,38 +411,38 @@ export const RoomGeneralContextMenu: React.FC<RoomGeneralContextMenuProps> = ({
     let leaveOption: React.ReactElement | null = null;
     // Hide the standard "Leave room" button for pure 1-1 DMs; use the red "Leave 1-1 chat" instead.
     if (!isDm) {
-        if (roomTags.includes(DefaultTagID.Archived)) {
-            leaveOption = (
-                <IconizedContextMenuOption
-                    iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
-                    label={_t("room|context_menu|forget")}
-                    className="mx_IconizedContextMenu_option_red"
-                    onClick={wrapHandler(
-                        () =>
-                            dis.dispatch({
-                                action: "forget_room",
-                                room_id: room.roomId,
-                            }),
-                        onPostForgetClick,
-                    )}
-                />
-            );
-        } else {
-            leaveOption = (
-                <IconizedContextMenuOption
-                    onClick={wrapHandler(
-                        () =>
-                            dis.dispatch({
-                                action: "leave_room",
-                                room_id: room.roomId,
-                            }),
-                        onPostLeaveClick,
-                    )}
-                    label={_t("action|leave")}
-                    className="mx_IconizedContextMenu_option_red"
-                    iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
-                />
-            );
+    if (roomTags.includes(DefaultTagID.Archived)) {
+        leaveOption = (
+            <IconizedContextMenuOption
+                iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
+                label={_t("room|context_menu|forget")}
+                className="mx_IconizedContextMenu_option_red"
+                onClick={wrapHandler(
+                    () =>
+                        dis.dispatch({
+                            action: "forget_room",
+                            room_id: room.roomId,
+                        }),
+                    onPostForgetClick,
+                )}
+            />
+        );
+    } else {
+        leaveOption = (
+            <IconizedContextMenuOption
+                onClick={wrapHandler(
+                    () =>
+                        dis.dispatch({
+                            action: "leave_room",
+                            room_id: room.roomId,
+                        }),
+                    onPostLeaveClick,
+                )}
+                label={_t("action|leave")}
+                className="mx_IconizedContextMenu_option_red"
+                iconClassName="mx_RoomGeneralContextMenu_iconSignOut"
+            />
+        );
         }
     }
 

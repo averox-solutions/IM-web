@@ -679,7 +679,6 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
             // Use RoomListStore tags (DefaultTagID.OneOnOneChatLeave) instead of raw room.tags,
             // because the room's account-data tags may not be loaded at this point.
             const roomTags = RoomListStore.instance.getTagsForRoom(room);
-            console.log("roomTags", roomTags);
             const hasLeaveTag = roomTags.includes(DefaultTagID.OneOnOneChatLeave);
 
             logger.log(

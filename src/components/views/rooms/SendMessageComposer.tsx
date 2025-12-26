@@ -408,7 +408,9 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
             if (events[i].getType() === EventType.RoomMessage) {
                 let shouldReact = true;
                 const lastMessage = events[i];
-                const userId = MatrixClientPeg.safeGet().getSafeUserId();
+                const roomId = lastMessage.getRoomId()!;
+                const cli = MatrixClientPeg.safeGet();
+                const userId = cli.getSafeUserId();
                 const messageReactions = this.props.room.relations.getChildEventsForEvent(
                     lastMessage.getId()!,
                     RelationType.Annotation,
@@ -423,9 +425,21 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
                         .filter((event) => !event.isRedacted())
                         .map((event) => event.getRelation()?.key);
                     shouldReact = !myReactionKeys.includes(reaction);
+                    
+                    // Check if this is a 1-1 DM and user has a different reaction
+                    const isDM = !!DMRoomMap.shared().getUserIdForRoomId(roomId);
+                    if (isDM && shouldReact && myReactionKeys.length > 0) {
+                        // Remove the existing reaction (user can only have one in DMs)
+                        const existingReactionKey = myReactionKeys[0];
+                        const existingReactionEvent = [...myReactionEvents]
+                            .find((event) => !event.isRedacted() && event.getRelation()?.key === existingReactionKey);
+                        if (existingReactionEvent) {
+                            cli.redactEvent(roomId, existingReactionEvent.getId()!);
+                        }
+                    }
                 }
                 if (shouldReact) {
-                    MatrixClientPeg.safeGet().sendEvent(lastMessage.getRoomId()!, EventType.Reaction, {
+                    cli.sendEvent(roomId, EventType.Reaction, {
                         "m.relates_to": {
                             rel_type: RelationType.Annotation,
                             event_id: lastMessage.getId()!,
@@ -707,9 +721,9 @@ export class SendMessageComposer extends React.Component<ISendMessageComposerPro
                     );
                     await bulkUpdateRoomTags(client, myUserId, [
                         {
-                            room_id: roomId,
+                    room_id: roomId,
                             action: "remove",
-                            tag: "m.leave-1-1-chat",
+                    tag: "m.leave-1-1-chat",
                         },
                     ]);
                     dis.dispatch(RoomListActions.tagRoom(client, room, "m.leave-1-1-chat", null, 0));

@@ -38,6 +38,7 @@ interface IProps {
     roomId: string;
     ts: number;
     forExport?: boolean;
+    isFirstSeparator?: boolean; // True if this is the first date separator in the timeline (no previous events)
 }
 
 interface IState {
@@ -105,16 +106,29 @@ export default class DateSeparator extends React.Component<IProps, IState> {
             // During the time the archive is being viewed, a specific day might not make sense, so we return the full date
             if (this.props.forExport || disableRelativeTimestamps) return formatFullDateNoTime(date);
 
-            const today = new Date();
-            const yesterday = new Date();
-            const days = getDaysArray("long");
-            yesterday.setDate(today.getDate() - 1);
-
-            if (date.toDateString() === today.toDateString()) {
+            // If this is the first separator in an empty/new room, always show "today"
+            if (this.props.isFirstSeparator) {
                 return this.relativeTimeFormat.format(0, "day"); // Today
-            } else if (date.toDateString() === yesterday.toDateString()) {
+            }
+
+            // Normalize dates to midnight in local timezone for accurate comparison
+            const normalizeToMidnight = (d: Date): Date => {
+                const normalized = new Date(d);
+                normalized.setHours(0, 0, 0, 0);
+                return normalized;
+            };
+
+            const normalizedDate = normalizeToMidnight(date);
+            const today = normalizeToMidnight(new Date());
+            const yesterday = normalizeToMidnight(new Date());
+            yesterday.setDate(yesterday.getDate() - 1);
+            const days = getDaysArray("long");
+
+            if (normalizedDate.getTime() === today.getTime()) {
+                return this.relativeTimeFormat.format(0, "day"); // Today
+            } else if (normalizedDate.getTime() === yesterday.getTime()) {
                 return this.relativeTimeFormat.format(-1, "day"); // Yesterday
-            } else if (today.getTime() - date.getTime() < 6 * 24 * 60 * 60 * 1000) {
+            } else if (today.getTime() - normalizedDate.getTime() < 6 * 24 * 60 * 60 * 1000) {
                 return days[date.getDay()]; // Sunday-Saturday
             } else {
                 return formatFullDateNoTime(date);

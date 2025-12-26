@@ -746,9 +746,11 @@ export default class MessagePanel extends React.Component<IProps, IState> {
         const wantsSeparator = this.wantsSeparator(prevEvent, mxEv);
         if (!isGrouped && this.props.room) {
             if (wantsSeparator === SeparatorKind.Date) {
+                // Check if this is the first separator (no previous event and can't back paginate)
+                const isFirstSeparator = prevEvent === null && !this.props.canBackPaginate;
                 ret.push(
                     <li key={ts1}>
-                        <DateSeparator key={ts1} roomId={this.props.room.roomId} ts={ts1} />
+                        <DateSeparator key={ts1} roomId={this.props.room.roomId} ts={ts1} isFirstSeparator={isFirstSeparator} />
                     </li>,
                 );
             } else if (wantsSeparator === SeparatorKind.LateEvent) {

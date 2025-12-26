@@ -28,6 +28,8 @@ import Field from "./Field";
 import AccessibleButton from "./AccessibleButton";
 import Spinner from "./Spinner";
 import { doMaybeLocalRoomAction } from "../../../utils/local-room";
+import { checkAndUpdateTagsAfterMessage } from "../rooms/wysiwyg_composer/utils/message";
+import { logger } from "matrix-js-sdk/src/logger";
 
 interface IProps {
     room: Room;
@@ -164,7 +166,13 @@ export default class PollCreateDialog extends ScrollableBaseModal<IProps, IState
                 ),
             this.matrixClient,
         )
-            .then(() => this.props.onFinished(true))
+            .then(() => {
+                // Check and update tags after poll is sent (remove "1-1 Leave Chat" tag if present)
+                checkAndUpdateTagsAfterMessage(this.matrixClient, this.props.room.roomId).catch((error) => {
+                    logger.error("Error checking and updating tags after poll:", error);
+                });
+                this.props.onFinished(true);
+            })
             .catch((e) => {
                 console.error("Failed to post poll:", e);
                 Modal.createDialog(QuestionDialog, {
