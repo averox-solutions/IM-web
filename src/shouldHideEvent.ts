@@ -6,12 +6,13 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
  */
 
-import { type MatrixEvent, EventType, RelationType } from "matrix-js-sdk/src/matrix";
+import { type MatrixEvent, EventType, RelationType, M_POLL_START, M_POLL_END } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 
 import SettingsStore from "./settings/SettingsStore";
 import { type IRoomState } from "./components/structures/RoomView";
 import { type SettingKey } from "./settings/Settings.tsx";
+import DMRoomMap from "./utils/DMRoomMap";
 
 interface IDiff {
     isMemberEvent: boolean;
@@ -55,6 +56,16 @@ export default function shouldHideEvent(ev: MatrixEvent, ctx?: IRoomState): bool
     const isEnabled = ctx
         ? (name: keyof IRoomState) => ctx[name]
         : (name: SettingKey) => SettingsStore.getValue(name, ev.getRoomId());
+
+    // Hide poll events in 1-1 chats
+    const eventType = ev.getType();
+    const isPollEvent = M_POLL_START.matches(eventType) || M_POLL_END.matches(eventType);
+    if (isPollEvent) {
+        const roomId = ev.getRoomId();
+        if (roomId && DMRoomMap.shared().getUserIdForRoomId(roomId)) {
+            return true; // Hide polls in 1-1 chats
+        }
+    }
 
     // Hide redacted events
     // Deleted events with a thread are always shown regardless of user preference

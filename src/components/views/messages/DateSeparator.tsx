@@ -186,7 +186,7 @@ export default class DateSeparator extends React.Component<IProps, IState> {
             const currentRoomId = SdkContextClass.instance.roomViewStore.getRoomId();
             if (currentRoomId === roomIdForJumpRequest) {
                 let friendlyErrorMessage = "An error occured while trying to find and jump to the given date.";
-                let submitDebugLogsContent: JSX.Element = <></>;
+                let submitDebugLogsContent: React.ReactNode = <></>;
                 if (err instanceof ConnectionError) {
                     friendlyErrorMessage = _t("room|error_jump_to_date_connection");
                 } else if (err instanceof MatrixError) {
@@ -280,7 +280,7 @@ export default class DateSeparator extends React.Component<IProps, IState> {
     };
 
     private renderJumpToDateMenu(): React.ReactElement {
-        let contextMenu: JSX.Element | undefined;
+        let contextMenu: React.ReactNode;
         if (this.state.contextMenuPosition) {
             const relativeTimeFormat = this.relativeTimeFormat;
             contextMenu = (
@@ -333,7 +333,7 @@ export default class DateSeparator extends React.Component<IProps, IState> {
     public render(): React.ReactNode {
         const label = this.getLabel();
 
-        let dateHeaderContent: JSX.Element;
+        let dateHeaderContent: React.ReactNode;
         if (this.state.jumpToDateEnabled) {
             dateHeaderContent = this.renderJumpToDateMenu();
         } else {

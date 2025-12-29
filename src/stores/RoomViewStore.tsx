@@ -576,20 +576,40 @@ export class RoomViewStore extends EventEmitter {
                     // Don't fail the join if marking as DM fails - it's not critical
                 }
             } else {
-                // After joining, check if the room should be a DM based on member count
+                // After joining, check if the room should be a DM based on member count AND is_direct flag
                 // This handles cases where the room wasn't detected as a DM before joining
                 const roomAfterJoin = cli.getRoom(roomId!);
                 if (roomAfterJoin) {
                     const joinedCount = roomAfterJoin.getJoinedMemberCount();
-                    // If exactly 2 joined members, it's a DM
-                    if (joinedCount === 2) {
+                    const invitedCount = roomAfterJoin.getInvitedMemberCount();
+                    const totalMembers = joinedCount + invitedCount;
+                    
+                    // Check if any member invite events have is_direct flag set (indicates room was created as DM)
+                    let isDirectRoom = false;
+                    const members = roomAfterJoin.getMembers();
+                    for (const member of members) {
+                        const memberEvent = member.events.member;
+                        if (memberEvent) {
+                            const memberContent = memberEvent.getContent();
+                            if (memberContent?.is_direct === true) {
+                                isDirectRoom = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Only auto-mark as DM if:
+                    // 1. It has exactly 2 members (joined + invited)
+                    // 2. AND it was created as a DM (has is_direct flag)
+                    if (totalMembers === 2 && isDirectRoom) {
                         // Find the other user (not ourselves)
                         const myUserId = cli.getSafeUserId();
-                        const otherMember = roomAfterJoin.getJoinedMembers().find(m => m.userId !== myUserId);
+                        const otherMember = roomAfterJoin.getJoinedMembers().find(m => m.userId !== myUserId) ||
+                                          roomAfterJoin.getMembers().find(m => m.userId !== myUserId && m.membership === KnownMembership.Invite);
                         if (otherMember) {
                             try {
                                 await setDMRoom(cli, roomId, otherMember.userId);
-                                logger.info(`Marked room ${roomId} as DM for user ${otherMember.userId} based on member count`);
+                                logger.info(`Marked room ${roomId} as DM for user ${otherMember.userId} based on member count and is_direct flag`);
                             } catch (err) {
                                 logger.warn("Failed to mark room as DM based on member count", err);
                             }
