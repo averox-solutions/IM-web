@@ -334,7 +334,7 @@ function DevicesSection({
                 unverifiedDevices.push(device);
             }
         }
-        expandCountCaption = _t("user_info|count_of_verified_sessions", { count: expandSectionDevices.length });
+        // expandCountCaption = _t("user_info|count_of_verified_sessions", { count: expandSectionDevices.length });
         expandHideCaption = _t("user_info|hide_verified_sessions");
         expandIconClasses += " mx_E2EIcon_verified";
     } else {
@@ -343,7 +343,7 @@ function DevicesSection({
             dehydratedDeviceInExpandSection = true;
         }
         expandSectionDevices = devices;
-        expandCountCaption = _t("user_info|count_of_sessions", { count: devices.length });
+        // expandCountCaption = _t("user_info|count_of_sessions", { count: devices.length });
         expandHideCaption = _t("user_info|hide_sessions");
         expandIconClasses += " mx_E2EIcon_normal";
     }
@@ -1518,7 +1518,7 @@ const BasicUserInfo: React.FC<{
             text = _t("user_info|room_unencrypted");
         }
     } else if (!room.isSpaceRoom()) {
-        text = _t("user_info|room_encrypted");
+        // text = _t("user_info|room_encrypted");
     }
 
     let verifyButton;
@@ -1590,7 +1590,7 @@ const BasicUserInfo: React.FC<{
 
     return (
         <React.Fragment>
-            {securitySection}
+            {/* {securitySection} */}
 
             <UserOptionsSection
                 canInvite={roomPermissions.canInvite}

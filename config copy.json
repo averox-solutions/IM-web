@@ -31,7 +31,7 @@
     "feature_group_calls": true
   },
   "element_call": {
-    "url": "https://vs1.bservices-api.org.pk"
+    "url": "https://vite.othersite.m.localhost:3000"
   },
   "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx",
   "permalinkPrefix": "https://wa.beep.gov.pk"

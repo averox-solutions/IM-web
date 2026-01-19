@@ -960,6 +960,9 @@ export class SpaceStoreClass extends AsyncStoreWithClient<EmptyObject> {
             if (this._invitedSpaces.delete(room)) {
                 this.emit(UPDATE_INVITED_SPACES, this.invitedSpaces);
             }
+        } else if (membership === KnownMembership.Leave) {
+            // User has left this space: ensure it is removed from the top-level space list
+            this.removeSpaceFromPanel(room.roomId);
         } else {
             this.rebuildSpaceHierarchy();
             // fire off updates to all parent listeners
@@ -1390,6 +1393,26 @@ export class SpaceStoreClass extends AsyncStoreWithClient<EmptyObject> {
         });
 
         this.notifyIfOrderChanged();
+    }
+
+    /**
+     * Explicitly remove a space from the Space Panel and update listeners.
+     * Useful when we know a space has been left and want immediate UI feedback.
+     */
+    public removeSpaceFromPanel(spaceId: string): void {
+        const before = this.rootSpaces.length;
+        this.rootSpaces = this.rootSpaces.filter((s) => s.roomId !== spaceId);
+
+        // Also drop it from invited spaces, if present
+        if (this._invitedSpaces.size > 0) {
+            this._invitedSpaces = new Set(
+                Array.from(this._invitedSpaces).filter((s) => s.roomId !== spaceId),
+            );
+        }
+
+        if (this.rootSpaces.length !== before) {
+            this.emit(UPDATE_TOP_LEVEL_SPACES, this.spacePanelSpaces, this.enabledMetaSpaces);
+        }
     }
 }
 

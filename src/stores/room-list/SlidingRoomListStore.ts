@@ -16,6 +16,7 @@ import { type ITagMap, ListAlgorithm, SortAlgorithm } from "./algorithms/models"
 import { type ActionPayload } from "../../dispatcher/payloads";
 import { type MatrixDispatcher } from "../../dispatcher/dispatcher";
 import { type IFilterCondition } from "./filters/IFilterCondition";
+import { VisibilityProvider } from "./filters/VisibilityProvider";
 import { AsyncStoreWithClient } from "../AsyncStoreWithClient";
 import { type RoomListStore as Interface, RoomListStoreEvent } from "./Interface";
 import { MetaSpace, type SpaceKey, UPDATE_SELECTED_SPACE } from "../spaces";
@@ -249,6 +250,11 @@ export class SlidingRoomListStoreClass extends AsyncStoreWithClient<EmptyObject>
             if (!room) {
                 return;
             }
+            // Filter out rooms that are not visible (e.g., user has left)
+            if (!VisibilityProvider.instance.isRoomVisible(room)) {
+                console.log(`[SlidingRoomListStore] Filtering out invisible room ${roomId} from ${tagId}`);
+                return;
+            }
             rooms.push(room);
         });
         tagMap[tagId] = rooms;
@@ -391,5 +397,57 @@ export class SlidingRoomListStoreClass extends AsyncStoreWithClient<EmptyObject>
         await this.resetStore();
     }
 
-    protected async onAction(payload: ActionPayload): Promise<void> {}
+    protected async onAction(payload: ActionPayload): Promise<void> {
+        // Don't process actions if we're not ready
+        if (!this.matrixClient) {
+            console.log(`[SlidingRoomListStore] onAction skipped - no matrix client yet`);
+            return;
+        }
+
+        console.log(`[SlidingRoomListStore] onAction called with action: ${payload.action}`);
+
+        // Handle membership changes to update lists in real-time
+        if (payload.action === "MatrixActions.Room.myMembership") {
+            const room = (payload as any).room;
+            const membership = (payload as any).membership;
+            const oldMembership = (payload as any).oldMembership;
+
+            console.log(`[SlidingRoomListStore] Membership changed for room ${room?.roomId}: ${oldMembership} -> ${membership}`);
+
+            if (!room) {
+                console.log(`[SlidingRoomListStore] No room in payload, skipping`);
+                return;
+            }
+
+            // Check if the room is now invisible (user left, banned, etc.)
+            const isVisible = VisibilityProvider.instance.isRoomVisible(room);
+            console.log(`[SlidingRoomListStore] Room ${room.roomId} visibility: ${isVisible}`);
+
+            if (!isVisible) {
+                console.log(`[SlidingRoomListStore] Room ${room.roomId} is now invisible, removing from all lists immediately`);
+
+                // Immediately remove the room from all lists in memory
+                let hasRemovedFromAnyList = false;
+                for (const tagId in this.tagMap) {
+                    const listRooms = this.tagMap[tagId];
+                    const roomIndex = listRooms.findIndex(r => r.roomId === room.roomId);
+
+                    if (roomIndex >= 0) {
+                        console.log(`[SlidingRoomListStore] Removing room ${room.roomId} from list ${tagId} (was at index ${roomIndex})`);
+                        // Remove the room from this list immediately
+                        this.tagMap[tagId] = listRooms.filter(r => r.roomId !== room.roomId);
+                        hasRemovedFromAnyList = true;
+                    }
+                }
+
+                // Trigger UI update if we removed the room from any list
+                if (hasRemovedFromAnyList) {
+                    console.log(`[SlidingRoomListStore] Room ${room.roomId} removed from lists, triggering UI update`);
+                    this.emit(LISTS_UPDATE_EVENT);
+                } else {
+                    console.log(`[SlidingRoomListStore] Room ${room.roomId} was not in any list`);
+                }
+            }
+        }
+    }
 }

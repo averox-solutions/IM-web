@@ -453,7 +453,7 @@ export default class CreateSecretStorageDialog extends React.PureComponent<IProp
                         const currentRoomId = SdkContextClass.instance.roomViewStore.getRoomId();
                         if (currentRoomId !== null) {
                             setTimeout(() => {
-                                window.location.reload();
+                                // window.location.reload();
                             }, 100);
                         }
                     }}

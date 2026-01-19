@@ -42,23 +42,25 @@ export function UrlPreviewSettings({ room }: UrlPreviewSettingsProps): JSX.Eleme
     const isLoading = isEncrypted === null;
 
     return (
-        <SettingsFieldset
-            legend={_t("room_settings|general|url_previews_section")}
-            description={!isLoading && <Description isEncrypted={isEncrypted} />}
-        >
-            {isLoading ? (
-                <InlineSpinner />
-            ) : (
-                <>
-                    <PreviewsForRoom isEncrypted={isEncrypted} roomId={roomId} />
-                    <SettingsFlag
-                        name={isEncrypted ? "urlPreviewsEnabled_e2ee" : "urlPreviewsEnabled"}
-                        level={SettingLevel.ROOM_DEVICE}
-                        roomId={roomId}
-                    />
-                </>
-            )}
-        </SettingsFieldset>
+        <></>
+
+        // <SettingsFieldset
+        //     legend={_t("room_settings|general|url_previews_section")}
+        //     description={!isLoading && <Description isEncrypted={isEncrypted} />}
+        // >
+        //     {isLoading ? (
+        //         <InlineSpinner />
+        //     ) : (
+        //         <>
+        //             <PreviewsForRoom isEncrypted={isEncrypted} roomId={roomId} />
+        //             <SettingsFlag
+        //                 name={isEncrypted ? "urlPreviewsEnabled_e2ee" : "urlPreviewsEnabled"}
+        //                 level={SettingLevel.ROOM_DEVICE}
+        //                 roomId={roomId}
+        //             />
+        //         </>
+        //     )}
+        // </SettingsFieldset>
     );
 }
 
@@ -104,8 +106,8 @@ function Description({ isEncrypted }: DescriptionProps): JSX.Element {
 
     return (
         <>
-            <p>{_t("room_settings|general|url_preview_explainer")}</p>
-            <p>{previewsForAccount}</p>
+            {/* <p>{_t("room_settings|general|url_preview_explainer")}</p>
+            <p>{previewsForAccount}</p> */}
         </>
     );
 }

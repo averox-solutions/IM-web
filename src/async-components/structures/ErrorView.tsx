@@ -153,12 +153,7 @@ export const UnsupportedBrowserView: React.FC<{
                             <Heading as="h2" size="sm" weight="semibold">
                                 {_t("incompatible_browser|use_desktop_heading", { brand })}
                             </Heading>
-                            <DesktopAppLinks
-                                macOsUrl={config.desktop_builds?.url_macos}
-                                win64Url={config.desktop_builds?.url_win64}
-                                win32Url={config.desktop_builds?.url_win32}
-                                linuxUrl={config.desktop_builds?.url_linux}
-                            />
+                  
                         </>
                     )}
  

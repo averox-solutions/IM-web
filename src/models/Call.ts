@@ -50,7 +50,7 @@ import { isVideoRoom } from "../utils/video-rooms";
 import { FontWatcher } from "../settings/watchers/FontWatcher";
 import { type JitsiCallMemberContent, JitsiCallMemberEventType } from "../call-types";
 
-const TIMEOUT_MS = 16000;
+const TIMEOUT_MS = 60000; // Increased from 16s to 60s for slow networks
 
 // Waits until an event is emitted satisfying the given predicate
 const waitForEvent = async (
@@ -241,21 +241,27 @@ export abstract class Call extends TypedEventEmitter<CallEvent, CallEventHandler
         this.messaging = messagingStore.getMessagingForUid(this.widgetUid) ?? null;
         if (!this.messaging) {
             // The widget might still be initializing, so wait for it.
+            logger.log(`Widget messaging not ready for ${this.widgetUid}, waiting for StoreMessaging event...`);
             try {
                 await waitForEvent(
                     messagingStore,
                     WidgetMessagingStoreEvent.StoreMessaging,
                     (uid: string, widgetApi: ClientWidgetApi) => {
+                        logger.log(`Received StoreMessaging event for uid: ${uid}`);
                         if (uid === this.widgetUid) {
                             this.messaging = widgetApi;
+                            logger.log(`Widget messaging established for ${this.widgetUid}`);
                             return true;
                         }
                         return false;
                     },
                 );
             } catch (e) {
+                logger.error(`Failed to establish widget messaging for ${this.widgetUid}:`, e);
                 throw new Error(`Failed to bind call widget in room ${this.roomId}: ${e}`);
             }
+        } else {
+            logger.log(`Widget messaging already available for ${this.widgetUid}`);
         }
         this.connectionState = ConnectionState.Connecting;
         try {
@@ -268,6 +274,11 @@ export abstract class Call extends TypedEventEmitter<CallEvent, CallEventHandler
         this.room.on(RoomEvent.MyMembership, this.onMyMembership);
         WidgetMessagingStore.instance.on(WidgetMessagingStoreEvent.StopMessaging, this.onStopMessaging);
         window.addEventListener("beforeunload", this.beforeUnload);
+
+        // Automatically make the widget persistent so it doesn't get destroyed when switching tabs
+        ActiveWidgetStore.instance.setWidgetPersistence(this.widget.id, this.roomId, true);
+        logger.log(`Set Element Call widget ${this.widget.id} as persistent`);
+
         this.connectionState = ConnectionState.Connected;
     }
 
@@ -837,7 +848,7 @@ export class ElementCall extends Call {
         const existingOtherRoomCallMembers = MatrixRTCSession.callMembershipsForRoom(room).filter(
             // filter all memberships where the application is m.call and the call_id is ""
             (m) => {
-                const isRoomCallMember = m.application === "m.call" && m.callId === "";
+                const isRoomCallMember = m.application === "m.call" && m.slotDescription.id === "";
                 const isThisDevice = m.deviceId === this.client.deviceId;
                 return isRoomCallMember && !isThisDevice;
             },
@@ -861,16 +872,19 @@ export class ElementCall extends Call {
         audioInput: MediaDeviceInfo | null,
         videoInput: MediaDeviceInfo | null,
     ): Promise<void> {
-        // The JoinCall action is only send if the widget is waiting for it.
-        if (this.widget.data?.preload) {
-            try {
-                await this.messaging!.transport.send(ElementWidgetActions.JoinCall, {
-                    audioInput: audioInput?.label ?? null,
-                    videoInput: videoInput?.label ?? null,
-                });
-            } catch (e) {
-                throw new Error(`Failed to join call in room ${this.roomId}: ${e}`);
-            }
+        // NOTE: The preload parameter is deprecated. Modern Element Call widgets handle joining internally.
+        // We attempt to send the JoinCall action for backwards compatibility, but gracefully handle
+        // if the widget doesn't support it (newer widgets join automatically without this action).
+        try {
+            await this.messaging!.transport.send(ElementWidgetActions.JoinCall, {
+                audioInput: audioInput?.label ?? null,
+                videoInput: videoInput?.label ?? null,
+            });
+            logger.debug(`Successfully sent JoinCall action for room ${this.roomId}`);
+        } catch (e) {
+            // Gracefully handle the case where the widget doesn't support the JoinCall action
+            // This is expected for newer Element Call widgets that handle joining internally
+            logger.debug(`JoinCall action not supported by widget (this is normal for newer widgets): ${e}`);
         }
         this.messaging!.on(`action:${ElementWidgetActions.TileLayout}`, this.onTileLayout);
         this.messaging!.on(`action:${ElementWidgetActions.SpotlightLayout}`, this.onSpotlightLayout);

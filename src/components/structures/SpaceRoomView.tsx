@@ -435,7 +435,7 @@ const SpaceSetupPrivateScope: React.FC<{
                 })}
             </div>
 
-            <AccessibleButton
+            {/* <AccessibleButton
                 className="mx_SpaceRoomView_privateScope_justMeButton"
                 onClick={() => {
                     onFinished(false);
@@ -443,7 +443,7 @@ const SpaceSetupPrivateScope: React.FC<{
             >
                 {_t("create_space|personal_space")}
                 <div>{_t("create_space|personal_space_description")}</div>
-            </AccessibleButton>
+            </AccessibleButton> */}
             <AccessibleButton
                 className="mx_SpaceRoomView_privateScope_meAndMyTeammatesButton"
                 onClick={() => {

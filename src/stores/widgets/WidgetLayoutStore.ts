@@ -10,27 +10,10 @@ import { type Room, RoomStateEvent, type MatrixEvent } from "matrix-js-sdk/src/m
 import { type Optional } from "matrix-events-sdk";
 import { MapWithDefault, recursiveMapToObject } from "matrix-js-sdk/src/utils";
 import { type IWidget } from "matrix-widget-api";
-import { logger } from "matrix-js-sdk/src/logger";
 
 import SettingsStore from "../../settings/SettingsStore";
-import type { IApp } from "../WidgetStore";
+import WidgetStore, { type IApp } from "../WidgetStore";
 import { WidgetType } from "../../widgets/WidgetType";
-
-// Lazy getter to avoid circular dependency - imports WidgetStore only when needed
-let widgetStoreInstance: any = null;
-const getWidgetStore = (): any | null => {
-    if (!widgetStoreInstance) {
-        try {
-            // Dynamic import to break circular dependency
-            const WidgetStoreModule = require("../WidgetStore");
-            widgetStoreInstance = WidgetStoreModule.default?.instance;
-        } catch (e) {
-            logger.warn("Failed to load WidgetStore lazily", e);
-            return null;
-        }
-    }
-    return widgetStoreInstance;
-};
 import { clamp, defaultNumber, sum } from "../../utils/numbers";
 import defaultDispatcher from "../../dispatcher/dispatcher";
 import { ReadyWatchingStore } from "../ReadyWatchingStore";
@@ -107,19 +90,7 @@ export class WidgetLayoutStore extends ReadyWatchingStore {
             null,
             this.updateFromSettings,
         );
-        // Delay WidgetStore access to avoid circular dependency during initialization
-        // Use setTimeout with 0 delay to ensure WidgetStore module is fully loaded
-        setTimeout(() => {
-            try {
-                const widgetStore = getWidgetStore();
-                if (widgetStore) {
-                    widgetStore.on(UPDATE_EVENT, this.updateFromWidgetStore);
-                }
-            } catch (e) {
-                // WidgetStore might not be ready yet, will retry on next update
-                logger.warn("WidgetStore not ready when WidgetLayoutStore initialized", e);
-            }
-        }, 0);
+        WidgetStore.instance.on(UPDATE_EVENT, this.updateFromWidgetStore);
     }
 
     protected async onNotReady(): Promise<void> {
@@ -129,15 +100,7 @@ export class WidgetLayoutStore extends ReadyWatchingStore {
         SettingsStore.unwatchSetting(this.pinnedRef);
         SettingsStore.unwatchSetting(this.layoutRef);
         SettingsStore.unwatchSetting(this.dynamicRef);
-        try {
-            const widgetStore = getWidgetStore();
-            if (widgetStore) {
-                widgetStore.off(UPDATE_EVENT, this.updateFromWidgetStore);
-            }
-        } catch (e) {
-            // WidgetStore might not be initialized yet
-            logger.warn("WidgetStore not available when WidgetLayoutStore uninitialized", e);
-        }
+        WidgetStore.instance.off(UPDATE_EVENT, this.updateFromWidgetStore);
     }
 
     private updateAllRooms = (): void => {
@@ -180,22 +143,7 @@ export class WidgetLayoutStore extends ReadyWatchingStore {
     };
 
     public recalculateRoom(room: Room): void {
-        let widgets: IApp[] | undefined;
-        try {
-            const widgetStore = getWidgetStore();
-            if (!widgetStore) {
-                this.byRoom.set(room.roomId, new Map());
-                this.emitFor(room);
-                return;
-            }
-            widgets = widgetStore.getApps(room.roomId);
-        } catch (e) {
-            // WidgetStore might not be initialized yet during circular dependency resolution
-            logger.warn("WidgetStore not available when recalculating room layout", e);
-            this.byRoom.set(room.roomId, new Map());
-            this.emitFor(room);
-            return;
-        }
+        const widgets = WidgetStore.instance.getApps(room.roomId);
         if (!widgets?.length) {
             this.byRoom.set(room.roomId, new Map());
             this.emitFor(room);
@@ -573,9 +521,4 @@ export class WidgetLayoutStore extends ReadyWatchingStore {
     }
 }
 
-// Lazy assignment to avoid circular dependency during module initialization
-Object.defineProperty(window, "mxWidgetLayoutStore", {
-    get: () => WidgetLayoutStore.instance,
-    configurable: true,
-    enumerable: true,
-});
+window.mxWidgetLayoutStore = WidgetLayoutStore.instance;

@@ -317,9 +317,9 @@ export default class PreferencesUserSettingsTab extends React.Component<IProps, 
                         {this.renderGroup(PreferencesUserSettingsTab.COMPOSER_SETTINGS)}
                     </SettingsSubsection>
 
-                    <SettingsSubsection heading={_t("settings|preferences|code_blocks_heading")}>
+                    {/* <SettingsSubsection heading={_t("settings|preferences|code_blocks_heading")}>
                         {this.renderGroup(PreferencesUserSettingsTab.CODE_BLOCKS_SETTINGS)}
-                    </SettingsSubsection>
+                    </SettingsSubsection> */}
 
                     <SettingsSubsection heading={_t("settings|preferences|media_heading")}>
                         {this.renderGroup(PreferencesUserSettingsTab.IMAGES_AND_VIDEOS_SETTINGS)}
@@ -329,11 +329,11 @@ export default class PreferencesUserSettingsTab extends React.Component<IProps, 
                         {this.renderGroup(PreferencesUserSettingsTab.TIMELINE_SETTINGS)}
                     </SettingsSubsection>
 
-                    <SettingsSubsection heading={_t("settings|preferences|room_directory_heading")}>
+                    {/* <SettingsSubsection heading={_t("settings|preferences|room_directory_heading")}>
                         {this.renderGroup(PreferencesUserSettingsTab.ROOM_DIRECTORY_SETTINGS)}
-                    </SettingsSubsection>
+                    </SettingsSubsection> */}
 
-                    <SettingsSubsection heading={_t("common|general")} stretchContent>
+                    {/* <SettingsSubsection heading={_t("common|general")} stretchContent>
                         {this.renderGroup(PreferencesUserSettingsTab.GENERAL_SETTINGS)}
 
                         <SettingsFlag name="Electron.showTrayIcon" level={SettingLevel.PLATFORM} hideIfCannotSet />
@@ -367,7 +367,7 @@ export default class PreferencesUserSettingsTab extends React.Component<IProps, 
                             value={this.state.readMarkerOutOfViewThresholdMs}
                             onChange={this.onReadMarkerOutOfViewThresholdMs}
                         />
-                    </SettingsSubsection>
+                    </SettingsSubsection> */}
                 </SettingsSection>
             </SettingsTab>
         );

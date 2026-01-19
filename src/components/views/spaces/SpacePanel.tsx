@@ -237,9 +237,9 @@ const CreateSpaceButton: React.FC<Pick<IInnerSpacePanelProps, "isPanelCollapsed"
     const onNewClick = menuDisplayed
         ? closeMenu
         : () => {
-              if (!isPanelCollapsed) setPanelCollapsed(true);
-              openMenu();
-          };
+            if (!isPanelCollapsed) setPanelCollapsed(true);
+            openMenu();
+        };
 
     return (
         <li
@@ -303,8 +303,8 @@ const InnerSpacePanel = React.memo<IInnerSpacePanelProps>(
                 style={
                     isDraggingOver
                         ? {
-                              pointerEvents: "none",
-                          }
+                            pointerEvents: "none",
+                        }
                         : undefined
                 }
                 element="ul"

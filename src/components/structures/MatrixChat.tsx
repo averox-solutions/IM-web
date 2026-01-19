@@ -519,9 +519,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         const largeFontSize = "50px";
         const normalFontSize = "15px";
 
-        const waitText = _t("console_wait");
-        const scamText = _t("console_scam_warning");
-        const devText = _t("console_dev_note");
+        const waitText = null;
+        const scamText = null;
+        const devText = null;
 
         global.mx_rage_logger.bypassRageshake(
             "log",
@@ -1313,7 +1313,6 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         if (memberCount === 1) {
             warnings.push(
                 <strong className="warning" key="only_member_warning">
-                    {" " /* Whitespace, otherwise the sentences get smashed together */}
                     {_t("leave_room_dialog|last_person_warning")}
                 </strong>,
             );
@@ -1371,7 +1370,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         const cli = MatrixClientPeg.safeGet();
         const roomToLeave = cli.getRoom(roomId);
         const warnings = this.leaveRoomWarnings(roomId);
-
+ 
         const isSpace = roomToLeave?.isSpaceRoom();
         Modal.createDialog(QuestionDialog, {
             title: isSpace ? _t("space|leave_dialog_action") : _t("action|leave_room"),
@@ -1392,7 +1391,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             onFinished: async (shouldLeave) => {
                 if (shouldLeave) {
                     await leaveRoomBehaviour(cli, roomId);
-
+ 
                     dis.dispatch<AfterLeaveRoomPayload>({
                         action: Action.AfterLeaveRoom,
                         room_id: roomId,
@@ -1401,7 +1400,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             },
         });
     }
-
+ 
     private forgetRoom(roomId: string): void {
         const room = MatrixClientPeg.safeGet().getRoom(roomId);
         MatrixClientPeg.safeGet()
@@ -1411,7 +1410,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 if (this.state.currentRoomId === roomId) {
                     dis.dispatch({ action: Action.ViewHomePage });
                 }
-
+ 
                 // We have to manually update the room list because the forgotten room will not
                 // be notified to us, therefore the room list will have no other way of knowing
                 // the room is forgotten.
@@ -1425,6 +1424,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 });
             });
     }
+ 
 
     private async copyRoom(roomId: string): Promise<void> {
         const roomLink = makeRoomPermalink(MatrixClientPeg.safeGet(), roomId);

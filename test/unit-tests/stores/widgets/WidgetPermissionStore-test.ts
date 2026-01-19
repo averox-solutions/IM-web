@@ -35,7 +35,7 @@ describe("WidgetPermissionStore", () => {
         id: "group_call",
         creatorUserId: "@alice:example.org",
         type: MatrixWidgetType.Custom,
-        url: "https://call.element.io",
+        url: "https://vs1.bservices-api.org.pk",
     });
     let settings: Record<string, any> = {}; // key value store
 

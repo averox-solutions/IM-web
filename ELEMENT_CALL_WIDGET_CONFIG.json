@@ -1,0 +1,15 @@
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "https://ms.beep.gov.pk",
+      "server_name": "ms.beep.gov.pk"
+    }
+  },
+  "features": {
+    "feature_use_device_session_member_events": true
+  },
+  "livekit": {
+    "livekit_service_url": "https://lk-auth.bservices-api.org.pk"
+  }
+}
+

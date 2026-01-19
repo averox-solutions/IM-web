@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICE Servers Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 ICE Servers Test Utility</h1>
+        
+        <div class="test-section">
+            <h2>Test Configuration</h2>
+            <pre id="config">const iceServers = [
+  {
+    urls: [
+      "turns:turn-130.averox.com:3478?transport=udp",
+      "turns:turn-130.averox.com:3478?transport=tcp"
+    ],
+    username: "1767360372:@super_admin:ms.beep.gov.pk",
+    credential: "XKLvRYyxtl09qjvAepmP+FkRmR8="
+  }
+];</pre>
+        </div>
+
+        <div class="test-section">
+            <h2>Instructions</h2>
+            <ol>
+                <li>Open your Element application</li>
+                <li>Open browser console (F12 or Right-click → Inspect → Console)</li>
+                <li>Run the test command below</li>
+                <li>Start a call to verify ICE servers are being used</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>Console Commands</h2>
+            <p>Copy and paste these commands in your browser console:</p>
+            
+            <h3>1. Test ICE Servers</h3>
+            <pre>testIceServers([
+  {
+    urls: [
+      "turns:turn-130.averox.com:3478?transport=udp",
+      "turns:turn-130.averox.com:3478?transport=tcp"
+    ],
+    username: "1767360372:@super_admin:ms.beep.gov.pk",
+    credential: "XKLvRYyxtl09qjvAepmP+FkRmR8="
+  }
+]);</pre>
+            
+            <h3>2. Check Current Servers</h3>
+            <pre>checkIceServers();</pre>
+            
+            <h3>3. Restore Original Servers</h3>
+            <pre>restoreIceServers();</pre>
+        </div>
+
+        <div class="test-section">
+            <h2>Quick Test</h2>
+            <p>Click the button below to test if the utility is loaded (only works if Element app is open):</p>
+            <button onclick="testConnection()">Test Connection</button>
+            <div id="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Verification Steps</h2>
+            <ol>
+                <li>✅ Run <code>testIceServers()</code> - Should see "✅ Test ICE servers injected successfully!"</li>
+                <li>✅ Run <code>checkIceServers()</code> - Should see your TURN servers listed</li>
+                <li>✅ Start a call in Element</li>
+                <li>✅ Check browser console for WebRTC logs showing TURN server usage</li>
+                <li>✅ Check Network tab for connections to <code>turn-130.averox.com:3478</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function testConnection() {
+            const resultDiv = document.getElementById('result');
+            
+            // Check if running in Element context
+            if (typeof window.testIceServers === 'function') {
+                resultDiv.innerHTML = '<div class="result success">✅ Test utility is loaded! You can use testIceServers() in console.</div>';
+            } else {
+                resultDiv.innerHTML = '<div class="result error">❌ Test utility not found. Make sure you\'re running this in the Element app context and the app has loaded.</div>';
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(testConnection, 1000);
+        });
+    </script>
+</body>
+</html>
+

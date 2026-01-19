@@ -240,9 +240,14 @@ export class StopGapWidgetDriver extends WidgetDriver {
             });
         }
 
+        // Check if this is an Element Call widget - if so, auto-approve all remaining capabilities
+        const isElementCall =
+            new URL(SdkConfig.get("element_call").url ?? DEFAULTS.element_call.url!).origin === this.forWidget.origin;
+
         // TODO: Do something when the widget requests new capabilities not yet asked for
         let rememberApproved = false;
-        if (missing.size > 0) {
+        if (missing.size > 0 && !isElementCall) {
+            // Only show dialog if NOT Element Call
             try {
                 const [result] = await Modal.createDialog(WidgetCapabilitiesPromptDialog, {
                     requestedCapabilities: missing,
@@ -254,6 +259,10 @@ export class StopGapWidgetDriver extends WidgetDriver {
             } catch (e) {
                 logger.error("Non-fatal error getting capabilities: ", e);
             }
+        } else if (missing.size > 0 && isElementCall) {
+            // Auto-approve all missing capabilities for Element Call
+            console.log(`[StopGapWidgetDriver] Auto-approving ${missing.size} capabilities for Element Call widget`);
+            missing.forEach((cap) => allowedSoFar.add(cap));
         }
 
         // discard all previously allowed capabilities if they are not requested

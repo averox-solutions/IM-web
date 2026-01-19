@@ -934,59 +934,10 @@ const DmAuxButton: React.FC<IAuxButtonProps> = ({ tabIndex, dispatcher = default
         if (menuDisplayed && handle.current) {
             const canInvite = shouldShowSpaceInvite(activeSpace);
 
-            contextMenu = (
-                <IconizedContextMenu {...auxButtonContextMenuPosition(handle.current)} onFinished={closeMenu} compact>
-                    <IconizedContextMenuOptionList first>
-                        {showCreateRooms && (
-                            <IconizedContextMenuOption
-                                label={_t("action|start_new_chat")}
-                                iconClassName="mx_RoomList_iconStartChat"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    closeMenu();
-                                    defaultDispatcher.dispatch({ action: "view_create_chat" });
-                                    PosthogTrackers.trackInteraction(
-                                        "WebRoomListRoomsSublistPlusMenuCreateChatItem",
-                                        e,
-                                    );
-                                }}
-                            />
-                        )}
-                        {showInviteUsers && (
-                            <IconizedContextMenuOption
-                                label={_t("action|invite_to_space")}
-                                iconClassName="mx_RoomList_iconInvite"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    closeMenu();
-                                    showSpaceInvite(activeSpace);
-                                }}
-                                disabled={!canInvite}
-                                title={canInvite ? undefined : _t("spaces|error_no_permission_invite")}
-                            />
-                        )}
-                    </IconizedContextMenuOptionList>
-                </IconizedContextMenu>
-            );
+            contextMenu = null;
         }
 
-        return (
-            <>
-                <ContextMenuTooltipButton
-                    tabIndex={tabIndex}
-                    onClick={openMenu}
-                    className="mx_RoomSublist_auxButton"
-                    aria-label={_t("action|add_people")}
-                    title={_t("action|add_people")}
-                    isExpanded={menuDisplayed}
-                    ref={handle}
-                />
-
-                {contextMenu}
-            </>
-        );
+        return null
     } else if (!activeSpace && showCreateRooms) {
         // return (
         //     <AccessibleButton

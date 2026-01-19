@@ -7,6 +7,7 @@
  */
 
 import { type Room } from "matrix-js-sdk/src/matrix";
+import { KnownMembership } from "matrix-js-sdk/src/types";
 
 import LegacyCallHandler from "../../../LegacyCallHandler";
 import { RoomListCustomisations } from "../../../customisations/RoomList";
@@ -16,7 +17,7 @@ import VoipUserMapper from "../../../VoipUserMapper";
 export class VisibilityProvider {
     private static internalInstance: VisibilityProvider;
 
-    private constructor() {}
+    private constructor() { }
 
     public static get instance(): VisibilityProvider {
         if (!VisibilityProvider.internalInstance) {
@@ -48,6 +49,13 @@ export class VisibilityProvider {
 
         if (isLocalRoom(room)) {
             // local rooms shouldn't show up anywhere
+            return false;
+        }
+
+        // Hide rooms where user has left, been kicked, or been banned
+        const myMembership = room.getMyMembership();
+        if (myMembership === KnownMembership.Leave || myMembership === KnownMembership.Ban) {
+            console.log(`[VisibilityProvider] Room ${room.roomId} is not visible - membership: ${myMembership}`);
             return false;
         }
 

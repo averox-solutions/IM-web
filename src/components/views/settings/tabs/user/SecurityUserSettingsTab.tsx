@@ -304,9 +304,10 @@ export default class SecurityUserSettingsTab extends React.Component<IProps, ISt
         // in having advanced details here once all flows are implemented, we
         // can remove this.
         const crossSigning = (
-            <SettingsSubsection heading={_t("common|cross_signing")}>
-                <CrossSigningPanel />
-            </SettingsSubsection>
+            <></>
+            // <SettingsSubsection heading={_t("common|cross_signing")}>
+            //     <CrossSigningPanel/>
+            // </SettingsSubsection>
         );
 
         let warning;

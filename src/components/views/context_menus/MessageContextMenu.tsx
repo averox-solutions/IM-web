@@ -54,6 +54,8 @@ import PinningUtils from "../../../utils/PinningUtils";
 import PosthogTrackers from "../../../PosthogTrackers.ts";
 import DMRoomMap from "../../../utils/DMRoomMap";
 
+import { DefaultTagID } from "../../../stores/room-list/models";
+
 interface IReplyInThreadButton {
     mxEvent: MatrixEvent;
     closeMenu: () => void;
@@ -440,7 +442,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         let permalinkButton: JSX.Element | undefined;
         if (permalink) {
             permalinkButton = (
-             <></>
+                <></>
             );
         }
 
@@ -468,12 +470,12 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                     label={_t("timeline|context_menu|external_url")}
                     element="a"
                     {
-                        // XXX: Typescript signature for AccessibleButton doesn't work properly for non-inputs like `a`
-                        ...{
-                            target: "_blank",
-                            rel: "noreferrer noopener",
-                            href: mxEvent.getContent().external_url,
-                        }
+                    // XXX: Typescript signature for AccessibleButton doesn't work properly for non-inputs like `a`
+                    ...{
+                        target: "_blank",
+                        rel: "noreferrer noopener",
+                        href: mxEvent.getContent().external_url,
+                    }
                     }
                 />
             );
@@ -503,7 +505,8 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         }
 
         let reportEventButton: JSX.Element | undefined;
-        if (mxEvent.getSender() !== me) {
+        const isServerNotice = room?.tags && DefaultTagID.ServerNotice in room.tags;
+        if (mxEvent.getSender() !== me && !isServerNotice) {
             reportEventButton = (
                 <IconizedContextMenuOption
                     iconClassName="mx_MessageContextMenu_iconReport"
@@ -517,7 +520,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         // Don't show copy link button for images and videos
         const content = mxEvent.getContent();
         const isImageOrVideo = content.msgtype === MsgType.Image || content.msgtype === MsgType.Video;
-        
+
         if (link && !isImageOrVideo) {
             copyLinkButton = (
                 <IconizedContextMenuOption
@@ -526,12 +529,12 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                     label={_t("action|copy_link")}
                     element="a"
                     {
-                        // XXX: Typescript signature for AccessibleButton doesn't work properly for non-inputs like `a`
-                        ...{
-                            href: link,
-                            target: "_blank",
-                            rel: "noreferrer noopener",
-                        }
+                    // XXX: Typescript signature for AccessibleButton doesn't work properly for non-inputs like `a`
+                    ...{
+                        href: link,
+                        target: "_blank",
+                        rel: "noreferrer noopener",
+                    }
                     }
                 />
             );
@@ -552,7 +555,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
         let editButton: JSX.Element | undefined;
         const isPollEvent =
             mxEvent.getType() === M_POLL_START.name || mxEvent.getType() === M_POLL_START.altName;
-        
+
         if (rightClick && canEditContent(cli, mxEvent) && !isPollEvent) {
             editButton = (
                 <IconizedContextMenuOption
@@ -562,7 +565,7 @@ export default class MessageContextMenu extends React.Component<IProps, IState> 
                 />
             );
         }
-        
+
 
         let replyButton: JSX.Element | undefined;
         if (rightClick && contentActionable && canSendMessages) {

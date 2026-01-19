@@ -652,105 +652,30 @@ export async function startDmOnFirstMessage(client: MatrixClient, targets: Membe
 
     // ✅ Check for old DM from m.direct mapping
     const directMap = client.getAccountData("m.direct")?.getContent() || {};
-    const oldRoomIds = directMap[userId] || [];
-    const rooms = client.getRooms().filter(r => oldRoomIds.includes(r.roomId));
-
-    if (rooms.length > 0) {
-        const existingRoom = rooms[0];
-        const myMembership = existingRoom.getMyMembership();
-
-        if (myMembership === "join") {
-            // ✅ If other user left, re-invite them
-            const member = existingRoom.getMember(userId);
-            if (!member || member.membership === "leave") {
-                try {
-                    await client.invite(existingRoom.roomId, userId);
-                    logger.info(`Re-invited ${userId} to DM ${existingRoom.roomId}`);
-                } catch (err) {
-                    logger.error(`Failed to re-invite ${userId}`, err);
-                }
-            }
-
-            // ✅ Open the existing DM
-            dis.dispatch<ViewRoomPayload>({
-                action: Action.ViewRoom,
-                room_id: existingRoom.roomId,
-                should_peek: false,
-                joining: false,
-                metricsTrigger: "MessageUser",
-            });
-
-            // ✅ Send placeholder if empty
-            if (existingRoom.timeline.length === 0) {
-                try {
-                    await client.sendEvent(existingRoom.roomId, "m.room.message", {
-                        msgtype: "m.text",
-                        body: "Started a chat with you",
-                    });
-                } catch (err) {
-                    logger.error("Failed to send initial message in reused DM", err);
-                }
-            }
-            return existingRoom.roomId;
-        } else if (myMembership === KnownMembership.Invite) {
-            // ✅ User was invited but hasn't joined - auto-join without invitation
-            try {
-                await client.joinRoom(existingRoom.roomId);
-                logger.info(`Auto-joined existing DM ${existingRoom.roomId} for ${userId}`);
-
-                // ✅ Open the existing DM
-                dis.dispatch<ViewRoomPayload>({
-                    action: Action.ViewRoom,
-                    room_id: existingRoom.roomId,
-                    should_peek: false,
-                    joining: false,
-                    metricsTrigger: "MessageUser",
-                });
-
-                return existingRoom.roomId;
-            } catch (err) {
-                logger.error(`Failed to auto-join existing DM ${existingRoom.roomId}`, err);
-                // Fall through to create new DM if join fails
-            }
-        } else if (myMembership === KnownMembership.Leave) {
-            // ✅ User left the room - check if other user is still there and rejoin
-            const otherMember = existingRoom.getMember(userId);
-            if (otherMember && (otherMember.membership === KnownMembership.Join || otherMember.membership === KnownMembership.Invite)) {
-                // Other user is still in the room (joined or invited) - rejoin without invitation
-                try {
-                    await client.joinRoom(existingRoom.roomId);
-                    logger.info(`Rejoined existing DM ${existingRoom.roomId} for ${userId}`);
-
-                    // ✅ If other user was invited but not joined, they'll be auto-joined when they come back
-                    // ✅ Open the existing DM
-                    dis.dispatch<ViewRoomPayload>({
-                        action: Action.ViewRoom,
-                        room_id: existingRoom.roomId,
-                        should_peek: false,
-                        joining: false,
-                        metricsTrigger: "MessageUser",
-                    });
-
-                    return existingRoom.roomId;
-                } catch (err) {
-                    logger.error(`Failed to rejoin existing DM ${existingRoom.roomId}`, err);
-                    // Fall through to create new DM if rejoin fails
-                }
-            }
-        }
-    }
+    const oldRoomIds: string[] = directMap[userId] || [];
 
     // ✅ Create new DM because old one is invalid or user left
     try {
         const roomId = await startDm(client, resolvedTargets, false);
         if (!roomId) throw new Error("Failed to create DM room");
 
-        // ✅ Update m.direct to mark this as the new DM
+        // ✅ Update m.direct to mark this as the new DM (replace any old mapping)
         const updatedDirectMap = { ...directMap, [userId]: [roomId] };
         try {
             await client.setAccountData("m.direct", updatedDirectMap);
         } catch (err) {
             logger.error("Failed to update m.direct for DM", err);
+        }
+
+        // Optionally leave old DM rooms so they don't linger in the room list
+        for (const oldRoomId of oldRoomIds) {
+            if (oldRoomId !== roomId) {
+                try {
+                    await client.leave(oldRoomId);
+                } catch (e) {
+                    logger.warn(`Failed to leave old DM room ${oldRoomId}`, e);
+                }
+            }
         }
 
         // ✅ Open the new DM

@@ -9,6 +9,7 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { type ComponentProps, createRef, type ReactNode } from "react";
 import { Blurhash } from "react-blurhash";
+import { isBlurhashValid } from "blurhash";
 import classNames from "classnames";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { logger } from "matrix-js-sdk/src/logger";
@@ -629,7 +630,10 @@ export default class MImageBody extends React.Component<IBodyProps, IState> {
             if (this.state.placeholder === Placeholder.NoImage) {
                 return null;
             } else if (this.state.placeholder === Placeholder.Blurhash) {
-                return <Blurhash className="mx_Blurhash" hash={blurhash} width={width} height={height} />;
+                const { result } = isBlurhashValid(blurhash);
+                if (result) {
+                    return <Blurhash className="mx_Blurhash" hash={blurhash} width={width} height={height} />;
+                }
             }
         }
         return <Spinner w={32} h={32} />;

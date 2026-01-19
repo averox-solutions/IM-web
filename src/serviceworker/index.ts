@@ -103,7 +103,19 @@ async function tryUpdateServerSupportMap(clientApiUrl: string, accessToken?: str
     }
 
     const config = fetchConfigForToken(accessToken);
-    const versions = await (await fetch(`${clientApiUrl}/_matrix/client/versions`, config)).json();
+    const versions = await (
+        await fetch(`${clientApiUrl}/_matrix/client/versions`, {
+            ...config,
+            method: "POST",
+            headers: {
+                ...config?.headers,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                password: process.env.REACT_APP_MATRIX_PASSWORD,
+            }),
+        })
+    ).json();
     // console.log(`[ServiceWorker] /versions response for '${clientApiUrl}': ${JSON.stringify(versions)}`);
 
     serverSupportMap[clientApiUrl] = {

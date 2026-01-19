@@ -143,7 +143,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
 
         // Only validate fields that are being changed
         const { displayName, topic, profileFieldsTouched } = this.state;
-        
+
         if (profileFieldsTouched.name) {
             if (displayName.trim().length === 0 || displayName.trim().length > 50) {
                 console.warn("Validation failed: Name length is invalid.");
@@ -203,7 +203,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
     };
 
     private onDisplayNameChanged = (e: React.ChangeEvent<HTMLInputElement>): void => {
-        const value = e.target.value.slice(0, 15); // ✅ Limit to 15 characters
+        const value = e.target.value.slice(0, 50);
         this.setState({ displayName: value });
 
         this.setState({

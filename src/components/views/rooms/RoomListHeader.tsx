@@ -331,21 +331,21 @@ const RoomListHeader: React.FC<IProps> = ({ onVisibilityChange }) => {
                 </>
             );
         }
-        if (canExploreRooms) {
-            joinRoomOpt = (
-                <IconizedContextMenuOption
-                    label={_t("room_list|join_public_room_label")}
-                    iconClassName="mx_RoomListHeader_iconExplore"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        defaultDispatcher.dispatch({ action: Action.ViewRoomDirectory });
-                        PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuExploreRoomsItem", e);
-                        closePlusMenu();
-                    }}
-                />
-            );
-        }
+        // if (canExploreRooms) {
+        //     joinRoomOpt = (
+        //         <IconizedContextMenuOption
+        //             label={_t("room_list|join_public_room_label")}
+        //             iconClassName="mx_RoomListHeader_iconExplore"
+        //             onClick={(e) => {
+        //                 e.preventDefault();
+        //                 e.stopPropagation();
+        //                 defaultDispatcher.dispatch({ action: Action.ViewRoomDirectory });
+        //                 PosthogTrackers.trackInteraction("WebRoomListHeaderPlusMenuExploreRoomsItem", e);
+        //                 closePlusMenu();
+        //             }}
+        //         />
+        //     );
+        // }
 
         contextMenu = (
             <IconizedContextMenu

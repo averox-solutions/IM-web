@@ -264,14 +264,14 @@ export class RoomViewStore extends EventEmitter {
                         numMembers > 1000
                             ? "MoreThanAThousand"
                             : numMembers > 100
-                              ? "OneHundredAndOneToAThousand"
-                              : numMembers > 10
-                                ? "ElevenToOneHundred"
-                                : numMembers > 2
-                                  ? "ThreeToTen"
-                                  : numMembers > 1
-                                    ? "Two"
-                                    : "One";
+                                ? "OneHundredAndOneToAThousand"
+                                : numMembers > 10
+                                    ? "ElevenToOneHundred"
+                                    : numMembers > 2
+                                        ? "ThreeToTen"
+                                        : numMembers > 1
+                                            ? "Two"
+                                            : "One";
 
                     this.stores.posthogAnalytics.trackEvent<JoinedRoomEvent>({
                         eventName: "JoinedRoom",
@@ -504,26 +504,26 @@ export class RoomViewStore extends EventEmitter {
         const { roomAlias, roomId = payload.roomId } = this.state;
         const address = roomAlias || roomId!;
         const viaServers = this.state.viaServers || [];
-        
+
         // Check if this is a DM invite before joining (we need to check before membership changes)
         const cli = MatrixClientPeg.safeGet();
         const roomBeforeJoin = cli.getRoom(roomId!);
         let isDMInvite = false;
         let dmTargetUserId: string | undefined;
         let wasPreviouslyDM = false;
-        
+
         if (roomBeforeJoin?.getMyMembership() === KnownMembership.Invite) {
             const myMember = roomBeforeJoin.getMember(cli.getSafeUserId());
             const inviteEvent = myMember?.events.member;
             const memberContent = inviteEvent?.getContent();
-            
+
             // Check if this invite has is_direct flag set (DM invite from mobile reopen)
             if (memberContent?.is_direct === true) {
                 isDMInvite = true;
                 // Get the inviter's user ID (the other person in the 1:1 chat)
                 dmTargetUserId = inviteEvent?.getSender();
             }
-            
+
             // Check if this room was previously a DM (in m.direct account data)
             const directMap = cli.getAccountData("m.direct")?.getContent() || {};
             for (const [userId, roomIds] of Object.entries(directMap)) {
@@ -533,24 +533,14 @@ export class RoomViewStore extends EventEmitter {
                     break;
                 }
             }
-            
-            // If not explicitly marked, check if room has exactly 2 members (joined + invited) = DM
-            if (!isDMInvite && !wasPreviouslyDM) {
-                const joinedCount = roomBeforeJoin.getJoinedMemberCount();
-                const invitedCount = roomBeforeJoin.getInvitedMemberCount();
-                const totalMembers = joinedCount + invitedCount;
-                
-                // If exactly 2 members (the inviter and the invitee), it's likely a DM
-                if (totalMembers === 2) {
-                    isDMInvite = true;
-                    // Get the inviter's user ID (the other person in the 1:1 chat)
-                    if (!dmTargetUserId) {
-                        dmTargetUserId = inviteEvent?.getSender();
-                    }
-                }
-            }
+
+            // Note: We do NOT automatically mark rooms with 2 members as DMs.
+            // A room is only a DM if:
+            // 1. The invite has is_direct flag set, OR
+            // 2. The room was previously in m.direct account data
+            // This prevents group chats with 2 members from being incorrectly marked as DMs.
         }
-        
+
         try {
             await retry<Room, MatrixError>(
                 () =>
@@ -575,28 +565,10 @@ export class RoomViewStore extends EventEmitter {
                     logger.warn("Failed to mark room as DM after accepting invite", err);
                     // Don't fail the join if marking as DM fails - it's not critical
                 }
-            } else {
-                // After joining, check if the room should be a DM based on member count
-                // This handles cases where the room wasn't detected as a DM before joining
-                const roomAfterJoin = cli.getRoom(roomId!);
-                if (roomAfterJoin) {
-                    const joinedCount = roomAfterJoin.getJoinedMemberCount();
-                    // If exactly 2 joined members, it's a DM
-                    if (joinedCount === 2) {
-                        // Find the other user (not ourselves)
-                        const myUserId = cli.getSafeUserId();
-                        const otherMember = roomAfterJoin.getJoinedMembers().find(m => m.userId !== myUserId);
-                        if (otherMember) {
-                            try {
-                                await setDMRoom(cli, roomId, otherMember.userId);
-                                logger.info(`Marked room ${roomId} as DM for user ${otherMember.userId} based on member count`);
-                            } catch (err) {
-                                logger.warn("Failed to mark room as DM based on member count", err);
-                            }
-                        }
-                    }
-                }
             }
+            // Note: We do NOT check member count after joining to determine if it's a DM.
+            // If the room wasn't marked as a DM before (via is_direct flag or m.direct account data),
+            // we should not mark it as a DM now just because it has 2 members.
 
             // We do *not* clear the 'joining' flag because the Room object and/or our 'joined' member event may not
             // have come down the sync stream yet, and that's the point at which we'd consider the user joined to the
@@ -700,13 +672,13 @@ export class RoomViewStore extends EventEmitter {
             description,
         });
     }
-  
+
     private joinRoomError(payload: JoinRoomErrorPayload): void {
         this.setState({
             joining: false,
             joinError: payload.err,
         });
-    
+
         // Save error to localStorage for debugging/inspection
         try {
             if (payload.err) {
@@ -723,18 +695,18 @@ export class RoomViewStore extends EventEmitter {
             // If localStorage is not available (e.g. Safari private mode), log instead
             console.warn("Failed to save join error to localStorage", e);
         }
-    
+
         // Cleanup invite if 401
         if (payload?.err instanceof MatrixError) {
             void this.cleanupInviteOn401(payload.roomId, payload.err);
         }
-    
+
         if (payload.err && !payload.canAskToJoin) {
             this.showJoinRoomError(payload.err, payload.roomId);
         }
     }
-    
-    
+
+
 
 
     public reset(): void {

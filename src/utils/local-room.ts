@@ -58,7 +58,6 @@ export async function doMaybeLocalRoomAction<T>(
             });
         });
     }
-
     return fn(roomId);
 }
 

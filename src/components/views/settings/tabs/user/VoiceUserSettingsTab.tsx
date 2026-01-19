@@ -211,7 +211,7 @@ export default class VoiceUserSettingsTab extends React.Component<EmptyObject, I
                             data-testid="voice-echo-cancellation"
                         />
                     </SettingsSubsection>
-                    <SettingsSubsection heading={_t("settings|voip|connection_section")}>
+                    {/* <SettingsSubsection heading={_t("settings|voip|connection_section")}>
                         <SettingsFlag
                             name="webRtcAllowPeerToPeer"
                             level={SettingLevel.DEVICE}
@@ -225,7 +225,7 @@ export default class VoiceUserSettingsTab extends React.Component<EmptyObject, I
                             level={SettingLevel.DEVICE}
                             hideIfCannotSet
                         />
-                    </SettingsSubsection>
+                    </SettingsSubsection> */}
                 </SettingsSection>
             </SettingsTab>
         );

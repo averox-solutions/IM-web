@@ -23,8 +23,8 @@ import { Layout } from "../../../settings/enums/Layout";
 import RightPanelStore from "../../../stores/right-panel/RightPanelStore";
 import AccessibleButton from "./AccessibleButton";
 import RoomContext from "../../../contexts/RoomContext";
-import { arrayHasDiff } from "../../../utils/arrays.ts";
-import { objectHasDiff } from "../../../utils/objects.ts";
+import { arrayHasDiff } from "../../../utils/arrays";
+import { objectHasDiff } from "../../../utils/objects";
 
 const onPinnedMessagesClick = (): void => {
     RightPanelStore.instance.setCard({ phase: RightPanelPhases.PinnedMessages }, false);
@@ -174,7 +174,7 @@ export default class EventListSummary extends React.Component<Props, State> {
 
     private unbindSentinelListeners(events: MatrixEvent[]): void {
         for (const event of events) {
-            event.on(MatrixEventEvent.SentinelUpdated, this.onEventSentinelUpdated);
+            event.off(MatrixEventEvent.SentinelUpdated, this.onEventSentinelUpdated);
         }
     }
 
@@ -383,18 +383,18 @@ export default class EventListSummary extends React.Component<Props, State> {
                 res =
                     userCount > 1
                         ? _t("timeline|summary|rejected_invite_multiple", {
-                              severalUsers: "",
-                              count,
-                          })
+                            severalUsers: "",
+                            count,
+                        })
                         : _t("timeline|summary|rejected_invite", { oneUser: "", count });
                 break;
             case TransitionType.InviteWithdrawal:
                 res =
                     userCount > 1
                         ? _t("timeline|summary|invite_withdrawn_multiple", {
-                              severalUsers: "",
-                              count,
-                          })
+                            severalUsers: "",
+                            count,
+                        })
                         : _t("timeline|summary|invite_withdrawn", { oneUser: "", count });
                 break;
             case TransitionType.Invited:
@@ -431,9 +431,9 @@ export default class EventListSummary extends React.Component<Props, State> {
                 res =
                     userCount > 1
                         ? _t("timeline|summary|changed_avatar_multiple", {
-                              severalUsers: "",
-                              count,
-                          })
+                            severalUsers: "",
+                            count,
+                        })
                         : _t("timeline|summary|changed_avatar", { oneUser: "", count });
                 break;
             case TransitionType.NoChange:
@@ -452,27 +452,27 @@ export default class EventListSummary extends React.Component<Props, State> {
                 res =
                     userCount > 1
                         ? _t(
-                              "timeline|summary|pinned_events_multiple",
-                              { severalUsers: "", count },
-                              {
-                                  a: (sub) => (
-                                      <AccessibleButton kind="link_inline" onClick={onPinnedMessagesClick}>
-                                          {sub}
-                                      </AccessibleButton>
-                                  ),
-                              },
-                          )
+                            "timeline|summary|pinned_events_multiple",
+                            { severalUsers: "", count },
+                            {
+                                a: (sub) => (
+                                    <AccessibleButton kind="link_inline" onClick={onPinnedMessagesClick}>
+                                        {sub}
+                                    </AccessibleButton>
+                                ),
+                            },
+                        )
                         : _t(
-                              "timeline|summary|pinned_events",
-                              { oneUser: "", count },
-                              {
-                                  a: (sub) => (
-                                      <AccessibleButton kind="link_inline" onClick={onPinnedMessagesClick}>
-                                          {sub}
-                                      </AccessibleButton>
-                                  ),
-                              },
-                          );
+                            "timeline|summary|pinned_events",
+                            { oneUser: "", count },
+                            {
+                                a: (sub) => (
+                                    <AccessibleButton kind="link_inline" onClick={onPinnedMessagesClick}>
+                                        {sub}
+                                    </AccessibleButton>
+                                ),
+                            },
+                        );
                 break;
             case TransitionType.MessageRemoved:
                 res =

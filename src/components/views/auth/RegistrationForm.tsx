@@ -43,7 +43,7 @@ enum UsernameAvailableStatus {
     Invalid,
 }
 
-export const PASSWORD_MIN_SCORE = 3; // safely unguessable: moderate protection from offline slow-hash scenario.
+export const PASSWORD_MIN_SCORE = 4; // strongest: very unguessable passwords only - maximum security
 
 interface IProps {
     // Values pre-filled in the input boxes when the component loads
@@ -463,7 +463,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             />
         );
     }
-    
+
 
     public renderPasswordConfirm(): JSX.Element {
         return (
@@ -480,7 +480,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             />
         );
     }
-    
+
 
     public renderPhoneNumber(): ReactNode {
         if (!this.showPhoneNumber()) {
@@ -529,7 +529,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
             />
         );
     }
-    
+
 
     public render(): ReactNode {
         let emailHelperText: JSX.Element | undefined;
@@ -577,7 +577,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                         {this.renderPhoneNumber()}
                     </div>
                     {emailHelperText}
-                    
+
                     {/* Terms and Conditions Acceptance */}
                     <div className="mx_AuthBody_fieldRow" style={{ marginTop: "16px", marginBottom: "16px" }}>
                         <label style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer" }}>
@@ -590,7 +590,7 @@ export default class RegistrationForm extends React.PureComponent<IProps, IState
                             />
                             <span style={{ fontSize: "14px" }}>
                                 I accept the{" "}
-                                <a  
+                                <a
                                     href="https://wa.beep.gov.pk/info/privacy_policy.html"
                                     target="_blank"
                                     rel="noreferrer noopener"

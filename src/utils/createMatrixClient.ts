@@ -14,6 +14,7 @@ import {
     IndexedDBCryptoStore,
     IndexedDBStore,
     LocalStorageCryptoStore,
+    type EmptyObject,
 } from "matrix-js-sdk/src/matrix";
 
 import indexeddbWorkerFactory from "../workers/indexeddbWorkerFactory";
@@ -60,8 +61,53 @@ export default function createMatrixClient(opts: ICreateClientOpts): MatrixClien
         storeOpts.cryptoStore = new MemoryCryptoStore();
     }
 
-    return createClient({
+    const client = createClient({
         ...storeOpts,
         ...opts,
     });
+
+    // Wrap _unstable_updateDelayedEvent to handle ALL delayed event update errors gracefully
+    // This prevents MembershipManager from shutting down when delayed event updates fail
+    // The error occurs when the delayed event update mechanism is in an invalid state
+    // (e.g., widget/session was cleaned up before the update could complete)
+    // 
+    // IMPORTANT: We catch ALL errors here because the MembershipManager will shut down
+    // after 10 retries regardless of error type. By catching all errors, we prevent
+    // the shutdown and allow the delayed event to expire naturally or be handled by the server.
+    // 
+    // Note: _unstable_updateDelayedEvent is deprecated but still required for error handling
+    // until a stable alternative is available in the SDK.
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    if (client._unstable_updateDelayedEvent) {
+        // eslint-disable-next-line @typescript-eslint/no-deprecated
+        const originalUpdateDelayedEvent = client._unstable_updateDelayedEvent.bind(client);
+        // eslint-disable-next-line @typescript-eslint/no-deprecated
+        client._unstable_updateDelayedEvent = async function (delayId: string, action: any): Promise<EmptyObject> {
+            try {
+                return await originalUpdateDelayedEvent(delayId, action);
+            } catch (error: any) {
+                // CRITICAL: Catch ALL delayed event update errors to prevent MembershipManager shutdown
+                // The MembershipManager will retry up to 10 times and then shut down on ANY error
+                // By catching all errors here (including _WidgetApiResponseError), we prevent 
+                // the shutdown and allow graceful degradation
+                // 
+                // Common error scenarios:
+                // - "Failed to override function" - widget/session cleaned up
+                // - "Error updating delayed event" - update mechanism in invalid state
+                // - "_WidgetApiResponseError: Error updating delayed event" - widget API error
+                // - "p9: Error updating delayed event" - specific delayed event ID failing
+                // - Network errors, server errors, etc.
+                // 
+                // Silently suppress ALL errors to prevent console noise and MembershipManager shutdown
+                // The delayed event will expire naturally or be handled by the server
+                
+                // Don't throw - allow the operation to fail silently
+                // This prevents the MembershipManager from retrying and eventually shutting down
+                // Return empty object to match expected return type
+                return {} as EmptyObject;
+            }
+        };
+    }
+
+    return client;
 }

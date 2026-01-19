@@ -253,168 +253,168 @@ export class MessageComposer extends React.Component<IProps, IState> {
     };
 
 
-// 1) Keep ONE componentDidMount with ALL the logic merged
-public componentDidMount(): void {
-    // Subscribe to voice recording store updates
-    VoiceRecordingStore.instance.on(UPDATE_EVENT, this.onVoiceStoreUpdate);
+    // 1) Keep ONE componentDidMount with ALL the logic merged
+    public componentDidMount(): void {
+        // Subscribe to voice recording store updates
+        VoiceRecordingStore.instance.on(UPDATE_EVENT, this.onVoiceStoreUpdate);
 
-    // Persist/restore WYSIWYG state across reloads
-    window.addEventListener("beforeunload", this.saveWysiwygEditorState);
-    if (this.state.isWysiwygLabEnabled) {
-        const wysiwygState = this.restoreWysiwygEditorState();
-        if (wysiwygState?.replyEventId) {
-            dis.dispatch({
-                action: "reply_to_event",
-                event: this.props.room.findEventById(wysiwygState.replyEventId),
-                context: this.context.timelineRenderingType,
-            });
-        }
-    }
-
-    // Watch relevant settings
-    SettingsStore.monitorSetting("MessageComposerInput.showStickersButton", null);
-    SettingsStore.monitorSetting("MessageComposerInput.showPollsButton", null);
-    SettingsStore.monitorSetting("feature_wysiwyg_composer", null);
-
-    // Register dispatcher
-    this.dispatcherRef = dis.register(this.onAction);
-
-    // UI + member bootstrap
-    this.waitForOwnMember();
-    UIStore.instance.trackElementDimensions(`MessageComposer${this.instanceId}`, this.ref.current!);
-    UIStore.instance.on(`MessageComposer${this.instanceId}`, this.onResize);
-
-    // Sync initial recording state (handles cached recordings)
-    this.updateRecordingState();
-
-    // Check if chat should show reopen buttons and listen to room state changes
-    this.checkIfShouldShowReopenButtons();
-    this.props.room.on(RoomEvent.Timeline, this.onMyEventSent);
-    this.props.room.on(RoomStateEvent.Members, this.onRoomMembersUpdate);
-    this.props.room.on(RoomEvent.MyMembership, this.onRoomMembersUpdate);
-}
-
-
-// 2) Keep ONE componentWillUnmount that undoes everything
-public componentWillUnmount(): void {
-    // Unsubscribe from stores and UI listeners
-    VoiceRecordingStore.instance.off(UPDATE_EVENT, this.onVoiceStoreUpdate);
-    if (this.dispatcherRef) dis.unregister(this.dispatcherRef);
-
-    UIStore.instance.stopTrackingElementDimensions(`MessageComposer${this.instanceId}`);
-    UIStore.instance.removeListener(`MessageComposer${this.instanceId}`, this.onResize);
-
-    // Persist editor state and remove window listener
-    window.removeEventListener("beforeunload", this.saveWysiwygEditorState);
-    this.saveWysiwygEditorState();
-
-    // Remove voice recording listeners via setter cleanup
-    this.voiceRecording = null;
-
-    // Remove room state listeners
-    this.props.room.removeListener(RoomEvent.Timeline, this.onMyEventSent);
-    this.props.room.removeListener(RoomStateEvent.Members, this.onRoomMembersUpdate);
-    this.props.room.removeListener(RoomEvent.MyMembership, this.onRoomMembersUpdate);
-}
-
-
-// 1) add a class method (below other handlers)
-private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
-    // Only care about our current room & our own successfully-sent events
-    if (!room || room.roomId !== this.props.room.roomId) return;
-
-    const mx = MatrixClientPeg.safeGet();
-    if (ev.getSender() !== mx.getUserId()) return;
-
-    // ignore local-echo / pending sends; wait until it's sent to the server
-    const status = ev.status;
-    if (status !== null && status !== undefined) return;
-
-    const type = ev.getType();
-    const content = ev.getContent() || {};
-    const msgtype = content.msgtype;
-
-    // --- Voice detection ---
-    // Voice messages are m.room.message with msgtype "m.audio" and a voice flag:
-    //   content["org.matrix.msc2516.voice"] OR content["m.voice"] (stable)
-    const isVoice =
-        type === "m.room.message" &&
-        msgtype === "m.audio" &&
-        (Boolean(content["org.matrix.msc2516.voice"]) || Boolean(content["m.voice"]));
-
-    // --- Poll detection ---
-    // Both unstable and (where available) stable event types:
-    const isPoll =
-        type === "org.matrix.msc3381.poll.start" || type === "m.poll.start";
-
-    // --- Location detection ---
-    // Location notifications are handled in shareLocation.ts to avoid duplicates
-    // const isLocation =
-    //     (type === "m.room.message" && msgtype === "m.location") ||
-    //     type === "m.location";
-
-    if (isVoice) {
-        this.notifyPushNotifications().catch(e =>
-            logger.warn("notifyPushNotifications(voice) error:", e),
-        );
-        return;
-    }
-    if (isPoll) {
-        this.notifyPushNotifications().catch(e =>
-            logger.warn("notifyPushNotifications(poll) error:", e),
-        );
-        return;
-    }
-    // Location notifications are handled in shareLocation.ts to avoid duplicates
-    // if (isLocation) {
-    //     this.notifyPushNotifications().catch(e =>
-    //         logger.warn("notifyPushNotifications(location) error:", e),
-    //     );
-    // }
-};
-
-
-// 3) Keep ONE onAction
-private onAction = (payload: ActionPayload): void => {
-    switch (payload.action) {
-        case "reply_to_event": {
-            if (payload.context === this.context.timelineRenderingType) {
-                // allow reply preview to render before resize measurement
-                window.setTimeout(() => {
-                    this.props.resizeNotifier.notifyTimelineHeightChanged();
-                }, 100);
+        // Persist/restore WYSIWYG state across reloads
+        window.addEventListener("beforeunload", this.saveWysiwygEditorState);
+        if (this.state.isWysiwygLabEnabled) {
+            const wysiwygState = this.restoreWysiwygEditorState();
+            if (wysiwygState?.replyEventId) {
+                dis.dispatch({
+                    action: "reply_to_event",
+                    event: this.props.room.findEventById(wysiwygState.replyEventId),
+                    context: this.context.timelineRenderingType,
+                });
             }
-            break;
         }
 
-        case Action.SettingUpdated: {
-            const p = payload as SettingUpdatedPayload;
-            switch (p.settingName) {
-                case "MessageComposerInput.showStickersButton":
-                    this.setState({
-                        showStickersButton: SettingsStore.getValue("MessageComposerInput.showStickersButton"),
-                    });
-                    break;
-                case "MessageComposerInput.showPollsButton":
-                    this.setState({
-                        showPollsButton: SettingsStore.getValue("MessageComposerInput.showPollsButton"),
-                    });
-                    break;
-                case "feature_wysiwyg_composer":
-                    this.setState({ isWysiwygLabEnabled: Boolean(p.newValue) });
-                    break;
-            }
-            break;
-        }
+        // Watch relevant settings
+        SettingsStore.monitorSetting("MessageComposerInput.showStickersButton", null);
+        SettingsStore.monitorSetting("MessageComposerInput.showPollsButton", null);
+        SettingsStore.monitorSetting("feature_wysiwyg_composer", null);
 
-        default:
-            // ignore everything else
-            break;
+        // Register dispatcher
+        this.dispatcherRef = dis.register(this.onAction);
+
+        // UI + member bootstrap
+        this.waitForOwnMember();
+        UIStore.instance.trackElementDimensions(`MessageComposer${this.instanceId}`, this.ref.current!);
+        UIStore.instance.on(`MessageComposer${this.instanceId}`, this.onResize);
+
+        // Sync initial recording state (handles cached recordings)
+        this.updateRecordingState();
+
+        // Check if chat should show reopen buttons and listen to room state changes
+        this.checkIfShouldShowReopenButtons();
+        this.props.room.on(RoomEvent.Timeline, this.onMyEventSent);
+        this.props.room.on(RoomStateEvent.Members, this.onRoomMembersUpdate);
+        this.props.room.on(RoomEvent.MyMembership, this.onRoomMembersUpdate);
     }
-};
 
 
-    
+    // 2) Keep ONE componentWillUnmount that undoes everything
+    public componentWillUnmount(): void {
+        // Unsubscribe from stores and UI listeners
+        VoiceRecordingStore.instance.off(UPDATE_EVENT, this.onVoiceStoreUpdate);
+        if (this.dispatcherRef) dis.unregister(this.dispatcherRef);
+
+        UIStore.instance.stopTrackingElementDimensions(`MessageComposer${this.instanceId}`);
+        UIStore.instance.removeListener(`MessageComposer${this.instanceId}`, this.onResize);
+
+        // Persist editor state and remove window listener
+        window.removeEventListener("beforeunload", this.saveWysiwygEditorState);
+        this.saveWysiwygEditorState();
+
+        // Remove voice recording listeners via setter cleanup
+        this.voiceRecording = null;
+
+        // Remove room state listeners
+        this.props.room.removeListener(RoomEvent.Timeline, this.onMyEventSent);
+        this.props.room.removeListener(RoomStateEvent.Members, this.onRoomMembersUpdate);
+        this.props.room.removeListener(RoomEvent.MyMembership, this.onRoomMembersUpdate);
+    }
+
+
+    // 1) add a class method (below other handlers)
+    private onMyEventSent = (ev: MatrixEvent, room?: Room): void => {
+        // Only care about our current room & our own successfully-sent events
+        if (!room || room.roomId !== this.props.room.roomId) return;
+
+        const mx = MatrixClientPeg.safeGet();
+        if (ev.getSender() !== mx.getUserId()) return;
+
+        // ignore local-echo / pending sends; wait until it's sent to the server
+        const status = ev.status;
+        if (status !== null && status !== undefined) return;
+
+        const type = ev.getType();
+        const content = ev.getContent() || {};
+        const msgtype = content.msgtype;
+
+        // --- Voice detection ---
+        // Voice messages are m.room.message with msgtype "m.audio" and a voice flag:
+        //   content["org.matrix.msc2516.voice"] OR content["m.voice"] (stable)
+        const isVoice =
+            type === "m.room.message" &&
+            msgtype === "m.audio" &&
+            (Boolean(content["org.matrix.msc2516.voice"]) || Boolean(content["m.voice"]));
+
+        // --- Poll detection ---
+        // Both unstable and (where available) stable event types:
+        const isPoll =
+            type === "org.matrix.msc3381.poll.start" || type === "m.poll.start";
+
+        // --- Location detection ---
+        // Location notifications are handled in shareLocation.ts to avoid duplicates
+        // const isLocation =
+        //     (type === "m.room.message" && msgtype === "m.location") ||
+        //     type === "m.location";
+
+        if (isVoice) {
+            this.notifyPushNotifications().catch(e =>
+                logger.warn("notifyPushNotifications(voice) error:", e),
+            );
+            return;
+        }
+        if (isPoll) {
+            this.notifyPushNotifications().catch(e =>
+                logger.warn("notifyPushNotifications(poll) error:", e),
+            );
+            return;
+        }
+        // Location notifications are handled in shareLocation.ts to avoid duplicates
+        // if (isLocation) {
+        //     this.notifyPushNotifications().catch(e =>
+        //         logger.warn("notifyPushNotifications(location) error:", e),
+        //     );
+        // }
+    };
+
+
+    // 3) Keep ONE onAction
+    private onAction = (payload: ActionPayload): void => {
+        switch (payload.action) {
+            case "reply_to_event": {
+                if (payload.context === this.context.timelineRenderingType) {
+                    // allow reply preview to render before resize measurement
+                    window.setTimeout(() => {
+                        this.props.resizeNotifier.notifyTimelineHeightChanged();
+                    }, 100);
+                }
+                break;
+            }
+
+            case Action.SettingUpdated: {
+                const p = payload as SettingUpdatedPayload;
+                switch (p.settingName) {
+                    case "MessageComposerInput.showStickersButton":
+                        this.setState({
+                            showStickersButton: SettingsStore.getValue("MessageComposerInput.showStickersButton"),
+                        });
+                        break;
+                    case "MessageComposerInput.showPollsButton":
+                        this.setState({
+                            showPollsButton: SettingsStore.getValue("MessageComposerInput.showPollsButton"),
+                        });
+                        break;
+                    case "feature_wysiwyg_composer":
+                        this.setState({ isWysiwygLabEnabled: Boolean(p.newValue) });
+                        break;
+                }
+                break;
+            }
+
+            default:
+                // ignore everything else
+                break;
+        }
+    };
+
+
+
     private waitForOwnMember(): void {
         // If we have the member already, do that
         const me = this.props.room.getMember(MatrixClientPeg.safeGet().getUserId()!);
@@ -503,13 +503,13 @@ private onAction = (payload: ActionPayload): void => {
         const fullId = MatrixClientPeg.get()!.getSafeUserId()!;
         const notificationTitle = this.getNotificationTitle();
         const others = this.props.room.getJoinedMembers().filter(m => m.userId !== fullId);
-    
+
         for (const member of others) {
             try {
                 const { fcmtoken, is_iOS } = await fetchUserTokenAndPlatform(member.userId);
                 console.log(`Fetched FCM token for ${member.userId}:`, fcmtoken);
                 console.log(`Is iOS platform:`, is_iOS);
-    
+
                 await fetch(`${NOTIFICATION_API_BASE_URL}/send-notification`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -524,7 +524,7 @@ private onAction = (payload: ActionPayload): void => {
             }
         }
     }
-    
+
 
     private renderPlaceholderText = (): string => {
         if (this.props.replyToEvent) {
@@ -567,14 +567,14 @@ private onAction = (payload: ActionPayload): void => {
             }
             return;
         }
-    
+
         // 2) Use the stored composerContent and determine emptiness
         const raw = this.state.composerContent ?? "";
         const message = raw.trim();
-    
+
         console.log("Notification title:", this.getNotificationTitle());
         console.log("User message:", message);
-    
+
         // 4) Send FCM notification to other members ONLY if message has content
         if (message.length > 0) {
             try {
@@ -583,10 +583,10 @@ private onAction = (payload: ActionPayload): void => {
                 logger.warn("notifyPushNotifications(text) error:", err);
             }
         }
-    
+
         // 5) Trigger the basic composer send
         this.messageComposerInput.current?.sendMessage();
-    
+
         // 6) If in WYSIWYG mode, clear state and dispatch the rich-text send
         if (this.state.isWysiwygLabEnabled) {
             const { relation, replyToEvent } = this.props;
@@ -603,11 +603,11 @@ private onAction = (payload: ActionPayload): void => {
             });
         }
     };
-    
-    
-    
-    
-    
+
+
+
+
+
     private onChange = (model: EditorModel): void => {
         this.setState({
             isComposerEmpty: model.isEmpty,
@@ -672,7 +672,7 @@ private onAction = (payload: ActionPayload): void => {
     private checkIfShouldShowReopenButtons = (): void => {
         const room = this.props.room;
         let otherUserId = DMRoomMap.shared().getUserIdForRoomId(room.roomId);
-        
+
         // If not marked as DM, check if it's a 1-on-1 chat (2 members) and auto-mark it
         if (!otherUserId) {
             const totalMembers = room.getInvitedAndJoinedMemberCount();
@@ -686,7 +686,7 @@ private onAction = (payload: ActionPayload): void => {
                     const invitedMembers = room.getMembersWithMembership(KnownMembership.Invite);
                     otherMember = invitedMembers.find(m => m.userId !== myUserId);
                 }
-                
+
                 if (otherMember) {
                     otherUserId = otherMember.userId;
                     // Auto-mark this room as a DM
@@ -696,7 +696,7 @@ private onAction = (payload: ActionPayload): void => {
                 }
             }
         }
-        
+
         if (!otherUserId) {
             // Not a DM, reset state
             this.setState({ shouldShowReopenButtons: false, otherUserId: undefined });
@@ -709,14 +709,14 @@ private onAction = (payload: ActionPayload): void => {
         // Show buttons if:
         // 1. I left the room (myMembership === Leave) AND other user is still in (joined or invited)
         // 2. OR I'm still in (joined) AND other user left
-        const shouldShow = 
-            (myMembership === KnownMembership.Leave && 
-             otherMember && 
-             (otherMember.membership === KnownMembership.Join || otherMember.membership === KnownMembership.Invite)) ||
-            (myMembership === KnownMembership.Join && 
-             (!otherMember || otherMember.membership === KnownMembership.Leave));
+        const shouldShow =
+            (myMembership === KnownMembership.Leave &&
+                otherMember &&
+                (otherMember.membership === KnownMembership.Join || otherMember.membership === KnownMembership.Invite)) ||
+            (myMembership === KnownMembership.Join &&
+                (!otherMember || otherMember.membership === KnownMembership.Leave));
 
-        this.setState({ 
+        this.setState({
             shouldShowReopenButtons: shouldShow,
             otherUserId: shouldShow ? otherUserId : undefined,
         });
@@ -738,17 +738,17 @@ private onAction = (payload: ActionPayload): void => {
         try {
             const cli = MatrixClientPeg.safeGet();
             const myMembership = room.getMyMembership();
-            
+
             // If we left, rejoin first
             if (myMembership === KnownMembership.Leave) {
                 await cli.joinRoom(room.roomId);
                 logger.info(`Rejoined room ${room.roomId}`);
             }
-            
+
             // Ensure room is marked as DM
             await setDMRoom(cli, room.roomId, otherUserId);
             logger.info(`Marked room ${room.roomId} as DM for ${otherUserId}`);
-            
+
             // Simply invite the user (following FluffyChat's approach)
             // Send invite with is_direct flag for FluffyChat compatibility
             try {
@@ -782,7 +782,7 @@ private onAction = (payload: ActionPayload): void => {
         try {
             const cli = MatrixClientPeg.safeGet();
             const myMembership = room.getMyMembership();
-            
+
             // Only leave if we're still in the room
             if (myMembership === KnownMembership.Join) {
                 await leaveRoomBehaviour(cli, roomId);

@@ -80,7 +80,7 @@ describe("StopGapWidgetDriver", () => {
                 id: "group_call",
                 creatorUserId: "@alice:example.org",
                 type: MatrixWidgetType.Custom,
-                url: "https://call.element.io",
+                url: "https://vs1.bservices-api.org.pk",
             }),
             WidgetKind.Room,
             true,

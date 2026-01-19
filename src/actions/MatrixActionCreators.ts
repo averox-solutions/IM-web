@@ -1,11 +1,11 @@
 /*
 Copyright 2024 New Vector Ltd.
 Copyright 2017-2021 The Matrix.org Foundation C.I.C.
-
+ 
 SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Commercial
 Please see LICENSE files in the repository root for full details.
 */
-
+ 
 import {
     ClientEvent,
     type MatrixClient,
@@ -17,10 +17,10 @@ import {
     type RoomState,
     RoomStateEvent,
 } from "matrix-js-sdk/src/matrix";
-
+ 
 import dis from "../dispatcher/dispatcher";
 import { type ActionPayload } from "../dispatcher/payloads";
-
+ 
 /**
  * Create a MatrixActions.sync action that represents a MatrixClient `sync` event,
  * each parameter mapping to a key-value in the action.
@@ -38,7 +38,7 @@ function createSyncAction(matrixClient: MatrixClient, state: string, prevState: 
         matrixClient,
     };
 }
-
+ 
 /**
  * @typedef AccountDataAction
  * @type {Object}
@@ -48,7 +48,7 @@ function createSyncAction(matrixClient: MatrixClient, state: string, prevState: 
  * @property {Object} event_content the content of the MatrixEvent.
  * @property {MatrixEvent} previousEvent the previous account data event of the same type, if present
  */
-
+ 
 /**
  * Create a MatrixActions.accountData action that represents a MatrixClient `accountData`
  * matrix event.
@@ -71,7 +71,7 @@ function createAccountDataAction(
         previousEvent: previousAccountDataEvent,
     };
 }
-
+ 
 /**
  * @typedef RoomAccountDataAction
  * @type {Object}
@@ -81,7 +81,7 @@ function createAccountDataAction(
  * @property {Object} event_content the content of the MatrixEvent.
  * @property {Room} room the room where the account data was changed.
  */
-
+ 
 /**
  * Create a MatrixActions.Room.accountData action that represents a MatrixClient `Room.accountData`
  * matrix event.
@@ -104,14 +104,14 @@ function createRoomAccountDataAction(
         room: room,
     };
 }
-
+ 
 /**
  * @typedef RoomAction
  * @type {Object}
  * @property {string} action 'MatrixActions.Room'.
  * @property {Room} room the Room that was stored.
  */
-
+ 
 /**
  * Create a MatrixActions.Room action that represents a MatrixClient `Room`
  * matrix event, emitted when a Room is stored in the client.
@@ -123,14 +123,14 @@ function createRoomAccountDataAction(
 function createRoomAction(matrixClient: MatrixClient, room: Room): ActionPayload {
     return { action: "MatrixActions.Room", room };
 }
-
+ 
 /**
  * @typedef RoomTagsAction
  * @type {Object}
  * @property {string} action 'MatrixActions.Room.tags'.
  * @property {Room} room the Room whose tags changed.
  */
-
+ 
 /**
  * Create a MatrixActions.Room.tags action that represents a MatrixClient
  * `Room.tags` matrix event, emitted when the m.tag room account data
@@ -144,7 +144,7 @@ function createRoomAction(matrixClient: MatrixClient, room: Room): ActionPayload
 function createRoomTagsAction(matrixClient: MatrixClient, roomTagsEvent: MatrixEvent, room: Room): ActionPayload {
     return { action: "MatrixActions.Room.tags", room };
 }
-
+ 
 /**
  * Create a MatrixActions.Room.receipt action that represents a MatrixClient
  * `Room.receipt` event, each parameter mapping to a key-value in the action.
@@ -162,7 +162,7 @@ function createRoomReceiptAction(matrixClient: MatrixClient, event: MatrixEvent,
         matrixClient,
     };
 }
-
+ 
 /**
  * @typedef IRoomTimelineActionPayload
  * @type {Object}
@@ -180,7 +180,7 @@ export interface IRoomTimelineActionPayload extends Pick<ActionPayload, "action"
     isLiveEvent?: boolean;
     isLiveUnfilteredRoomTimelineEvent: boolean;
 }
-
+ 
 /**
  * @typedef IRoomStateEventsActionPayload
  * @type {Object}
@@ -195,7 +195,7 @@ export interface IRoomStateEventsActionPayload extends Pick<ActionPayload, "acti
     state: RoomState;
     lastStateEvent: MatrixEvent | null;
 }
-
+ 
 /**
  * Create a MatrixActions.Room.timeline action that represents a
  * MatrixClient `Room.timeline` matrix event, emitted when an event
@@ -230,7 +230,7 @@ function createRoomTimelineAction(
         room,
     };
 }
-
+ 
 /**
  * Create a MatrixActions.Room.timeline action that represents a
  * MatrixClient `Room.timeline` matrix event, emitted when an event
@@ -255,7 +255,7 @@ function createRoomStateEventsAction(
         lastStateEvent,
     };
 }
-
+ 
 /**
  * @typedef RoomMembershipAction
  * @type {Object}
@@ -264,7 +264,7 @@ function createRoomStateEventsAction(
  * @property {string} membership the new membership
  * @property {string} oldMembership the previous membership, can be null.
  */
-
+ 
 /**
  * Create a MatrixActions.Room.myMembership action that represents
  * a MatrixClient `Room.myMembership` event for the syncing user,
@@ -284,14 +284,14 @@ function createSelfMembershipAction(
 ): ActionPayload {
     return { action: "MatrixActions.Room.myMembership", room, membership, oldMembership };
 }
-
+ 
 /**
  * @typedef EventDecryptedAction
  * @type {Object}
  * @property {string} action 'MatrixActions.Event.decrypted'.
  * @property {MatrixEvent} event the matrix event that was decrypted.
  */
-
+ 
 /**
  * Create a MatrixActions.Event.decrypted action that represents
  * a MatrixClient `Event.decrypted` matrix event, emitted when a
@@ -304,13 +304,13 @@ function createSelfMembershipAction(
 function createEventDecryptedAction(matrixClient: MatrixClient, event: MatrixEvent): ActionPayload {
     return { action: "MatrixActions.Event.decrypted", event };
 }
-
+ 
 type Listener = () => void;
 type ActionCreator = (matrixClient: MatrixClient, ...args: any) => ActionPayload;
-
+ 
 // A list of callbacks to call to unregister all listeners added
 let matrixClientListenersStop: Listener[] = [];
-
+ 
 /**
  * Start listening to events of type eventName on matrixClient and when they are emitted,
  * dispatch an action created by the actionCreator function.
@@ -337,7 +337,7 @@ function addMatrixClientListener(
         matrixClient.removeListener(eventName, listener);
     });
 }
-
+ 
 /**
  * This object is responsible for dispatching actions when certain events are emitted by
  * the given MatrixClient.
@@ -360,7 +360,7 @@ export default {
         addMatrixClientListener(matrixClient, MatrixEventEvent.Decrypted, createEventDecryptedAction);
         addMatrixClientListener(matrixClient, RoomStateEvent.Events, createRoomStateEventsAction);
     },
-
+ 
     /**
      * Stop listening to events.
      */
@@ -369,3 +369,5 @@ export default {
         matrixClientListenersStop = [];
     },
 };
+ 
+ 

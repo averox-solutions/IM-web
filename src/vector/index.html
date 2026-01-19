@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en" style="height: 100%;">
-  <head>
+
+<head>
     <meta charset="utf-8">
     <title>Beep Pakistan</title>
     <!-- Cache Control Meta Tags -->
@@ -9,13 +10,17 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <meta name="referrer" content="no-referrer">
     <link rel="shortcut icon" href="<%= require('../../res/vector-icons/favicon.ico') %>">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
     <meta name="apple-mobile-web-app-title" content="Beep Pakistan">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Beep Pakistan">
     <meta name="msapplication-TileColor" content="#da532c">
     <meta name="msapplication-TileImage" content="<%= require('../../res/vector-icons/mstile-150.png') %>">
     <meta name="msapplication-config" content="<%= require('../../res/vector-icons/browserconfig.xml') %>">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#15191e" media="(prefers-color-scheme: dark)">
     <meta property="og:image" content="https://wa.beep.gov.pk/themes/element/img/logos/element-logo.svg" />
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'none';
@@ -31,47 +36,42 @@
         form-action 'self' <%= csp_extra_source %>;
         manifest-src 'self' <%= csp_extra_source %>;
     ">
-    <% for (var i=0; i < htmlWebpackPlugin.files.css.length; i++) {
-        var file = htmlWebpackPlugin.files.css[i];
-        var match = file.match(/^bundles\/.*?\/theme-(.*)\.css$/);
-        if (match) {
-            var title = match[1].charAt(0).toUpperCase() + match[1].slice(1);
-        %>
-           <link rel="stylesheet" disabled="disabled" data-mx-theme="<%= title %>" title="<%= title %>" href="<%= file %>">
+    <% for (var i=0; i < htmlWebpackPlugin.files.css.length; i++) { var file=htmlWebpackPlugin.files.css[i]; var
+        match=file.match(/^bundles\/.*?\/theme-(.*)\.css$/); if (match) { var title=match[1].charAt(0).toUpperCase() +
+        match[1].slice(1); %>
+        <link rel="stylesheet" disabled="disabled" data-mx-theme="<%= title %>" title="<%= title %>" href="<%= file %>">
         <% } else { %>
-           <link rel="stylesheet" href="<%= file %>">
-        <% }
-    } %>
+            <link rel="stylesheet" href="<%= file %>">
+            <% } } %>
 
-    <% for (const tag of htmlWebpackPlugin.tags.headTags) {
-        let path = tag.attributes && tag.attributes.href;
-        if (path && path.includes("/Inter/")) { %>
-            <link rel="preload" as="font" href="<%= path %>" crossorigin="anonymous"/>
-        <% }
-    } %>
+                <% for (const tag of htmlWebpackPlugin.tags.headTags) { let path=tag.attributes && tag.attributes.href;
+                    if (path && path.includes("/Inter/")) { %>
+                    <link rel="preload" as="font" href="<%= path %>" crossorigin="anonymous" />
+                    <% } } %>
 
-  </head>
-  <body style="height: 100%; margin: 0;">
+</head>
+
+<body style="height: 100%; margin: 0;">
     <noscript>Sorry, Element requires JavaScript to be enabled.</noscript> <!-- TODO: Translate this? -->
     <div id="matrixchat" style="height: 100%;" class="notranslate"></div>
 
-<%
-    // insert <script> tags for the JS entry points
-    for (let file of htmlWebpackPlugin.files.js) {
+    <% // insert <script> tags for the JS entry points
+        for (let file of htmlWebpackPlugin.files.js) {
         if (file.includes("bundle.js") || file.includes("unhomoglyph_data")) {
-%>    <script src="<%= file %>"></script>
-<%
-        }
-    }
-%>
+        %>
+        <script src="<%= file %>"></script>
+        <% } } %>
 
-    <!-- let CSS themes pass constants to the app -->
-    <div id="mx_theme_accentColor"></div><div id="mx_theme_secondaryAccentColor"></div><div id="mx_theme_tertiaryAccentColor"></div>
+            <!-- let CSS themes pass constants to the app -->
+            <div id="mx_theme_accentColor"></div>
+            <div id="mx_theme_secondaryAccentColor"></div>
+            <div id="mx_theme_tertiaryAccentColor"></div>
 
-    <!-- We eagerly create these containers to ensure their CSS stacking context order is sensible -->
-    <div id="mx_PersistedElement_container"></div>
-    <div id="mx_Dialog_StaticContainer"></div>
-    <div id="mx_Dialog_Container"></div>
-    <div id="mx_ContextualMenu_Container"></div>
-  </body>
+            <!-- We eagerly create these containers to ensure their CSS stacking context order is sensible -->
+            <div id="mx_PersistedElement_container"></div>
+            <div id="mx_Dialog_StaticContainer"></div>
+            <div id="mx_Dialog_Container"></div>
+            <div id="mx_ContextualMenu_Container"></div>
+</body>
+
 </html>

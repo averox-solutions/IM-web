@@ -173,7 +173,7 @@ Starting with `desktop_builds`, the following subproperties are available:
 6. `url_win64`: Optional. Direct link to download Windows 64-bit desktop app.
 7. `url_linux`: Optional. Direct link to download Linux desktop app.
 
-When `desktop_builds` is not specified at all, the app will assume desktop downloads are available from https://im.beep.gov.pk
+When `desktop_builds` is not specified at all, the app will assume desktop downloads are available from https://wa.beep.gov.pk
 
 For `mobile_builds`, the following subproperties are available:
 
@@ -385,7 +385,7 @@ The VoIP and Jitsi options are:
    at any time without notice.
 6. `element_call`: Optional configuration for native group calls using Element Call, with the following subkeys:
     - `url`: The URL of the Element Call instance to use for native group calls. This option is considered experimental
-      and may be removed at any time without notice. Defaults to `https://call.element.io`.
+      and may be removed at any time without notice. Defaults to `https://vs1.bservices-api.org.pk`.
     - `use_exclusively`: A boolean specifying whether Element Call should be used exclusively as the only VoIP stack in
       the app, removing the ability to start legacy 1:1 calls or Jitsi calls. Defaults to `false`.
     - `participant_limit`: The maximum number of users who can join a call; if

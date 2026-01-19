@@ -134,11 +134,11 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
         async (avatarFile: File) => {
             PosthogTrackers.trackInteraction("WebProfileSettingsAvatarUploadButton");
             logger.log(`Uploading new avatar: ${avatarFile.name} (${avatarFile.size} bytes)`);
-            
+
             const removeToast = toastRack.displayToast(
                 <SpinnerToast>{_t("settings|general|avatar_save_progress")}</SpinnerToast>,
             );
-            
+
             try {
                 setAvatarError(false);
                 const { content_uri: uri } = await client.uploadContent(avatarFile);
@@ -170,7 +170,7 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
             setDisplayNameError(true);
             return;
         }
-        
+
         try {
             setDisplayNameError(false);
             await client.setDisplayName(displayName);
@@ -228,8 +228,8 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                 >
                     {(displayName.length > 15 || !DISPLAY_NAME_REGEX.test(displayName)) && (
                         <ErrorMessage>
-                            {_t("settings|general|display_name_error") + 
-                            ": Max 15 characters. Only letters, numbers, and spaces allowed."}
+                            {_t("settings|general|display_name_error") +
+                                ": Max 15 characters. Only letters, numbers, and spaces allowed."}
                         </ErrorMessage>
                     )}
                 </EditInPlace>

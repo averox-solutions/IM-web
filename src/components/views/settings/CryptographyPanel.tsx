@@ -98,30 +98,31 @@ export default class CryptographyPanel extends React.Component<EmptyObject, ISta
         }
 
         return (
-            <SettingsSubsection heading={_t("settings|security|cryptography_section")}>
-                <SettingsSubsectionText>
-                    <table className="mx_CryptographyPanel_sessionInfo">
-                        <tbody>
-                            <tr>
-                                <th scope="row">{_t("settings|security|session_id")}</th>
-                                <td>
-                                    <code>{deviceId}</code>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">{_t("settings|security|session_key")}</th>
-                                <td>
-                                    <code>
-                                        <strong>{identityKey}</strong>
-                                    </code>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </SettingsSubsectionText>
-                {importExportButtons}
-                {noSendUnverifiedSetting}
-            </SettingsSubsection>
+            <></>
+            // <SettingsSubsection heading={_t("settings|security|cryptography_section")}>
+            //     <SettingsSubsectionText>
+            //         <table className="mx_CryptographyPanel_sessionInfo">
+            //             <tbody>
+            //                 <tr>
+            //                     <th scope="row">{_t("settings|security|session_id")}</th>
+            //                     <td>
+            //                         <code>{deviceId}</code>
+            //                     </td>
+            //                 </tr>
+            //                 <tr>
+            //                     <th scope="row">{_t("settings|security|session_key")}</th>
+            //                     <td>
+            //                         <code>
+            //                             <strong>{identityKey}</strong>
+            //                         </code>
+            //                     </td>
+            //                 </tr>
+            //             </tbody>
+            //         </table>
+            //     </SettingsSubsectionText>
+            //     {importExportButtons}
+            //     {noSendUnverifiedSetting}
+            // </SettingsSubsection>
         );
     }
 

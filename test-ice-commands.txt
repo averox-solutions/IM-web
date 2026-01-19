@@ -1,0 +1,20 @@
+# ICE Servers Test Commands
+# Copy and paste these in your browser console after Element app loads
+
+# 1. Test your ICE servers
+testIceServers([
+  {
+    urls: [
+      "turns:turn-130.averox.com:3478?transport=udp",
+      "turns:turn-130.averox.com:3478?transport=tcp"
+    ],
+    username: "1767360372:@super_admin:ms.beep.gov.pk",
+    credential: "XKLvRYyxtl09qjvAepmP+FkRmR8="
+  }
+]);
+
+# 2. Check if servers are loaded
+checkIceServers();
+
+# 3. To restore original servers
+restoreIceServers();

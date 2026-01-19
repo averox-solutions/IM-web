@@ -53,6 +53,7 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
     private msc3946SettingWatcherRef: string;
     private algorithm = new Algorithm();
     private prefilterConditions: IFilterCondition[] = [];
+    private explicitlyLeftRooms = new Set<string>(); // Track rooms user has explicitly left
     private updateFn = new MarkedExecution(() => {
         for (const tagId of Object.keys(this.orderedLists)) {
             RoomNotificationStateStore.instance.getListState(tagId).setRooms(this.orderedLists[tagId]);
@@ -90,7 +91,7 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         // console.log('this is my order list algorithm', this.algorithm.getOrderedRooms());
         return this.algorithm.getOrderedRooms();
     }
-  
+
 
     // Intended for test usage
     public async resetStore(): Promise<void> {
@@ -152,6 +153,21 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         }
 
         if (trigger) this.updateFn.trigger();
+    }
+
+    /**
+     * Mark a room as explicitly left by the user. This prevents the room from being
+     * re-added to the list when subsequent events arrive before membership is updated.
+     */
+    public markRoomAsLeft(roomId: string): void {
+        console.log(`[RoomListStore] Marking room ${roomId} as explicitly left`);
+        this.explicitlyLeftRooms.add(roomId);
+
+        // Clean up after 10 seconds (membership should be updated by then)
+        setTimeout(() => {
+            this.explicitlyLeftRooms.delete(roomId);
+            console.log(`[RoomListStore] Removed ${roomId} from explicitly left rooms`);
+        }, 10000);
     }
 
     protected async onReady(): Promise<any> {
@@ -306,6 +322,271 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
      *
      * Public for test.
      */
+    // public async onDispatchMyMembership(membershipPayload: any): Promise<void> {
+    //     // TODO: Type out the dispatcher types so membershipPayload is not any
+    //     const oldMembership = getEffectiveMembership(membershipPayload.oldMembership);
+    //     const newMembership = getEffectiveMembershipTag(membershipPayload.room, membershipPayload.membership);
+    //     if (oldMembership !== EffectiveMembership.Join && newMembership === EffectiveMembership.Join) {
+    //         // If we're joining an upgraded room, we'll want to make sure we don't proliferate
+    //         // the dead room in the list.
+    //         const roomState: RoomState = membershipPayload.room.currentState;
+    //         const predecessor = roomState.findPredecessor(this.msc3946ProcessDynamicPredecessor);
+    //         if (predecessor) {
+    //             const prevRoom = this.matrixClient?.getRoom(predecessor.roomId);
+    //             if (prevRoom) {
+    //                 const isSticky = this.algorithm.stickyRoom === prevRoom;
+    //                 if (isSticky) {
+    //                     this.algorithm.setStickyRoom(null);
+    //                 }
+
+    //                 // Note: we hit the algorithm instead of our handleRoomUpdate() function to
+    //                 // avoid redundant updates.
+    //                 this.algorithm.handleRoomUpdate(prevRoom, RoomUpdateCause.RoomRemoved);
+    //             } else {
+    //                 logger.warn(`Unable to find predecessor room with id ${predecessor.roomId}`);
+    //             }
+    //         }
+
+    //         await this.handleRoomUpdate(membershipPayload.room, RoomUpdateCause.NewRoom);
+    //         this.updateFn.trigger();
+    //         return;
+    //     }
+
+    //     if (oldMembership !== EffectiveMembership.Invite && newMembership === EffectiveMembership.Invite) {
+    //         await this.handleRoomUpdate(membershipPayload.room, RoomUpdateCause.NewRoom);
+    //         this.updateFn.trigger();
+    //         return;
+    //     }
+
+    //     // If it's not a join, it's transitioning into a different list (possibly historical)
+    //     if (oldMembership !== newMembership) {
+    //         await this.handleRoomUpdate(membershipPayload.room, RoomUpdateCause.PossibleTagChange);
+    //         this.updateFn.trigger();
+    //         return;
+    //     }
+    // }
+
+    // private async handleRoomUpdate(room: Room, cause: RoomUpdateCause): Promise<any> {
+    //     if (cause === RoomUpdateCause.NewRoom && room.getMyMembership() === KnownMembership.Invite) {
+    //         // Let the visibility provider know that there is a new invited room. It would be nice
+    //         // if this could just be an event that things listen for but the point of this is that
+    //         // we delay doing anything about this room until the VoipUserMapper had had a chance
+    //         // to do the things it needs to do to decide if we should show this room or not, so
+    //         // an even wouldn't et us do that.
+    //         await VisibilityProvider.instance.onNewInvitedRoom(room);
+    //     }
+
+    //     const isVisible = VisibilityProvider.instance.isRoomVisible(room);
+
+    //     // If room is not visible (e.g., user left), remove it from all tags
+    //     // Always try to remove invisible rooms to ensure they're cleared from the cache
+    //     if (!isVisible) {
+    //         console.log(`[RoomListStore] Room ${room.roomId} is no longer visible (membership: ${room.getMyMembership()}), removing from lists`);
+    //         // Room is invisible - try to remove it from all tags
+    //         // This handles the case where user leaves a room
+    //         const shouldUpdate = this.algorithm.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
+    //         console.log(`[RoomListStore] Room removal shouldUpdate: ${shouldUpdate}`);
+    //         if (shouldUpdate) {
+    //             this.updateFn.mark();
+    //             this.updateFn.trigger();
+    //         }
+    //         return;
+    //     }
+
+    //     if (
+    //         (cause === RoomUpdateCause.NewRoom || cause === RoomUpdateCause.PossibleTagChange) &&
+    //         !this.prefilterConditions.every((c) => c.isVisible(room))
+    //     ) {
+    //         return; // don't do anything on new/moved rooms which ought not to be shown
+    //     }
+
+    //     const shouldUpdate = this.algorithm.handleRoomUpdate(room, cause);
+    //     if (shouldUpdate) {
+    //         this.updateFn.mark();
+    //     }
+    // }
+
+    // private async recalculatePrefiltering(): Promise<void> {
+    //     if (!this.algorithm) return;
+    //     if (!this.algorithm.hasTagSortingMap) return; // we're still loading
+
+    //     // Inhibit updates because we're about to lie heavily to the algorithm
+    //     this.algorithm.updatesInhibited = true;
+
+    //     // Figure out which rooms are about to be valid, and the state of affairs
+    //     const rooms = this.getPlausibleRooms();
+    //     const currentSticky = this.algorithm.stickyRoom;
+    //     const stickyIsStillPresent = currentSticky && rooms.includes(currentSticky);
+
+    //     // Reset the sticky room before resetting the known rooms so the algorithm
+    //     // doesn't freak out.
+    //     this.algorithm.setStickyRoom(null);
+    //     this.algorithm.setKnownRooms(rooms);
+
+    //     // Set the sticky room back, if needed, now that we have updated the store.
+    //     // This will use relative stickyness to the new room set.
+    //     if (stickyIsStillPresent) {
+    //         this.algorithm.setStickyRoom(currentSticky);
+    //     }
+
+    //     // Finally, mark an update and resume updates from the algorithm
+    //     this.updateFn.mark();
+    //     this.algorithm.updatesInhibited = false;
+    // }
+
+    // public setTagSorting(tagId: TagID, sort: SortAlgorithm): void {
+    //     if (this.isSortLocked(tagId) && sort !== SortAlgorithm.Recent) {
+    //         logger.info(`Ignoring attempt to change sorting on locked tag ${tagId}`);
+    //         return;
+    //     }
+    //     this.setAndPersistTagSorting(tagId, sort);
+    //     this.updateFn.trigger();
+    // }
+
+    // private setAndPersistTagSorting(tagId: TagID, sort: SortAlgorithm): void {
+    //     if (this.isSortLocked(tagId)) {
+    //         sort = SortAlgorithm.Recent;
+    //     }
+    //     this.algorithm.setTagSorting(tagId, sort);
+    //     // TODO: Per-account? https://github.com/vector-im/element-web/issues/14114
+    //     if (!this.isSortLocked(tagId)) {
+    //         localStorage.setItem(`mx_tagSort_${tagId}`, sort);
+    //     } else {
+    //         localStorage.removeItem(`mx_tagSort_${tagId}`);
+    //     }
+    // }
+
+    // public getTagSorting(tagId: TagID): SortAlgorithm | null {
+    //     return this.algorithm.getTagSorting(tagId);
+    // }
+
+    // // noinspection JSMethodCanBeStatic
+    // private getStoredTagSorting(tagId: TagID): SortAlgorithm {
+    //     // TODO: Per-account? https://github.com/vector-im/element-web/issues/14114
+    //     return <SortAlgorithm>localStorage.getItem(`mx_tagSort_${tagId}`);
+    // }
+
+    // // logic must match calculateListOrder
+    // private calculateTagSorting(tagId: TagID): SortAlgorithm {
+    //     if (this.isSortLocked(tagId)) {
+    //         return SortAlgorithm.Recent;
+    //     }
+    //     const definedSort = this.getTagSorting(tagId);
+    //     const storedSort = this.getStoredTagSorting(tagId);
+
+    //     // We use the following order to determine which of the 4 flags to use:
+    //     // Stored > Settings > Defined > Default
+
+    //     let tagSort = SortAlgorithm.Recent;
+    //     if (storedSort) {
+    //         tagSort = storedSort;
+    //     } else if (definedSort) {
+    //         tagSort = definedSort;
+    //     } // else default (already set)
+
+    //     return tagSort;
+    // }
+    // private isSortLocked(tagId: TagID): boolean {
+    //     return tagId === DefaultTagID.DM || tagId === DefaultTagID.Favourite || tagId === DefaultTagID.Untagged;
+    // }
+
+    // public setListOrder(tagId: TagID, order: ListAlgorithm): void {
+    //     this.setAndPersistListOrder(tagId, order);
+    //     this.updateFn.trigger();
+    // }
+
+    // private setAndPersistListOrder(tagId: TagID, order: ListAlgorithm): void {
+    //     this.algorithm.setListOrdering(tagId, order);
+    //     // TODO: Per-account? https://github.com/vector-im/element-web/issues/14114
+    //     localStorage.setItem(`mx_listOrder_${tagId}`, order);
+    // }
+
+    // public getListOrder(tagId: TagID): ListAlgorithm | null {
+    //     return this.algorithm.getListOrdering(tagId);
+    // }
+
+    // // noinspection JSMethodCanBeStatic
+    // private getStoredListOrder(tagId: TagID): ListAlgorithm {
+    //     // TODO: Per-account? https://github.com/vector-im/element-web/issues/14114
+    //     return <ListAlgorithm>localStorage.getItem(`mx_listOrder_${tagId}`);
+    // }
+
+    // // logic must match calculateTagSorting
+    // private calculateListOrder(tagId: TagID): ListAlgorithm {
+    //     const defaultOrder = ListAlgorithm.Natural;
+    //     const definedOrder = this.getListOrder(tagId);
+    //     const storedOrder = this.getStoredListOrder(tagId);
+
+    //     // We use the following order to determine which of the 4 flags to use:
+    //     // Stored > Settings > Defined > Default
+
+    //     let listOrder = defaultOrder;
+    //     if (storedOrder) {
+    //         listOrder = storedOrder;
+    //     } else if (definedOrder) {
+    //         listOrder = definedOrder;
+    //     } // else default (already set)
+
+    //     return listOrder;
+    // }
+
+    // private updateAlgorithmInstances(): void {
+    //     // We'll require an update, so mark for one. Marking now also prevents the calls
+    //     // to setTagSorting and setListOrder from causing triggers.
+    //     this.updateFn.mark();
+
+    //     for (const tag of Object.keys(this.orderedLists)) {
+    //         const definedSort = this.getTagSorting(tag);
+    //         const definedOrder = this.getListOrder(tag);
+
+    //         const tagSort = this.calculateTagSorting(tag);
+    //         const listOrder = this.calculateListOrder(tag);
+
+    //         if (tagSort !== definedSort) {
+    //             this.setAndPersistTagSorting(tag, tagSort);
+    //         }
+    //         if (listOrder !== definedOrder) {
+    //             this.setAndPersistListOrder(tag, listOrder);
+    //         }
+    //     }
+    // }
+
+    // private onAlgorithmListUpdated = (forceUpdate: boolean): void => {
+    //     this.updateFn.mark();
+    //     if (forceUpdate) this.updateFn.trigger();
+    // };
+
+    // private onAlgorithmFilterUpdated = (): void => {
+    //     // The filter can happen off-cycle, so trigger an update. The filter will have
+    //     // already caused a mark.
+    //     this.updateFn.trigger();
+    // };
+
+    // private onPrefilterUpdated = async (): Promise<void> => {
+    //     await this.recalculatePrefiltering();
+    //     this.updateFn.trigger();
+    // };
+
+    // private getPlausibleRooms(): Room[] {
+    //     if (!this.matrixClient) return [];
+
+    //     let rooms = this.matrixClient.getVisibleRooms(this.msc3946ProcessDynamicPredecessor);
+    //     rooms = rooms.filter((r) => VisibilityProvider.instance.isRoomVisible(r));
+
+    //     if (this.prefilterConditions.length > 0) {
+    //         rooms = rooms.filter((r) => {
+    //             for (const filter of this.prefilterConditions) {
+    //                 if (!filter.isVisible(r)) {
+    //                     return false;
+    //                 }
+    //             }
+    //             return true;
+    //         });
+    //     }
+
+    //     return rooms;
+    // }
+
     public async onDispatchMyMembership(membershipPayload: any): Promise<void> {
         // TODO: Type out the dispatcher types so membershipPayload is not any
         const oldMembership = getEffectiveMembership(membershipPayload.oldMembership);
@@ -360,8 +641,32 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
             await VisibilityProvider.instance.onNewInvitedRoom(room);
         }
 
-        if (!VisibilityProvider.instance.isRoomVisible(room)) {
-            return; // don't do anything on rooms that aren't visible
+        // Check if this room has been explicitly left - if so, ignore all updates and remove it
+        if (this.explicitlyLeftRooms.has(room.roomId)) {
+            console.log(`[RoomListStore] Room ${room.roomId} is in explicitly left set, removing from lists`);
+            const shouldUpdate = this.algorithm.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
+            if (shouldUpdate) {
+                this.updateFn.mark();
+                this.updateFn.trigger();
+            }
+            return;
+        }
+
+        const isVisible = VisibilityProvider.instance.isRoomVisible(room);
+        console.log(`[RoomListStore] handleRoomUpdate - Room: ${room.roomId}, Cause: ${cause}, Membership: ${room.getMyMembership()}, IsVisible: ${isVisible}`);
+
+        // If room is not visible (e.g., user left), remove it from all tags
+        if (!isVisible) {
+            console.log(`[RoomListStore] Room ${room.roomId} is not visible, removing from lists`);
+            // Room is invisible - try to remove it from all tags
+            // This handles the case where user leaves a room
+            const shouldUpdate = this.algorithm.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
+            console.log(`[RoomListStore] Room removal shouldUpdate: ${shouldUpdate}`);
+            if (shouldUpdate) {
+                this.updateFn.mark();
+                this.updateFn.trigger();
+            }
+            return;
         }
 
         if (
@@ -406,25 +711,14 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
     }
 
     public setTagSorting(tagId: TagID, sort: SortAlgorithm): void {
-        if (this.isSortLocked(tagId) && sort !== SortAlgorithm.Recent) {
-            logger.info(`Ignoring attempt to change sorting on locked tag ${tagId}`);
-            return;
-        }
         this.setAndPersistTagSorting(tagId, sort);
         this.updateFn.trigger();
     }
 
     private setAndPersistTagSorting(tagId: TagID, sort: SortAlgorithm): void {
-        if (this.isSortLocked(tagId)) {
-            sort = SortAlgorithm.Recent;
-        }
         this.algorithm.setTagSorting(tagId, sort);
         // TODO: Per-account? https://github.com/vector-im/element-web/issues/14114
-        if (!this.isSortLocked(tagId)) {
-            localStorage.setItem(`mx_tagSort_${tagId}`, sort);
-        } else {
-            localStorage.removeItem(`mx_tagSort_${tagId}`);
-        }
+        localStorage.setItem(`mx_tagSort_${tagId}`, sort);
     }
 
     public getTagSorting(tagId: TagID): SortAlgorithm | null {
@@ -439,9 +733,6 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
 
     // logic must match calculateListOrder
     private calculateTagSorting(tagId: TagID): SortAlgorithm {
-        if (this.isSortLocked(tagId)) {
-            return SortAlgorithm.Recent;
-        }
         const definedSort = this.getTagSorting(tagId);
         const storedSort = this.getStoredTagSorting(tagId);
 
@@ -456,9 +747,6 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         } // else default (already set)
 
         return tagSort;
-    }
-    private isSortLocked(tagId: TagID): boolean {
-        return tagId === DefaultTagID.DM || tagId === DefaultTagID.Favourite || tagId === DefaultTagID.Untagged;
     }
 
     public setListOrder(tagId: TagID, order: ListAlgorithm): void {
@@ -557,6 +845,9 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
 
         return rooms;
     }
+    // New Room List: Persist / sync tag settings (sorting, preview etc) between devices · Issue #14114 · element-hq/element-web
+    // Store them in account data so they follow you around? Maybe have a global setting to disable it.
+
 
     /**
      * Regenerates the room whole room list, discarding any previous results.

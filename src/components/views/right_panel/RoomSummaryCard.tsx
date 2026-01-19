@@ -9,8 +9,6 @@ import React, {
     type ChangeEvent,
     type SyntheticEvent,
     useContext,
-    useEffect,
-    useRef,
     useState,
 } from "react";
 import classNames from "classnames";
@@ -63,7 +61,6 @@ import { DefaultTagID } from "../../../stores/room-list/models";
 import { tagRoom } from "../../../utils/room/tagRoom";
 import { canInviteTo } from "../../../utils/room/canInviteTo";
 import { inviteToRoom } from "../../../utils/room/inviteToRoom";
-import { useAccountData } from "../../../hooks/useAccountData";
 import { useRoomState } from "../../../hooks/useRoomState";
 import { useTopic } from "../../../hooks/room/useTopic";
 import { Linkify, topicToHtml } from "../../../HtmlUtils";
@@ -76,6 +73,7 @@ import { isVideoRoom as calcIsVideoRoom } from "../../../utils/video-rooms";
 import { usePinnedEvents } from "../../../hooks/usePinnedEvents";
 import { ReleaseAnnouncement } from "../../structures/ReleaseAnnouncement.tsx";
 import { useScopedRoomContext } from "../../../contexts/ScopedRoomContext.tsx";
+import DMRoomMap from "../../../utils/DMRoomMap";
 
 interface IProps {
     room: Room;
@@ -178,17 +176,9 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
     const isVideoRoom = calcIsVideoRoom(room);
 
     const roomState = useRoomState(room);
-    const directRoomsList = useAccountData<Record<string, string[]>>(room.client, EventType.Direct);
-    const [isDirectMessage, setDirectMessage] = useState(false);
-
-    useEffect(() => {
-        for (const [, dmRoomList] of Object.entries(directRoomsList)) {
-            if (dmRoomList.includes(room?.roomId ?? "")) {
-                setDirectMessage(true);
-                break;
-            }
-        }
-    }, [room, directRoomsList]);
+    // Use DMRoomMap to correctly determine if this is a direct message room
+    // This is the standard way used throughout the codebase
+    const isDirectMessage = !!DMRoomMap.shared().getUserIdForRoomId(room.roomId);
 
     const alias = room.getCanonicalAlias() || room.getAltAliases()[0] || "";
     const pinCount = usePinnedEvents(room).length;
@@ -241,7 +231,7 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
                 {alias}
             </Text>
 
-            <Flex as="section" justify="center" gap="var(--cpd-space-2x)">
+            {/* <Flex as="section" justify="center" gap="var(--cpd-space-2x)">
                 {isRoomEncrypted && e2eStatus !== E2EStatus.Warning && (
                     <Badge kind="green">
                         <LockIcon width="1em" /> {_t("common|encrypted")}
@@ -252,7 +242,7 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, permalinkCreator }) => {
                         <LockOffIcon width="1em" /> {_t("common|unencrypted")}
                     </Badge>
                 )}
-            </Flex>
+            </Flex> */}
 
             {SHOW.topic && <RoomTopic room={room} />}
         </header>

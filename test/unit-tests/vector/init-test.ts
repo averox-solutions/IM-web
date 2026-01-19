@@ -43,8 +43,8 @@ describe("loadApp", () => {
     beforeEach(setUpMatrixChatDiv);
 
     it("should set window.matrixChat to the MatrixChat instance", async () => {
-        fetchMock.get("https://matrix.org/_matrix/client/versions", { versions: ["v1.6"] });
-        SdkConfig.put({ default_server_config: { "m.homeserver": { base_url: "https://matrix.org" } } });
+        fetchMock.get("https://ms.beep.gov.pk/_matrix/client/versions", { versions: ["v1.6"] });
+        SdkConfig.put({ default_server_config: { "m.homeserver": { base_url: "https://ms.beep.gov.pk" } } });
 
         await loadApp({});
         await waitFor(() => expect(window.matrixChat).toBeInstanceOf(MatrixChat));

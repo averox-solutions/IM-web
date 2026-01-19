@@ -298,8 +298,8 @@ export default class RolesRoomSettingsTab extends React.Component<IProps, RolesR
 
         // MSC3401: Native Group VoIP signaling
         if (SettingsStore.getValue("feature_group_calls")) {
-            plEventsToLabels[ElementCall.CALL_EVENT_TYPE.name] = _td("room_settings|permissions|m.call");
-            plEventsToLabels[ElementCall.MEMBER_EVENT_TYPE.name] = _td("room_settings|permissions|m.call.member");
+            plEventsToLabels[ElementCall.CALL_EVENT_TYPE.name] = _td("Secure call");
+            plEventsToLabels[ElementCall.MEMBER_EVENT_TYPE.name] = _td("Secure call member");
         }
 
         const powerLevelDescriptors: Record<string, IPowerLevelDescriptor> = {

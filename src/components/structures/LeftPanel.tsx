@@ -38,7 +38,6 @@ import MatrixClientContext from "../../contexts/MatrixClientContext";
 import type { MatrixClient } from "matrix-js-sdk/src/matrix";
 import type PageType from "../../PageTypes";
 import { Landmark, LandmarkNavigation } from "../../accessibility/LandmarkNavigation";
-import { Calllog } from "./Calllog";
 interface IProps {
     isMinimized: boolean;
     pageType: PageType;

@@ -33,17 +33,7 @@ Please see LICENSE files in the repository root for full details.
     /* previous event while trying to mouse into the action bar or from the */
     /* react button to its tooltip. */
 &::before {
-        content: "";
-        position: absolute;
-        /* tooltip safe mousing area + tooltip overhang + */
-        /* action bar + action bar offset from event */
-        width: calc(10px + 48px + 100% + 8px);
-        /* safe area + action bar */
-        height: calc(20px + 100%);
-        top: -12px;
-        left: -58px;
-        z-index: -1;
-        cursor: initial;
+
  
         /* stylelint-disable-next-line max-line-length */
         .mx_GenericEventListSummary[data-layout="bubble"]

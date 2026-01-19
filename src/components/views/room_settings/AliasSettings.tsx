@@ -385,7 +385,7 @@ export default class AliasSettings extends React.Component<IProps, IState> {
 
         return (
             <>
-                <SettingsFieldset
+                {/* <SettingsFieldset
                     data-testid="published-address-fieldset"
                     legend={_t("room_settings|general|published_aliases_section")}
                     description={
@@ -426,8 +426,8 @@ export default class AliasSettings extends React.Component<IProps, IState> {
                         placeholder={_t("room_settings|general|new_alias_placeholder")}
                         roomId={this.props.roomId}
                     />
-                </SettingsFieldset>
-                <SettingsFieldset
+                </SettingsFieldset> */}
+                {/* <SettingsFieldset
                     data-testid="local-address-fieldset"
                     legend={_t("room_settings|general|local_aliases_section")}
                     description={
@@ -442,7 +442,7 @@ export default class AliasSettings extends React.Component<IProps, IState> {
                         </summary>
                         {localAliasesList}
                     </details>
-                </SettingsFieldset>
+                </SettingsFieldset> */}
             </>
         );
     }

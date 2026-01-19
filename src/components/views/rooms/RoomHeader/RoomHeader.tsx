@@ -61,6 +61,7 @@ import { notificationLevelToIndicator } from "../../../../utils/notifications";
 import WithPresenceIndicator, { useDmMember } from "../../avatars/WithPresenceIndicator";
 import type { IOOBData } from "../../../../stores/ThreepidInviteStore";
 import RightPanelStore from "../../../../stores/right-panel/RightPanelStore";
+import { DefaultTagID } from "../../../../stores/room-list/models";
 import { RoomKnocksBar } from "../RoomKnocksBar";
 import { ToggleableIcon } from "./toggle/ToggleableIcon";
 import { CurrentRightPanelPhaseContextProvider } from "../../../../contexts/CurrentRightPanelPhaseContext";
@@ -358,7 +359,7 @@ export default function RoomHeader({
         // Cleanup function
         return () => {
             window.removeEventListener("globalCallAccepted", handleGlobalCallAccepted);
-            window.removeEventListener("liveKitCallTimeout", () => {});
+            window.removeEventListener("liveKitCallTimeout", () => { });
 
             // Only clear outgoing call state when component actually unmounts (not during re-renders)
             // We can detect this by checking if the component is truly unmounting
@@ -388,25 +389,25 @@ export default function RoomHeader({
     const askToJoinEnabled = useFeatureEnabled("feature_ask_to_join");
     const shouldShowMembersButton =
         !isDirectMessage && (!allSamePowerLevel || memberCount === 1 || memberCount === 0);
-    
+
     // Check if session is verified
     const [isSessionVerified, setIsSessionVerified] = useState<boolean>(() => {
         return localStorage.getItem("sessionVerified") === "true";
     });
-    
+
     // Listen for changes to sessionVerified in localStorage
     useEffect(() => {
         const checkSessionVerified = (): void => {
             setIsSessionVerified(localStorage.getItem("sessionVerified") === "true");
         };
-        
+
         // Check on mount and listen for storage events
         checkSessionVerified();
         window.addEventListener("storage", checkSessionVerified);
-        
+
         // Also check periodically in case localStorage is updated in same window
         const interval = setInterval(checkSessionVerified, 1000);
-        
+
         return () => {
             window.removeEventListener("storage", checkSessionVerified);
             clearInterval(interval);
@@ -414,7 +415,7 @@ export default function RoomHeader({
     }, []);
     const openRightPanelProfile = (): void => {
         RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
-      };
+    };
     const onAvatarClick = (): void => {
         defaultDispatcher.dispatch({
             action: "open_room_settings",
@@ -426,7 +427,7 @@ export default function RoomHeader({
     const onOpenVerifyUsingKeyOrPhrase = (ev: React.MouseEvent): void => {
         ev.preventDefault();
         ev.stopPropagation();
-        
+
         Modal.createDialog(SetupEncryptionBody, {
             onFinished: () => {
                 // Check if session is now verified after dialog closes
@@ -718,40 +719,42 @@ export default function RoomHeader({
         roomContext.mainSplitContentType === MainSplitContentType.MaximisedWidget ||
         roomContext.mainSplitContentType === MainSplitContentType.Call;
 
+    const isServerNotice = DefaultTagID.ServerNotice in (room.tags || {});
+
     return (
         <>
             <CurrentRightPanelPhaseContextProvider roomId={room.roomId}>
                 <Flex as="header" align="center" gap="var(--cpd-space-3x)" className="mx_RoomHeader light-panel">
                     <WithPresenceIndicator room={room} size="8px">
-                    <RoomAvatar
-  room={room}
-  size="40px"
-  oobData={oobData}
- 
-  onClick={() => {
-    if (isDirectMessage) {
-      openRightPanelProfile();
-    } else if (!allSamePowerLevel) {
-      onAvatarClick();
-    }
-  }}
-  tabIndex={-1}
-  aria-label={_t("room|header_avatar_open_settings_label")}
-/>
+                        <RoomAvatar
+                            room={room}
+                            size="40px"
+                            oobData={oobData}
+
+                            onClick={() => {
+                                if (isDirectMessage) {
+                                    openRightPanelProfile();
+                                } else if (!allSamePowerLevel) {
+                                    onAvatarClick();
+                                }
+                            }}
+                            tabIndex={-1}
+                            aria-label={_t("room|header_avatar_open_settings_label")}
+                        />
                     </WithPresenceIndicator>
 
                     <button
-  aria-label={_t("right_panel|room_summary_card|title")}
-  tabIndex={0}
-  onClick={() => {
-    // Allow for DMs OR for rooms where you previously allowed it
-    if (isDirectMessage || !allSamePowerLevel) {
-      RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
-    }
-  }}
-  disabled={!isDirectMessage && allSamePowerLevel}
-  className="mx_RoomHeader_infoWrapper"
->
+                        aria-label={_t("right_panel|room_summary_card|title")}
+                        tabIndex={0}
+                        onClick={() => {
+                            // Allow for DMs OR for rooms where you previously allowed it
+                            if (isDirectMessage || !allSamePowerLevel) {
+                                RightPanelStore.instance.showOrHidePhase(RightPanelPhases.RoomSummary);
+                            }
+                        }}
+                        disabled={!isDirectMessage && allSamePowerLevel}
+                        className="mx_RoomHeader_infoWrapper"
+                    >
                         <Box flex="1" className="mx_RoomHeader_info">
                             <BodyText
                                 style={{ color: "black" }}
@@ -839,162 +842,162 @@ export default function RoomHeader({
                         )}
                     </div>
 
-                    {!showChatButton && (
+                    {!showChatButton && !isServerNotice && (
                         <>
-                        <button
-                                    style={{
-                                        background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
-                                        border: "none",
-                                        borderRadius: "40px",
-                                        height: "40px",
-                                        width: "170px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "#fff",
-                                        fontWeight: 600,
-                                        fontSize: "14px",
-                                        fontFamily:
-                                            "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
-                                        cursor: "pointer",
-                                        transition: "all 0.3s ease",
-                                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-                                    }}
-                                    onClick={() => window.open("https://vc.beep.gov.pk", "_blank")}
-                                    onMouseOver={(e) => {
+                            <button
+                                style={{
+                                    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+                                    border: "none",
+                                    borderRadius: "40px",
+                                    height: "40px",
+                                    width: "170px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#fff",
+                                    fontWeight: 600,
+                                    fontSize: "14px",
+                                    fontFamily:
+                                        "'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif",
+                                    cursor: "pointer",
+                                    transition: "all 0.3s ease",
+                                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                                }}
+                                onClick={() => window.open("https://vc.beep.gov.pk", "_blank")}
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+                                    e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background =
+                                        "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                }}
+                                onMouseDown={(e) => {
+                                    e.currentTarget.style.transform = "scale(0.97)";
+                                }}
+                                onMouseUp={(e) => {
+                                    e.currentTarget.style.transform = "scale(1)";
+                                }}
+                            >
+                                Public Conference
+                            </button>
+
+                            <button
+                                onClick={(e) => {
+                                    if (!isSessionVerified) {
+                                        onOpenVerifyUsingKeyOrPhrase(e);
+                                    } else {
+                                        GroupCallVoice();
+                                    }
+                                }}
+                                disabled={isLiveKitCallActive || !!activeCallData}
+                                title={
+                                    !isSessionVerified
+                                        ? "Please verify your session to start calls"
+                                        : isLiveKitCallActive || activeCallData
+                                            ? "Call in progress"
+                                            : "Start voice call"
+                                }
+                                style={{
+                                    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+                                    border: "none",
+                                    borderRadius: "50%",
+                                    width: "40px",
+                                    height: "40px",
+                                    padding: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: isLiveKitCallActive || activeCallData || !isSessionVerified ? "not-allowed" : "pointer",
+                                    opacity: isLiveKitCallActive || activeCallData || !isSessionVerified ? 0.5 : 1,
+                                    transition: "all 0.3s ease",
+                                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                                }}
+                                onMouseOver={(e) => {
+                                    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
                                         e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
                                         e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
                                         e.currentTarget.style.transform = "translateY(-2px)";
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.background =
-                                            "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
-                                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
-                                        e.currentTarget.style.transform = "translateY(0)";
-                                    }}
-                                    onMouseDown={(e) => {
-                                        e.currentTarget.style.transform = "scale(0.97)";
-                                    }}
-                                    onMouseUp={(e) => {
+                                    }
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                }}
+                                onMouseDown={(e) => {
+                                    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
+                                        e.currentTarget.style.transform = "scale(0.95)";
+                                    }
+                                }}
+                                onMouseUp={(e) => {
+                                    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
                                         e.currentTarget.style.transform = "scale(1)";
-                                    }}
-                                >
-                                    Public Conference
-                                </button>
-                            
-                                <button
-  onClick={(e) => {
-    if (!isSessionVerified) {
-      onOpenVerifyUsingKeyOrPhrase(e);
-    } else {
-      GroupCallVoice();
-    }
-  }}
-  disabled={isLiveKitCallActive || !!activeCallData}
-  title={
-    !isSessionVerified 
-      ? "Please verify your session to start calls" 
-      : isLiveKitCallActive || activeCallData 
-        ? "Call in progress" 
-        : "Start voice call"
-  }
-  style={{
-    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
-    border: "none",
-    borderRadius: "50%",
-    width: "40px",
-    height: "40px",
-    padding: "8px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: isLiveKitCallActive || activeCallData || !isSessionVerified ? "not-allowed" : "pointer",
-    opacity: isLiveKitCallActive || activeCallData || !isSessionVerified ? 0.5 : 1,
-    transition: "all 0.3s ease",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-  }}
-  onMouseOver={(e) => {
-    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
-      e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
-      e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
-      e.currentTarget.style.transform = "translateY(-2px)";
-    }
-  }}
-  onMouseOut={(e) => {
-    e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
-    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
-    e.currentTarget.style.transform = "translateY(0)";
-  }}
-  onMouseDown={(e) => {
-    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
-      e.currentTarget.style.transform = "scale(0.95)";
-    }
-  }}
-  onMouseUp={(e) => {
-    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
-      e.currentTarget.style.transform = "scale(1)";
-    }
-  }}
->
-  <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-</button>
+                                    }
+                                }}
+                            >
+                                <VoiceCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                            </button>
 
-<button
-  onClick={(e) => {
-    if (!isSessionVerified) {
-      onOpenVerifyUsingKeyOrPhrase(e);
-    } else {
-      GroupCallVideo();
-    }
-  }}
-  disabled={isLiveKitCallActive || !!activeCallData}
-  title={
-    !isSessionVerified 
-      ? "Please verify your session to start calls" 
-      : isLiveKitCallActive || activeCallData 
-        ? "Call in progress" 
-        : "Start video call"
-  }
-  style={{
-    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
-    border: "none",
-    borderRadius: "50%",
-    width: "40px",
-    height: "40px",
-    padding: "8px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: isLiveKitCallActive || activeCallData || !isSessionVerified ? "not-allowed" : "pointer",
-    opacity: isLiveKitCallActive || activeCallData || !isSessionVerified ? 0.5 : 1,
-    transition: "all 0.3s ease",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-  }}
-  onMouseOver={(e) => {
-    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
-      e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
-      e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
-      e.currentTarget.style.transform = "translateY(-2px)";
-    }
-  }}
-  onMouseOut={(e) => {
-    e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
-    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
-    e.currentTarget.style.transform = "translateY(0)";
-  }}
-  onMouseDown={(e) => {
-    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
-      e.currentTarget.style.transform = "scale(0.95)";
-    }
-  }}
-  onMouseUp={(e) => {
-    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
-      e.currentTarget.style.transform = "scale(1)";
-    }
-  }}
->
-  <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
-</button>
+                            <button
+                                onClick={(e) => {
+                                    if (!isSessionVerified) {
+                                        onOpenVerifyUsingKeyOrPhrase(e);
+                                    } else {
+                                        GroupCallVideo();
+                                    }
+                                }}
+                                disabled={isLiveKitCallActive || !!activeCallData}
+                                title={
+                                    !isSessionVerified
+                                        ? "Please verify your session to start calls"
+                                        : isLiveKitCallActive || activeCallData
+                                            ? "Call in progress"
+                                            : "Start video call"
+                                }
+                                style={{
+                                    background: "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)",
+                                    border: "none",
+                                    borderRadius: "50%",
+                                    width: "40px",
+                                    height: "40px",
+                                    padding: "8px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: isLiveKitCallActive || activeCallData || !isSessionVerified ? "not-allowed" : "pointer",
+                                    opacity: isLiveKitCallActive || activeCallData || !isSessionVerified ? 0.5 : 1,
+                                    transition: "all 0.3s ease",
+                                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                                }}
+                                onMouseOver={(e) => {
+                                    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
+                                        e.currentTarget.style.background = "linear-gradient(135deg, #4CAF50, #2E7D32)";
+                                        e.currentTarget.style.boxShadow = "0 6px 16px rgba(72, 141, 65, 0.7)";
+                                        e.currentTarget.style.transform = "translateY(-2px)";
+                                    }
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background = "linear-gradient(135deg, rgb(72, 141, 65), #1B5E20)";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                }}
+                                onMouseDown={(e) => {
+                                    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
+                                        e.currentTarget.style.transform = "scale(0.95)";
+                                    }
+                                }}
+                                onMouseUp={(e) => {
+                                    if (!(isLiveKitCallActive || activeCallData || !isSessionVerified)) {
+                                        e.currentTarget.style.transform = "scale(1)";
+                                    }
+                                }}
+                            >
+                                <VideoCallIcon style={{ fontSize: "20px", color: "#fff" }} />
+                            </button>
 
                         </>
                     )}

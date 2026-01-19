@@ -36,8 +36,8 @@ import { addDataForUser, isUserDataServiceConfigured } from "../../../utils/User
 
 const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
 const TWO_FA_BASE_URL = process.env.REACT_APP_2FA_URL;
-console.log("TWO_FA_API_KEY", TWO_FA_API_KEY);
-console.log("TWO_FA_BASE_URL", TWO_FA_BASE_URL);
+// console.log("TWO_FA_API_KEY", TWO_FA_API_KEY);
+// console.log("TWO_FA_BASE_URL", TWO_FA_BASE_URL);
 
 interface IProps {
     serverConfig: ValidatedServerConfig;

@@ -13,7 +13,7 @@ import { RoomEvent, type Room, RoomStateEvent, type MatrixEvent, EventType } fro
 
 import TabbedView, { Tab } from "../../structures/TabbedView";
 import { _t, _td } from "../../../languageHandler";
-import AdvancedRoomSettingsTab from "../settings/tabs/room/AdvancedRoomSettingsTab";
+
 import RolesRoomSettingsTab from "../settings/tabs/room/RolesRoomSettingsTab";
 import GeneralRoomSettingsTab from "../settings/tabs/room/GeneralRoomSettingsTab";
 import SecurityRoomSettingsTab from "../settings/tabs/room/SecurityRoomSettingsTab";
@@ -22,10 +22,10 @@ import BridgeSettingsTab from "../settings/tabs/room/BridgeSettingsTab";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
 import dis from "../../../dispatcher/dispatcher";
 import SettingsStore from "../../../settings/SettingsStore";
-import { UIFeature } from "../../../settings/UIFeature";
+
 import BaseDialog from "./BaseDialog";
 import { Action } from "../../../dispatcher/actions";
-import { VoipRoomSettingsTab } from "../settings/tabs/room/VoipRoomSettingsTab";
+
 import { type ActionPayload } from "../../../dispatcher/payloads";
 import { type NonEmptyArray } from "../../../@types/common";
 import { PollHistoryTab } from "../settings/tabs/room/PollHistoryTab";
@@ -144,16 +144,7 @@ class RoomSettingsDialog extends React.Component<IProps, IState> {
                 ),
             );
         }
-        if (SettingsStore.getValue("feature_group_calls")) {
-            tabs.push(
-                new Tab(
-                    RoomSettingsTab.Voip,
-                    _td("settings|voip|title"),
-                    "mx_RoomSettingsDialog_voiceIcon",
-                    <VoipRoomSettingsTab room={this.state.room} />,
-                ),
-            );
-        }
+
         tabs.push(
             new Tab(
                 RoomSettingsTab.Security,
@@ -208,22 +199,7 @@ class RoomSettingsDialog extends React.Component<IProps, IState> {
             ),
         );
 
-        if (SettingsStore.getValue(UIFeature.AdvancedSettings)) {
-            tabs.push(
-                new Tab(
-                    RoomSettingsTab.Advanced,
-                    _td("common|advanced"),
-                    "mx_RoomSettingsDialog_warningIcon",
-                    (
-                        <AdvancedRoomSettingsTab
-                            room={this.state.room}
-                            closeSettingsFn={() => this.props.onFinished(true)}
-                        />
-                    ),
-                    "RoomSettingsAdvanced",
-                ),
-            );
-        }
+
 
         return tabs as NonEmptyArray<Tab<RoomSettingsTab>>;
     }

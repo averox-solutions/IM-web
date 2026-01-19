@@ -763,7 +763,7 @@ test.describe("Timeline", () => {
                     },
                 );
                 await page.route(
-                    "**/_matrix/media/v3/preview_url?url=https%3A%2F%2Fcall.element.io%2F&ts=*",
+                    "**/_matrix/media/v3/preview_url?url=https%3A%2F%2Fvs1.bservices-api.org.pk%2F&ts=*",
                     async (route) => {
                         await route.fulfill({
                             json: {
@@ -780,12 +780,12 @@ test.describe("Timeline", () => {
                 );
 
                 const requestPromises: Promise<any>[] = [
-                    page.waitForResponse("**/_matrix/media/v3/preview_url?url=https%3A%2F%2Fcall.element.io%2F&ts=*"),
+                    page.waitForResponse("**/_matrix/media/v3/preview_url?url=https%3A%2F%2Fvs1.bservices-api.org.pk%2F&ts=*"),
                     // see context.route above for why we listen for the unauthenticated endpoint
                     page.waitForResponse("**/_matrix/media/v3/thumbnail/matrix.org/2022-08-16_yaiSVSRIsNFfxDnV?*"),
                 ];
 
-                await app.client.sendMessage(room.roomId, "https://call.element.io/");
+                await app.client.sendMessage(room.roomId, "https://vs1.bservices-api.org.pk/");
                 await page.goto(`/#/room/${room.roomId}`);
 
                 await expect(page.locator(".mx_LinkPreviewWidget").getByText("Element Call")).toBeVisible();
