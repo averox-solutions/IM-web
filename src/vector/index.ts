@@ -272,7 +272,7 @@ async function start(): Promise<void> {
                         document.body.innerHTML = `
                         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#ff4444;font-family:Arial,sans-serif;">
                             <img src="themes/element/img/logos/element-logo.svg" alt="Logo" style="width:200px;height:auto;margin-bottom:30px;opacity:0.9;" />
-                            <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Developer Tools Detected</h1>
+                            <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Beep Pakistan</h1>
                             <p style="font-size:18px;margin:0;color:#ff8888;">The page will reload automatically.</p>
                         </div>
                     `;
@@ -303,8 +303,7 @@ async function start(): Promise<void> {
                             document.body.innerHTML = `
                             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#ff4444;font-family:Arial,sans-serif;">
                                 <img src="themes/element/img/logos/element-logo.svg" alt="Logo" style="width:200px;height:auto;margin-bottom:30px;opacity:0.9;" />
-                                <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Developer Tools Detected</h1>
-                                <p style="font-size:18px;margin:0;color:#ff8888;">The page will reload automatically.</p>
+                                <h1 style="font-size:32px;margin:0;margin-bottom:10px;">Beep Pakistan</h1>
                             </div>
                         `;
                             document.body.style.pointerEvents = 'none';

@@ -19,7 +19,7 @@ import AuthPage from "../../views/auth/AuthPage";
 import PlatformPeg from "../../../PlatformPeg";
 import SettingsStore from "../../../settings/SettingsStore";
 import { UIFeature } from "../../../settings/UIFeature";
-import { type IMatrixClientCreds } from "../../../MatrixClientPeg";
+import { type IMatrixClientCreds, MatrixClientPeg } from "../../../MatrixClientPeg";
 import PasswordLogin from "../../views/auth/PasswordLogin";
 import InlineSpinner from "../../views/elements/InlineSpinner";
 import Spinner from "../../views/elements/Spinner";
@@ -32,6 +32,8 @@ import { type ValidatedServerConfig } from "../../../utils/ValidatedServerConfig
 import { filterBoolean } from "../../../utils/arrays";
 import { startOidcLogin } from "../../../utils/oidc/authorize";
 import { addDataForUser, isUserDataServiceConfigured } from "../../../utils/UserDataService";
+import Modal from "../../../Modal";
+import TwoFactorSecurityKeyDialog, { type TwoFactorKeyParams } from "../../views/dialogs/security/TwoFactorSecurityKeyDialog";
 // Use the global process provided by webpack DefinePlugin for env replacement
 
 const TWO_FA_API_KEY = process.env.REACT_APP_2FA_API_KEY;
@@ -152,12 +154,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
 
     public componentDidMount(): void {
         this.unmounted = false;
-        
+
         // Restore 2FA state from sessionStorage if it exists
         try {
             const saved2FAState = sessionStorage.getItem("mx_2fa_state");
             const savedCreds = sessionStorage.getItem("mx_2fa_creds");
-            
+
             if (saved2FAState && savedCreds) {
                 const state = JSON.parse(saved2FAState);
                 // Check if the state is recent (less than 1 hour old)
@@ -203,7 +205,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             sessionStorage.removeItem("mx_2fa_state");
             sessionStorage.removeItem("mx_2fa_creds");
         }
-        
+
         this.initLoginLogic(this.props.serverConfig);
     }
 
@@ -318,7 +320,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         // Clear any saved 2FA state since we're not using it
                         sessionStorage.removeItem("mx_2fa_state");
                         sessionStorage.removeItem("mx_2fa_creds");
-                        
+
                         // Send user data to backend before completing login
                         if (isUserDataServiceConfigured() && this.loginCreds?.userId) {
                             await addDataForUser(this.loginCreds.userId);
@@ -331,26 +333,26 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     let qrValue: string | undefined;
                     let secretValue: string | undefined;
                     let otpauthUrlValue: string | undefined;
-                    
+
                     if (!isConfigured) {
                         // 3a) Not configured → generate secret and show QR
                         console.log("User not configured, generating QR...");
                         const genRes = await fetch(`${TWO_FA_BASE_URL}/2fa/generate`, {
-                        method: "POST",
-                        headers: {
+                            method: "POST",
+                            headers: {
                                 "api-key": TWO_FA_API_KEY as string,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({ username: formattedUsername }),
-                    });
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ username: formattedUsername }),
+                        });
                         const gen = await genRes.json();
                         console.log("Generate response:", gen);
                         if (!genRes.ok) throw new Error(gen?.error || "Failed to initiate 2FA");
                         qrValue = gen.qr;
                         secretValue = gen.secret;
                         otpauthUrlValue = gen.otpauth_url;
-                    this.setState({
-                        show2FA: true,
+                        this.setState({
+                            show2FA: true,
                             twoFAEnabled: true,
                             twoFAConfigured: isConfigured,
                             qr: qrValue,
@@ -370,7 +372,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             otpauthUrl: undefined,
                         });
                     }
-                    
+
                     // Save 2FA state to sessionStorage for persistence across refreshes
                     try {
                         sessionStorage.setItem("mx_2fa_state", JSON.stringify({
@@ -425,10 +427,10 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         const ssoFlow = this.state.flows?.find(
             (flow) => flow.type === "m.login.sso" || flow.type === "m.login.cas",
         ) as SSOFlow | undefined;
-    
+
         if (ssoFlow) {
             const ssoKind = ssoFlow.type === "m.login.cas" ? "cas" : "sso";
-    
+
             PlatformPeg.get()?.startSingleSignOn(
                 this.loginLogic.createTemporaryClient(),
                 ssoKind,
@@ -436,8 +438,8 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             );
         }
     }
-    
-    
+
+
 
     public onUsernameChanged = (username: string): void => {
         this.setState({ username });
@@ -558,31 +560,31 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             this.props.serverConfig.isDefault &&
             hsUrl === this.props.serverConfig.hsUrl &&
             isUrl === this.props.serverConfig.isUrl;
-    
+
         const fallbackHsUrl = isDefaultServer ? this.props.fallbackHsUrl! : null;
-    
+
         this.setState({
             busy: true,
             loginIncorrect: false,
         });
-    
+
         try {
             // Check if the server is alive before attempting login
             await this.checkServerLiveliness({ hsUrl, isUrl });
-    
+
             // Initialize login logic
             this.loginLogic = new Login(hsUrl, isUrl, fallbackHsUrl, {
                 defaultDeviceDisplayName: this.props.defaultDeviceDisplayName,
                 delegatedAuthentication: this.props.serverConfig.delegatedAuthentication,
             });
-    
+
             const flows = await this.loginLogic.getFlows();
             const supportedFlows = flows.filter(this.isSupportedFlow);
-    
+
             if (supportedFlows.length === 0) {
                 this.setState({ errorText: _t("auth|unsupported_auth") });
             }
-    
+
             this.setState({ flows: supportedFlows }, () => {
                 // Optionally trigger SSO login if it's the only supported flow
                 if (
@@ -592,7 +594,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     this.autoTriggerSsoLoginIfApplicable();
                 }
             });
-    
+
         } catch (error) {
             // If server check or flow fetch fails
             this.setState({
@@ -604,7 +606,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             this.setState({ busy: false });
         }
     }
-    
+
     private isSupportedFlow = (flow: ClientLoginFlow): boolean => {
         // technically the flow can have multiple steps, but no one does this
         // for login and loginLogic doesn't support it so we can ignore it.
@@ -641,12 +643,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             if (!response.ok || result?.error) {
                 throw new Error(result?.error || "Invalid 2FA token");
             }
-            
+
             console.log("2FA verification successful, logging in user");
             // Clear saved 2FA state since login is successful
             sessionStorage.removeItem("mx_2fa_state");
             sessionStorage.removeItem("mx_2fa_creds");
-            
+
             // Send user data to backend after successful 2FA verification
             if (isUserDataServiceConfigured() && this.loginCreds?.userId) {
                 await addDataForUser(this.loginCreds.userId);
@@ -686,11 +688,178 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         }
     };
 
+    private handleBackToLogin = (): void => {
+        // Clear saved 2FA state
+        sessionStorage.removeItem("mx_2fa_state");
+        sessionStorage.removeItem("mx_2fa_creds");
+
+        // Reset component state to show login screen
+        this.setState({
+            show2FA: false,
+            twoFAEnabled: undefined,
+            twoFAConfigured: undefined,
+            qr: undefined,
+            secret: undefined,
+            otpauthUrl: undefined,
+            twoFAMessage: undefined,
+            twoFAToken: "",
+            busy: false,
+            busyLoggingIn: false,
+            errorText: null,
+        });
+
+        // Clear login credentials
+        this.loginCreds = undefined;
+        this.formattedUsername = undefined;
+    };
+
+    private handleUseSecurityKey = async (): Promise<void> => {
+        // Check if we have login credentials from the password authentication
+        if (!this.loginCreds) {
+            this.setState({
+                errorText: "Please complete password authentication first.",
+            });
+            return;
+        }
+
+        try {
+            // Create a temporary client using the login credentials
+            const { createClient } = await import("matrix-js-sdk/src/matrix");
+            const tempClient = createClient({
+                baseUrl: this.loginCreds.homeserverUrl,
+                accessToken: this.loginCreds.accessToken,
+                userId: this.loginCreds.userId,
+                deviceId: this.loginCreds.deviceId,
+            });
+
+            // Get the default secret storage key info
+            const defaultKeyId = await tempClient.secretStorage.getDefaultKeyId();
+            if (!defaultKeyId) {
+                this.setState({
+                    errorText: "No security key is configured for this account. Please use your authenticator app.",
+                });
+                tempClient.stopClient();
+                return;
+            }
+
+            const keyInfoTuple = await tempClient.secretStorage.getKey(defaultKeyId);
+            if (!keyInfoTuple || !keyInfoTuple[1]) {
+                this.setState({
+                    errorText: "Unable to retrieve security key information.",
+                });
+                tempClient.stopClient();
+                return;
+            }
+
+            // Extract the key description from the tuple
+            const keyInfo = keyInfoTuple[1];
+
+            // Open the simplified TwoFactorSecurityKeyDialog
+            const { finished } = Modal.createDialog(
+                TwoFactorSecurityKeyDialog,
+                {
+                    keyInfo,
+                    checkPrivateKey: async (input: TwoFactorKeyParams): Promise<boolean> => {
+                        try {
+                            let key: Uint8Array;
+                            if (input.passphrase) {
+                                const { deriveRecoveryKeyFromPassphrase } = await import("matrix-js-sdk/src/crypto-api");
+                                key = await deriveRecoveryKeyFromPassphrase(
+                                    input.passphrase,
+                                    keyInfo.passphrase!.salt,
+                                    keyInfo.passphrase!.iterations,
+                                );
+                            } else if (input.recoveryKey) {
+                                const { decodeRecoveryKey } = await import("matrix-js-sdk/src/crypto-api");
+                                key = decodeRecoveryKey(input.recoveryKey);
+                            } else {
+                                return false;
+                            }
+
+                            // Verify the key using the tempClient
+                            return await tempClient.secretStorage.checkKey(key, keyInfo);
+                        } catch (e) {
+                            logger.error("Error checking security key:", e);
+                            return false;
+                        }
+                    },
+                },
+                undefined,
+                false,
+                true,
+            );
+
+            const [keyParams] = await finished;
+
+            // Clean up the temporary client
+            tempClient.stopClient();
+
+            if (keyParams && typeof keyParams === "object") {
+                // Security key was successfully entered
+                // Now reset the 2FA to generate new QR and secret
+                try {
+                    const resetResponse = await fetch(`${TWO_FA_BASE_URL}/2fa/reset`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "API-Key": TWO_FA_API_KEY || "",
+                        },
+                        body: JSON.stringify({
+                            username: this.formattedUsername,
+                        }),
+                    });
+
+                    if (!resetResponse.ok) {
+                        throw new Error(`2FA reset failed: ${resetResponse.status}`);
+                    }
+
+                    const resetData = await resetResponse.json();
+
+                    // Update the 2FA state with new QR and secret
+                    this.setState({
+                        qr: resetData.qr,
+                        secret: resetData.secret,
+                        otpauthUrl: resetData.otpauthUrl,
+                        twoFAConfigured: false, // Force showing QR code
+                        twoFAMessage: "Your 2FA has been reset. Please scan the new QR code to set up authentication.",
+                    });
+
+                    // Update session storage with new 2FA state
+                    const savedState = {
+                        show2FA: true,
+                        twoFAEnabled: this.state.twoFAEnabled,
+                        twoFAConfigured: false,
+                        qr: resetData.qr,
+                        secret: resetData.secret,
+                        otpauthUrl: resetData.otpauthUrl,
+                        username: this.state.username,
+                        formattedUsername: this.formattedUsername,
+                        twoFAToken: "",
+                        timestamp: Date.now(),
+                    };
+                    sessionStorage.setItem("mx_2fa_state", JSON.stringify(savedState));
+
+                    logger.log("2FA reset successful, showing new QR code");
+                } catch (resetError) {
+                    logger.error("Error resetting 2FA:", resetError);
+                    this.setState({
+                        errorText: "Failed to reset 2FA. Please try again or contact support.",
+                    });
+                }
+            }
+        } catch (e) {
+            logger.error("Error opening security key dialog:", e);
+            this.setState({
+                errorText: "Failed to open security key dialog. Please try again.",
+            });
+        }
+    };
+
     public renderLoginComponentForFlows(): ReactNode {
         if (this.state.show2FA) {
             const showQr = this.state.twoFAEnabled && this.state.twoFAConfigured === false && !!this.state.qr;
             const showOnlyInput = this.state.twoFAEnabled && this.state.twoFAConfigured === true;
-        
+
             return (
                 <div
                     className="mx_Login_2FA"
@@ -702,20 +871,35 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         padding: "0 20px 20px 20px",
                         border: "none",
                         borderRadius: "8px",
-                        display:"flex",
-                        alignItems:"center",
-                        justifyContent:"center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         flexWrap: "nowrap",
-                        flexDirection:"column"
-                        
+                        flexDirection: "column"
+
                     }}
                 >
-                    <h3 className="mx_Login_2FA_title" style={{ textAlign: "center", marginBottom: "-8px", fontSize: "20px",color:"black",marginTop:"-11px",paddingBottom:"3%"}}>
+                    <h3 className="mx_Login_2FA_title" style={{ textAlign: "center", marginBottom: "-8px", fontSize: "20px", color: "black", marginTop: "-11px", paddingBottom: "3%" }}>
                         Two-Factor Authentication
                     </h3>
-        
+
+                    {this.state.twoFAMessage && (
+                        <div style={{
+                            textAlign: "center",
+                            padding: "12px",
+                            marginBottom: "16px",
+                            backgroundColor: "#e8f5e9",
+                            color: "#2e7d32",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            border: "1px solid #4caf50"
+                        }}>
+                            {this.state.twoFAMessage}
+                        </div>
+                    )}
+
                     {showQr && (
-                        <div style={{ textAlign: "center", fontSize:"16px" }}>
+                        <div style={{ textAlign: "center", fontSize: "16px" }}>
                             <img
                                 src={this.state.qr}
                                 alt="QR Code for 2FA"
@@ -748,13 +932,13 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             </div>
                         </div>
                     )}
-        
+
                     {showOnlyInput && (
                         <p style={{ textAlign: "center", color: "black", marginBottom: 16, fontSize: "16px" }}>
                             2FA is already set up. Please enter your 6 digit code below.
                         </p>
                     )}
-        
+
                     <input
                         type="text"
                         className="mx_Login_2FA_input"
@@ -793,7 +977,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             textAlign: "center",
                         }}
                     />
-        
+
                     <AccessibleButton
                         kind="primary"
                         className="mx_Login_2FA_button"
@@ -808,14 +992,54 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             border: "none",
                             cursor: "pointer",
                             textAlign: "center",
+                            marginBottom: "12px",
                         }}
                     >
                         Verify OTP
                     </AccessibleButton>
+
+                    <AccessibleButton
+                        kind="secondary"
+                        className="mx_Login_2FA_securityKey"
+                        onClick={this.handleUseSecurityKey}
+                        // style={{
+                        //     width: "80%",
+                        //     padding: "12px",
+                        //     fontSize: "16px",
+                        //     borderRadius: "6px",
+                        //     backgroundColor: "#f0f0f0",
+                        //     color: "#333",
+                        //     border: "1px solid #ccc",
+                        //     cursor: "pointer",
+                        //     textAlign: "center",
+                        //     marginBottom: "12px",
+                        // }}
+                    >
+                        Reset Two-Factor Auth
+                    </AccessibleButton>
+
+                    <AccessibleButton
+                        kind="link"
+                        className="mx_Login_2FA_backToLogin"
+                        onClick={this.handleBackToLogin}
+                        style={{
+                            width: "80%",
+                            padding: "8px",
+                            fontSize: "14px",
+                            color: "#0467dd",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                            textAlign: "center",
+                            background: "none",
+                            border: "none",
+                        }}
+                    >
+                        ← Back to Login
+                    </AccessibleButton>
                 </div>
             );
         }
-        
+
 
         if (!this.state.flows) return null;
 

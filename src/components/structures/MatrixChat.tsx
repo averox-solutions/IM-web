@@ -219,7 +219,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         realQueryParams: {},
         startingFragmentQueryParams: {},
         config: {},
-        onTokenLoginCompleted: (): void => {},
+        onTokenLoginCompleted: (): void => { },
     };
 
     private firstSyncComplete = false;
@@ -794,12 +794,12 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                     if (roomPayload.event_id) {
                         roomScreen += `/${roomPayload.event_id}`;
                     }
-                    
+
                     const params: QueryDict = {};
                     if (roomPayload.via_servers && roomPayload.via_servers.length > 0) {
                         params.via = roomPayload.via_servers;
                     }
-                    
+
                     dis.dispatch({
                         action: "start_registration",
                         screenAfterLogin: {
@@ -813,7 +813,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                     this.notifyNewScreen("new");
                     return;
                 }
-                
+
                 // Takes either a room ID or room alias: if switching to a room the client is already
                 // known to be in (eg. user clicks on a room in the recents panel), supply the ID
                 // If the user is clicking on a room in the context of the alias being presented
@@ -1091,12 +1091,12 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             if (roomInfo.event_id) {
                 roomScreen += `/${roomInfo.event_id}`;
             }
-            
+
             const params: QueryDict = {};
             if (roomInfo.via_servers && roomInfo.via_servers.length > 0) {
                 params.via = roomInfo.via_servers;
             }
-            
+
             dis.dispatch({
                 action: "start_registration",
                 screenAfterLogin: {
@@ -1208,7 +1208,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             this.notifyNewScreen("new");
             return;
         }
-        
+
         if (shouldUseLoginForWelcome(SdkConfig.get())) {
             return this.viewLogin();
         }
@@ -1370,7 +1370,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         const cli = MatrixClientPeg.safeGet();
         const roomToLeave = cli.getRoom(roomId);
         const warnings = this.leaveRoomWarnings(roomId);
- 
+
         const isSpace = roomToLeave?.isSpaceRoom();
         Modal.createDialog(QuestionDialog, {
             title: isSpace ? _t("space|leave_dialog_action") : _t("action|leave_room"),
@@ -1378,11 +1378,11 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 <span>
                     {isSpace
                         ? _t("leave_room_dialog|leave_space_question", {
-                              spaceName: roomToLeave?.name ?? _t("common|unnamed_space"),
-                          })
+                            spaceName: roomToLeave?.name ?? _t("common|unnamed_space"),
+                        })
                         : _t("leave_room_dialog|leave_room_question", {
-                              roomName: roomToLeave?.name ?? _t("common|unnamed_room"),
-                          })}
+                            roomName: roomToLeave?.name ?? _t("common|unnamed_room"),
+                        })}
                     {warnings}
                 </span>
             ),
@@ -1391,7 +1391,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             onFinished: async (shouldLeave) => {
                 if (shouldLeave) {
                     await leaveRoomBehaviour(cli, roomId);
- 
+
                     dis.dispatch<AfterLeaveRoomPayload>({
                         action: Action.AfterLeaveRoom,
                         room_id: roomId,
@@ -1400,7 +1400,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             },
         });
     }
- 
+
     private forgetRoom(roomId: string): void {
         const room = MatrixClientPeg.safeGet().getRoom(roomId);
         MatrixClientPeg.safeGet()
@@ -1410,7 +1410,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 if (this.state.currentRoomId === roomId) {
                     dis.dispatch({ action: Action.ViewHomePage });
                 }
- 
+
                 // We have to manually update the room list because the forgotten room will not
                 // be notified to us, therefore the room list will have no other way of knowing
                 // the room is forgotten.
@@ -1424,7 +1424,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 });
             });
     }
- 
+
 
     private async copyRoom(roomId: string): Promise<void> {
         const roomLink = makeRoomPermalink(MatrixClientPeg.safeGet(), roomId);
@@ -1871,9 +1871,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
             } else {
                 // If logged in, "new" still means create room
-            dis.dispatch({
-                action: "view_create_room",
-            });
+                dis.dispatch({
+                    action: "view_create_room",
+                });
             }
         } else if (screen === "dm") {
             dis.dispatch({

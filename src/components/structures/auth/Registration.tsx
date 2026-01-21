@@ -862,6 +862,22 @@ export default class Registration extends React.Component<IProps, IState> {
             </span>
         );
 
+        const backToLogin = (
+            <AccessibleButton
+                kind="link"
+                onClick={this.onLoginClick}
+                style={{
+                    fontSize: "14px",
+                    color: "#0467dd",
+                    textDecoration: "underline",
+                    marginTop: "12px",
+                    cursor: "pointer",
+                }}
+            >
+                ← Back to Login
+            </AccessibleButton>
+        );
+
         // Only show the 'go back' button if you're not looking at the form
         let goBack;
         if (this.state.doingUIAuth) {
@@ -967,6 +983,7 @@ export default class Registration extends React.Component<IProps, IState> {
                     </div>
                     <div className="mx_Register_footerActions">
                         {goBack}
+                        {backToLogin}
                         {signIn}
                     </div>
                 </Fragment>

@@ -338,11 +338,96 @@ export async function leaveRoomBehaviour(
 
         console.log(`[leave-behaviour] Marking room ${roomId} as left and forcing removal`);
 
-        // Mark the room as left - this will prevent subsequent events from re-adding it
-        RoomListStore.instance.markRoomAsLeft(roomId);
-
         // Trigger a manual update to remove the room immediately
         await RoomListStore.instance.manualRoomUpdate(leftRoom, (await import("../stores/room-list/models")).RoomUpdateCause.PossibleTagChange);
+
+        // Clear IndexedDB data for this room
+        try {
+            console.log(`[leave-behaviour] Clearing IndexedDB data for room ${roomId}`);
+
+            // Clear room timeline and state from IndexedDB
+            if (typeof indexedDB !== 'undefined') {
+                const dbName = `matrix-js-sdk:${matrixClient.getUserId()}`;
+                const request = indexedDB.open(dbName);
+
+                request.onsuccess = (event) => {
+                    const db = (event.target as IDBOpenDBRequest).result;
+
+                    try {
+                        // Try to clear sync data if the object store exists
+                        if (db.objectStoreNames.contains('sync')) {
+                            const transaction = db.transaction(['sync'], 'readwrite');
+                            const store = transaction.objectStore('sync');
+
+                            // Delete room-specific data
+                            const deleteRequest = store.delete(`room:${roomId}`);
+                            deleteRequest.onsuccess = () => {
+                                console.log(`[leave-behaviour] Cleared IndexedDB sync data for room ${roomId}`);
+                            };
+                            deleteRequest.onerror = (err) => {
+                                console.warn(`[leave-behaviour] Failed to clear IndexedDB sync data for room ${roomId}:`, err);
+                            };
+                        }
+
+                        // Try to clear room state if the object store exists
+                        if (db.objectStoreNames.contains('roomState')) {
+                            const transaction = db.transaction(['roomState'], 'readwrite');
+                            const store = transaction.objectStore('roomState');
+
+                            const deleteRequest = store.delete(roomId);
+                            deleteRequest.onsuccess = () => {
+                                console.log(`[leave-behaviour] Cleared IndexedDB room state for room ${roomId}`);
+                            };
+                        }
+
+                        // Try to clear room timeline if the object store exists
+                        if (db.objectStoreNames.contains('roomTimeline')) {
+                            const transaction = db.transaction(['roomTimeline'], 'readwrite');
+                            const store = transaction.objectStore('roomTimeline');
+
+                            const deleteRequest = store.delete(roomId);
+                            deleteRequest.onsuccess = () => {
+                                console.log(`[leave-behaviour] Cleared IndexedDB room timeline for room ${roomId}`);
+                            };
+                        }
+                    } catch (txError) {
+                        console.warn(`[leave-behaviour] Error during IndexedDB transaction:`, txError);
+                    } finally {
+                        db.close();
+                    }
+                };
+
+                request.onerror = (err) => {
+                    console.warn(`[leave-behaviour] Failed to open IndexedDB for cleanup:`, err);
+                };
+            }
+
+            // Store the left room in localStorage to prevent it from reappearing on refresh
+            try {
+                const userId = matrixClient.getUserId();
+                if (userId) {
+                    const storageKey = `mx_left_rooms_${userId}`;
+                    const leftRoomsStr = localStorage.getItem(storageKey);
+                    const leftRooms = leftRoomsStr ? JSON.parse(leftRoomsStr) : [];
+
+                    if (!leftRooms.includes(roomId)) {
+                        leftRooms.push(roomId);
+                        localStorage.setItem(storageKey, JSON.stringify(leftRooms));
+                        console.log(`[leave-behaviour] Stored room ${roomId} in left rooms list`);
+                    }
+                }
+            } catch (storageError) {
+                console.warn(`[leave-behaviour] Failed to store left room in localStorage:`, storageError);
+            }
+
+            // Force the matrix client to forget the room
+            await matrixClient.forget(roomId);
+            console.log(`[leave-behaviour] Forgot room ${roomId} from matrix client`);
+
+        } catch (error) {
+            console.error(`[leave-behaviour] Error clearing IndexedDB data for room ${roomId}:`, error);
+            // Don't throw - continue with the leave process even if cleanup fails
+        }
     }
 
     if (SdkContextClass.instance.roomViewStore.getRoomId() === roomId) {

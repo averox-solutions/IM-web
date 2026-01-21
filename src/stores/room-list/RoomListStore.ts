@@ -832,6 +832,24 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         let rooms = this.matrixClient.getVisibleRooms(this.msc3946ProcessDynamicPredecessor);
         rooms = rooms.filter((r) => VisibilityProvider.instance.isRoomVisible(r));
 
+        // Filter out rooms that the user has explicitly left (stored in localStorage)
+        try {
+            const userId = this.matrixClient.getUserId();
+            if (userId) {
+                const storageKey = `mx_left_rooms_${userId}`;
+                const leftRoomsStr = localStorage.getItem(storageKey);
+                if (leftRoomsStr) {
+                    const leftRooms = JSON.parse(leftRoomsStr);
+                    if (Array.isArray(leftRooms) && leftRooms.length > 0) {
+                        console.log(`[RoomListStore] Filtering out ${leftRooms.length} left rooms from plausible rooms`);
+                        rooms = rooms.filter((r) => !leftRooms.includes(r.roomId));
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn(`[RoomListStore] Error filtering left rooms:`, error);
+        }
+
         if (this.prefilterConditions.length > 0) {
             rooms = rooms.filter((r) => {
                 for (const filter of this.prefilterConditions) {

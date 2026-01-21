@@ -384,6 +384,8 @@ class RoomTile extends React.PureComponent<Props, State> {
 
         let name = this.props.room.name;
         if (typeof name !== "string") name = "";
+        // Remove @ prefix and :domain suffix from user IDs
+        name = name.replace(/^@/, '').split(':')[0];
         name = name.replace(":", ":\u200b"); // add a zero-width space to allow linewrapping after the colon
 
         let badge: React.ReactNode;

@@ -19,23 +19,10 @@ import PublicIcon from "@vector-im/compound-design-tokens/assets/web/icons/publi
 import { useRef, type ChangeEvent } from "react";
 import SearchIcon from "@vector-im/compound-design-tokens/assets/web/icons/search";
 import { Search, Form } from "@vector-im/compound-web";
-
-import {
-    ChevronFace,
-    ContextMenuTooltipButton,
-    useContextMenu,
-    type MenuProps,
-    ContextMenuButton,
-} from "../../../structures/ContextMenu";
-
-import { BsPlus } from "react-icons/bs";
-
 import classNames from "classnames";
-
 import { useDispatcher } from "../../../../hooks/useDispatcher";
 import { Action } from "../../../../dispatcher/actions";
 import { Key } from "../../../../Keyboard";
-
 import { JoinRule } from "matrix-js-sdk/src/matrix";
 import type { Room } from "matrix-js-sdk/src/matrix";
 import type { ViewRoomOpts } from "@matrix-org/react-sdk-module-api/lib/lifecycles/RoomViewLifecycle";
@@ -85,7 +72,7 @@ export default function RoomHeader({
     oobData,
     onSearchChange, // ← NEW
     onSearchCancel, // ← NEW
-    focusRoomSearch, // ← NEW
+    focusRoomSearch, 
 }: {
     room: Room;
     additionalButtons?: ViewRoomOpts["buttons"];
@@ -282,7 +269,7 @@ export default function RoomHeader({
                     toUserId: currentUserId,
                     isGroup: callData.isGroup || false,
                     timestamp: new Date().toISOString(),
-                };
+            };
 
                 console.log("📤 Emitting CALL_DECLINED event:", declineData);
                 socket.emit("call_declined", declineData);
@@ -742,7 +729,6 @@ export default function RoomHeader({
                             aria-label={_t("room|header_avatar_open_settings_label")}
                         />
                     </WithPresenceIndicator>
-
                     <button
                         aria-label={_t("right_panel|room_summary_card|title")}
                         tabIndex={0}
@@ -766,7 +752,10 @@ export default function RoomHeader({
                                 aria-level={1}
                                 className="mx_RoomHeader_heading"
                             >
-                                <span className="mx_RoomHeader_truncated mx_lineClamp">{roomName}</span>
+                                <span className="mx_RoomHeader_truncated mx_lineClamp">
+                                    {/* Remove @ prefix and :domain suffix from room name */}
+                                    {roomName.replace(/^@/, '').split(':')[0]}
+                                </span>
 
                                 {!isDirectMessage && joinRule === JoinRule.Public && (
                                     <Tooltip label={_t("common|public_room")} placement="right">

@@ -710,7 +710,7 @@
         "public_heading": "Your public Department",
         "search_public_button": "Search for public Departments",
         "setup_rooms_community_description": "Let's create a Groups for each of them.",
-        "setup_rooms_community_heading": "What are some things you want to discuss in %(spaceName)s?",
+        "setup_rooms_community_heading": "What are some things you want to discuss in your Department?",
         "setup_rooms_description": "You can add more later too, including already existing ones.",
         "setup_rooms_private_description": "We'll create Groups for each of them.",
         "setup_rooms_private_heading": "What projects are your team working on?",
@@ -1807,7 +1807,7 @@
     },
     "restore_key_backup_dialog": {
         "count_of_decryption_failures": "Failed to decrypt %(failedCount)s sessions!",
-        "count_of_successfully_restored_keys": "Successfully restored %(sessionCount)s keys",
+        "count_of_successfully_restored_keys": "Successfully restored keys",
         "enter_key_description": "Access your secure message history and set up secure messaging by entering your Security Key.",
         "enter_key_title": "Enter Security Key",
         "enter_phrase_description": "Access your secure message history and set up secure messaging by entering your Security Phrase.",

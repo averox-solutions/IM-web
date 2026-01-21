@@ -113,6 +113,9 @@ const Tile: React.FC<ITileProps> = ({
         room.aliases?.[0] ||
         (room.room_type === RoomType.Space ? _t("common|unnamed_space") : _t("common|unnamed_room"));
 
+    // Truncate room name to 35 characters
+    const displayName = name.length > 35 ? name.substring(0, 35) + "..." : name;
+
     const [showChildren, toggleShowChildren] = useStateToggle(true);
     const [onFocus, isActive, ref, nodeRef] = useRovingTabIndex();
     const [busy, setBusy] = useState(false);
@@ -248,7 +251,7 @@ const Tile: React.FC<ITileProps> = ({
             <div className="mx_SpaceHierarchy_roomTile_item">
                 <div className="mx_SpaceHierarchy_roomTile_avatar">{avatar}</div>
                 <div className="mx_SpaceHierarchy_roomTile_name">
-                    {name}
+                    {displayName}
                     {joinedSection}
                     {suggestedSection}
                 </div>
