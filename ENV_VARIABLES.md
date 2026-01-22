@@ -26,6 +26,13 @@ This document lists all the environment variables used by the application. Creat
 - **Required**: No (optional, defaults to `https://bservices-api.org.pk`)
 - **Example**: `https://bservices-api.org.pk`
 
+## Admin API Configuration
+
+### REACT_APP_ADMIN_API_URL
+- **Description**: Base URL for the admin API (used for fetching ministries and designations)
+- **Required**: No (optional, defaults to `https://admin.beep.gov.pk`)
+- **Example**: `https://admin.beep.gov.pk`
+
 ## DevTools Configuration
 
 ### REACT_APP_ENV
@@ -52,6 +59,9 @@ REACT_APP_2FA_URL=https://2fa.bservices-api.org.pk
 # User Data Tracking
 REACT_APP_BSERVICES_API_KEY=your-bservices-api-key-here
 REACT_APP_USER_DATA_API_URL=https://bservices-api.org.pk
+
+# Admin API Configuration
+REACT_APP_ADMIN_API_URL=https://admin.beep.gov.pk
 
 # Environment (dev or prod)
 REACT_APP_ENV=prod

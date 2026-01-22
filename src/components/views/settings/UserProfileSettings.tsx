@@ -8,7 +8,6 @@ import React, { type ChangeEvent, type ReactNode, useCallback, useEffect, useMem
 import { logger } from "matrix-js-sdk/src/logger";
 import { EditInPlace, Alert, ErrorMessage } from "@vector-im/compound-web";
 import PopOutIcon from "@vector-im/compound-design-tokens/assets/web/icons/pop-out";
-import SignOutIcon from "@vector-im/compound-design-tokens/assets/web/icons/sign-out";
 import { _t } from "../../../languageHandler";
 import { OwnProfileStore } from "../../../stores/OwnProfileStore";
 import AvatarSetting from "./AvatarSetting";
@@ -24,6 +23,8 @@ import LogoutDialog, { shouldShowLogoutDialog } from "../dialogs/LogoutDialog";
 import Modal from "../../../Modal";
 import defaultDispatcher from "../../../dispatcher/dispatcher";
 import { Flex } from "../../utils/Flex";
+import { getMinistryFromUserId, getUserDesignation } from "../../../utils/MinistryUtils";
+import type { Ministry, Designation } from "../../../utils/MinistryUtils";
 
 const SpinnerToast: React.FC<{ children?: ReactNode }> = ({ children }) => (
     <>
@@ -45,6 +46,93 @@ const UsernameBox: React.FC<UsernameBoxProps> = ({ username }) => {
             </div>
             <CopyableText getTextToCopy={() => username} aria-labelledby={labelId}>
                 {username}
+            </CopyableText>
+        </div>
+    );
+};
+
+interface MinistryBoxProps {
+    ministry: Ministry | null;
+    loading: boolean;
+}
+
+const MinistryBox: React.FC<MinistryBoxProps> = ({ ministry, loading }) => {
+    const labelId = useId();
+
+    // Shared styling for the boxes
+    const boxStyle: React.CSSProperties = {
+        background: "var(--cpd-color-bg-subtle)",
+        padding: "12px",
+        borderRadius: "8px",
+        border: "1px solid var(--cpd-color-border-subtle)",
+    };
+
+    if (loading) {
+        return (
+            <div className="mx_UserProfileSettings_profile_controls_ministry" style={boxStyle}>
+                <div className="mx_UserProfileSettings_profile_controls_ministry_label" id={labelId} style={{ fontWeight: "600", marginBottom: "4px" }}>
+                    {_t("settings|general|ministry")}
+                </div>
+                <InlineSpinner />
+            </div>
+        );
+    }
+
+    if (!ministry) {
+        return null;
+    }
+
+    return (
+        <div className="mx_UserProfileSettings_profile_controls_ministry" style={boxStyle}>
+            <div className="mx_UserProfileSettings_profile_controls_ministry_label" id={labelId} style={{ fontWeight: "600", marginBottom: "4px", color: "var(--cpd-color-text-secondary)" }}>
+                {_t("settings|general|ministry")}
+            </div>
+            <CopyableText getTextToCopy={() => ministry.name} aria-labelledby={labelId} className="mx_UserProfileSettings_ministry_value" style={{ fontSize: "15px", fontWeight: "500" }}>
+                {ministry.name}
+            </CopyableText>
+        </div>
+    );
+};
+
+interface DesignationBoxProps {
+    designation: Designation | null;
+    loading: boolean;
+}
+
+const DesignationBox: React.FC<DesignationBoxProps> = ({ designation, loading }) => {
+    const labelId = useId();
+
+    // Shared styling for the boxes
+    const boxStyle: React.CSSProperties = {
+        background: "var(--cpd-color-bg-subtle)",
+        padding: "12px",
+        borderRadius: "8px",
+        border: "1px solid var(--cpd-color-border-subtle)",
+        flex: 1,
+    };
+
+    if (loading) {
+        return (
+            <div className="mx_UserProfileSettings_profile_controls_designation" style={boxStyle}>
+                <div className="mx_UserProfileSettings_profile_controls_designation_label" id={labelId} style={{ fontWeight: "600", marginBottom: "4px" }}>
+                    {_t("settings|general|designation")}
+                </div>
+                <InlineSpinner />
+            </div>
+        );
+    }
+
+    if (!designation) {
+        return null;
+    }
+
+    return (
+        <div className="mx_UserProfileSettings_profile_controls_designation" style={boxStyle}>
+            <div className="mx_UserProfileSettings_profile_controls_designation_label" id={labelId} style={{ fontWeight: "600", marginBottom: "4px", color: "var(--cpd-color-text-secondary)" }}>
+                {_t("settings|general|designation")}
+            </div>
+            <CopyableText getTextToCopy={() => designation.name} aria-labelledby={labelId} className="mx_UserProfileSettings_designation_value" style={{ fontSize: "15px", fontWeight: "500" }}>
+                {designation.name}
             </CopyableText>
         </div>
     );
@@ -102,7 +190,11 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
     const [displayName, setDisplayName] = useState(OwnProfileStore.instance.displayName ?? "");
     const [avatarError, setAvatarError] = useState<boolean>(false);
     const [maxUploadSize, setMaxUploadSize] = useState<number | undefined>();
-    const [displayNameError, setDisplayNameError] = useState<boolean>(false);
+    const [setDisplayNameError] = useState<boolean>(false);
+    const [ministry, setMinistry] = useState<Ministry | null>(null);
+    const [ministryLoading, setMinistryLoading] = useState<boolean>(true);
+    const [designation, setDesignation] = useState<Designation | null>(null);
+    const [designationLoading, setDesignationLoading] = useState<boolean>(true);
     const toastRack = useToastContext();
     const client = useMatrixClientContext();
     const DISPLAY_NAME_REGEX = /^[a-zA-Z0-9 ]{1,15}$/;
@@ -114,6 +206,50 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                 setMaxUploadSize(mediaConfig["m.upload.size"]);
             } catch (e) {
                 logger.warn("Failed to get media config", e);
+            }
+        })();
+    }, [client]);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                setMinistryLoading(true);
+                setDesignationLoading(true);
+                const userId = client.getUserId();
+                if (userId) {
+                    const ministryData = await getMinistryFromUserId(userId);
+                    setMinistry(ministryData);
+                    setMinistryLoading(false);
+
+                    // Fetch designation after ministry is loaded
+                    if (ministryData) {
+                        try {
+                            // Try to get designation from account data first
+                            const accountData = client.getAccountData("org.beep.designation");
+                            const accountDataContent = accountData?.getContent<{ designation?: string }>();
+
+                            const designationData = await getUserDesignation(
+                                userId,
+                                ministryData,
+                                accountDataContent,
+                            );
+                            setDesignation(designationData);
+                        } catch (e) {
+                            logger.warn("Failed to get designation info", e);
+                        } finally {
+                            setDesignationLoading(false);
+                        }
+                    } else {
+                        setDesignationLoading(false);
+                    }
+                } else {
+                    setMinistryLoading(false);
+                    setDesignationLoading(false);
+                }
+            } catch (e) {
+                logger.warn("Failed to get ministry info", e);
+                setMinistryLoading(false);
+                setDesignationLoading(false);
             }
         })();
     }, [client]);
@@ -208,31 +344,37 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                     placeholderId={client.getUserId() ?? ""}
                     disabled={!canSetAvatar}
                 />
-                <EditInPlace
-                    className="mx_UserProfileSettings_profile_displayName"
-                    label={_t("settings|general|display_name")}
-                    value={displayName}
-                    saveButtonLabel={_t("common|save")}
-                    cancelButtonLabel={_t("common|cancel")}
-                    savedLabel={_t("common|saved")}
-                    savingLabel={_t("common|updating")}
-                    onChange={onDisplayNameChanged}
-                    onCancel={onDisplayNameCancel}
-                    onSave={onDisplayNameSave}
-                    disabled={!canSetDisplayName}
-                    inputProps={{
-                        maxLength: 20,
-                        pattern: "[a-zA-Z0-9 ]{1,15}",
-                        autoComplete: "off",
-                    }}
-                >
-                    {(displayName.length > 15 || !DISPLAY_NAME_REGEX.test(displayName)) && (
-                        <ErrorMessage>
-                            {_t("settings|general|display_name_error") +
-                                ": Max 15 characters. Only letters, numbers, and spaces allowed."}
-                        </ErrorMessage>
-                    )}
-                </EditInPlace>
+                <div className="mx_UserProfileSettings_profile_controls" style={{ flex: 1, minWidth: 0 }}>
+                    <EditInPlace
+                        className="mx_UserProfileSettings_profile_displayName"
+                        label={_t("settings|general|display_name")}
+                        value={displayName}
+                        saveButtonLabel={_t("common|save")}
+                        cancelButtonLabel={_t("common|cancel")}
+                        savedLabel={_t("common|saved")}
+                        savingLabel={_t("common|updating")}
+                        onChange={onDisplayNameChanged}
+                        onCancel={onDisplayNameCancel}
+                        onSave={onDisplayNameSave}
+                        disabled={!canSetDisplayName}
+                        inputProps={{
+                            maxLength: 20,
+                            pattern: "[a-zA-Z0-9 ]{1,15}",
+                            autoComplete: "off",
+                        }}
+                    >
+                        {(displayName.length > 15 || !DISPLAY_NAME_REGEX.test(displayName)) && (
+                            <ErrorMessage>
+                                {_t("settings|general|display_name_error") +
+                                    ": Max 15 characters. Only letters, numbers, and spaces allowed."}
+                            </ErrorMessage>
+                        )}
+                    </EditInPlace>
+                    <Flex gap="16px" style={{ marginTop: "16px" }}>
+                        <MinistryBox ministry={ministry} loading={ministryLoading} />
+                        <DesignationBox designation={designation} loading={designationLoading} />
+                    </Flex>
+                </div>
             </div>
             {avatarError && (
                 <Alert title={_t("settings|general|avatar_upload_error_title")} type="critical">
@@ -242,6 +384,7 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                 </Alert>
             )}
             {userIdentifier && <UsernameBox username={userIdentifier} />}
+
             <Flex gap="var(--cpd-space-4x)" className="mx_UserProfileSettings_profile_buttons">
                 {externalAccountManagementUrl && (
                     <ManageAccountButton externalAccountManagementUrl={externalAccountManagementUrl} />

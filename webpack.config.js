@@ -780,6 +780,20 @@ module.exports = (env, argv) => {
 
             // Disable host check
             allowedHosts: "all",
+
+            // Proxy configuration to avoid CORS issues in development
+            proxy: [
+                {
+                    context: ["/api/ministries", "/api/ministries/**"],
+                    target: process.env.REACT_APP_ADMIN_API_URL || "https://admin.beep.gov.pk",
+                    changeOrigin: true,
+                    secure: true,
+                    logLevel: "debug",
+                    pathRewrite: {
+                        // Keep the path as-is (no rewriting needed)
+                    },
+                },
+            ],
         },
     };
 };
