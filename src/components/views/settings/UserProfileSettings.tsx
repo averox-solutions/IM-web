@@ -88,7 +88,7 @@ const MinistryBox: React.FC<MinistryBoxProps> = ({ ministry, loading }) => {
                 {_t("settings|general|ministry")}
             </div>
             <CopyableText getTextToCopy={() => ministry.name} aria-labelledby={labelId} className="mx_UserProfileSettings_ministry_value" style={{ fontSize: "15px", fontWeight: "500" }}>
-                {ministry.name}
+                {ministry.name.length > 25 ? `${ministry.name.slice(0, 25)}...` : ministry.name}
             </CopyableText>
         </div>
     );
@@ -132,7 +132,7 @@ const DesignationBox: React.FC<DesignationBoxProps> = ({ designation, loading })
                 {_t("settings|general|designation")}
             </div>
             <CopyableText getTextToCopy={() => designation.name} aria-labelledby={labelId} className="mx_UserProfileSettings_designation_value" style={{ fontSize: "15px", fontWeight: "500" }}>
-                {designation.name}
+                {designation.name.length > 25 ? `${designation.name.slice(0, 25)}...` : designation.name}
             </CopyableText>
         </div>
     );
