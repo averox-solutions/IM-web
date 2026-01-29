@@ -45,6 +45,7 @@ import { type ViewRoomPayload } from "../../../dispatcher/payloads/ViewRoomPaylo
 import AccessibleButton, { type ButtonEvent } from "../elements/AccessibleButton";
 import { isLocationEvent } from "../../../utils/EventUtils";
 import { isSelfLocation, locationEventGeoUri } from "../../../utils/location";
+import { cleanGeoUri } from "../../../utils/location/cleanGeoUri";
 import { RoomContextDetails } from "../rooms/RoomContextDetails";
 import { filterBoolean } from "../../../utils/arrays";
 import {
@@ -209,6 +210,11 @@ const transformEvent = (event: MatrixEvent): { type: string; content: IContent }
                     undefined, // description
                     LocationAssetType.Pin,
                 ),
+                // Add legacy geo_uri field for backward compatibility with older clients
+                // like FluffyChat that don't support the modern M_LOCATION format.
+                // We strip parameters (like uncertainty) to ensure strict parsers accept it.
+                // See: https://github.com/matrix-org/matrix-doc/issues/3516
+                geo_uri: cleanGeoUri(geoUri),
             },
         };
     }

@@ -19,6 +19,12 @@ import {
     ContentHelpers,
     type MBeaconInfoEventContent,
     M_BEACON,
+    M_BEACON_INFO,
+    type MatrixClient,
+    M_LOCATION,
+    M_TIMESTAMP,
+    REFERENCE_RELATION,
+    EventType,
 } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 import { logger } from "matrix-js-sdk/src/logger";
@@ -36,6 +42,7 @@ import {
     watchPosition,
     getCurrentPosition,
 } from "../utils/beacon";
+import { cleanGeoUri } from "../utils/location/cleanGeoUri";
 import { doMaybeLocalRoomAction } from "../utils/local-room";
 import SettingsStore from "../settings/SettingsStore";
 
@@ -589,14 +596,67 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
     /**
      * Sends m.location event to referencing given beacon
      */
+    private lastLocationEventIds = new Map<BeaconIdentifier, string>();
+
+    /**
+     * Sends m.location event to referencing given beacon
+     */
     private sendLocationToBeacon = async (beacon: Beacon, { geoUri, timestamp }: TimedGeoUri): Promise<void> => {
-        const content = ContentHelpers.makeBeaconContent(geoUri, timestamp, beacon.beaconInfoId);
+        // We construct a content that satisfies both:
+        // 1. MBeaconEventContent (for Element Web logic, via parseBeaconContent)
+        // 2. RoomMessageEventContent with msgtype="m.location" (for FluffyChat legacy support)
+
+        const baseContent: Record<string, any> = {
+            [M_LOCATION.name]: {
+                description: beacon.beaconInfo.description,
+                uri: geoUri,
+            },
+            [M_TIMESTAMP.name]: timestamp,
+            // Legacy/Fallback fields for FluffyChat
+            "msgtype": "m.location",
+            "body": "Live Location Update",
+            "geo_uri": cleanGeoUri(geoUri),
+        };
+
+        const lastEventId = this.lastLocationEventIds.get(beacon.identifier);
+        let content = { ...baseContent };
+
+        if (lastEventId) {
+            // Edit the previous message
+            content["m.relates_to"] = {
+                rel_type: "m.replace",
+                event_id: lastEventId,
+            };
+            content["m.new_content"] = baseContent;
+        } else {
+            // New message referencing the Beacon Info
+            content["m.relates_to"] = {
+                rel_type: REFERENCE_RELATION.name,
+                event_id: beacon.beaconInfoId,
+            };
+        }
+
         try {
-            await this.matrixClient!.sendEvent(beacon.roomId, M_BEACON.name, content);
+            // We send as RoomMessage (m.room.message) instead of Beacon (m.beacon/org.matrix.msc3672.beacon)
+            // This is the CRITICAL change for FluffyChat compatibility.
+            // Element Web will still see this as a beacon update because we patched RoomState.ts
+            // We cast to any because we are mixing legacy and modern types
+            const response = await this.matrixClient!.sendEvent(beacon.roomId, EventType.RoomMessage, content as any);
+
+            // If we sent a new message, track it so we can edit it next time
+            if (!lastEventId && response?.event_id) {
+                this.lastLocationEventIds.set(beacon.identifier, response.event_id);
+            }
+            // If we edited, we don't update the ID (we keep editing the original)
+
             this.incrementBeaconLocationPublishErrorCount(beacon.identifier, false);
         } catch (error) {
             logger.error(error);
             this.incrementBeaconLocationPublishErrorCount(beacon.identifier, true);
+
+            // If sending failed, maybe our lastEventId is invalid or something. 
+            // Better to restart the chain next time.
+            this.lastLocationEventIds.delete(beacon.identifier);
         }
     };
 

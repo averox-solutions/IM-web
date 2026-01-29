@@ -112,7 +112,7 @@ async function tryUpdateServerSupportMap(clientApiUrl: string, accessToken?: str
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                password: process.env.REACT_APP_MATRIX_PASSWORD,
+                password: "MySecurePassword123",
             }),
         })
     ).json();

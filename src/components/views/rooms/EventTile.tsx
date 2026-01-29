@@ -292,7 +292,7 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
 
     public static defaultProps = {
         // no-op function because onHeightChanged is optional yet some sub-components assume its existence
-        onHeightChanged: function () {},
+        onHeightChanged: function () { },
         forExport: false,
         layout: Layout.Group,
     };
@@ -841,15 +841,15 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
         if (this.props.layout !== Layout.Bubble) return;
 
         const clickTarget = ev.target as HTMLElement;
-        
+
         // Allow clicks on timestamp to open menu (timestamp is clickable in bubble layout)
         // Check if click is on timestamp or inside a tooltip containing timestamp
         const timestampElement = clickTarget.closest(".mx_MessageTimestamp");
         const tooltipWrapper = clickTarget.closest("[class*='Tooltip']");
-        const isTimestamp = timestampElement !== null || 
-                           clickTarget.classList.contains("mx_MessageTimestamp") ||
-                           (tooltipWrapper !== null && tooltipWrapper.querySelector(".mx_MessageTimestamp") !== null);
-        
+        const isTimestamp = timestampElement !== null ||
+            clickTarget.classList.contains("mx_MessageTimestamp") ||
+            (tooltipWrapper !== null && tooltipWrapper.querySelector(".mx_MessageTimestamp") !== null);
+
         // Don't open menu if clicking on interactive elements (links, buttons, etc.)
         // But allow timestamp clicks - timestamps should open the context menu
         if (
@@ -919,12 +919,12 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
             const content = this.props.mxEvent.getContent();
             const prevContent = this.props.mxEvent.getPrevContent();
             const roomId = this.props.mxEvent.getRoomId();
-            
+
             // Check if it's the "enabled_dm" pattern: encryption just enabled in a DM
             // This matches the logic in EncryptionEvent.tsx line 44-46
             if (roomId && content.algorithm === MEGOLM_ENCRYPTION_ALGORITHM) {
                 const dmPartner = DMRoomMap.shared().getUserIdForRoomId(roomId);
-                
+
                 // If it's a DM and encryption was just enabled (prevContent doesn't have algorithm)
                 // This is the "enabled_dm" pattern
                 if (dmPartner && prevContent?.algorithm !== MEGOLM_ENCRYPTION_ALGORITHM) {
@@ -1000,6 +1000,27 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
     }
 
     public render(): ReactNode {
+        const mxEvent = this.props.mxEvent;
+        const content = mxEvent.getContent();
+
+        // Hack: Hide m.room.message events that are actually beacon updates
+        // This prevents the timeline from being flooded with "Live Location Update" messages on Element Web
+        // while allowing legacy clients (like FluffyChat) to receive them.
+        // Element Web processes these via RoomState as beacon updates anyway (for the map marker).
+        // We check for:
+        // 1. Event Type: m.room.message (what we changed it to)
+        // 2. Msg Type: m.location (legacy fallback)
+        // 3. Relates to: m.reference (beacon updates reference the beacon info)
+        // 4. Has event_id in reference (must point to beacon info)
+        if (
+            mxEvent.getType() === EventType.RoomMessage &&
+            content["msgtype"] === "m.location" &&
+            content["m.relates_to"]?.rel_type === "m.reference" &&
+            content["m.relates_to"]?.event_id
+        ) {
+            return null;
+        }
+
         const msgtype = this.props.mxEvent.getContent().msgtype;
         const eventType = this.props.mxEvent.getType();
         const {
@@ -1016,19 +1037,19 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
             this.shouldHideEvent(),
         );
         const { isQuoteExpanded } = this.state;
-        
+
         // Hide invite events from the timeline
         if (isInfoMessage && eventType === "m.room.member" && this.props.mxEvent.getContent().membership === "invite") {
             return null;
         }
-        
+
         // This shouldn't happen: the caller should check we support this type
         // before trying to instantiate us
         if (!hasRenderer) {
             const { mxEvent } = this.props;
             logger.warn(`Event type not supported: type:${eventType} isState:${mxEvent.isState()}`);
             return null;
-        
+
         }
 
         const isProbablyMedia = MediaEventHelper.isEligible(this.props.mxEvent);
@@ -1347,9 +1368,9 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                             {avatar}
                             {sender}
                         </div>,
-                        <div 
-                            className={lineClasses} 
-                            key="mx_EventTile_line" 
+                        <div
+                            className={lineClasses}
+                            key="mx_EventTile_line"
                             onContextMenu={this.onContextMenu}
                             onClick={this.props.layout === Layout.Bubble ? this.onBubbleClick : undefined}
                         >
@@ -1502,9 +1523,9 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                                 {timestamp}
                             </div>
                         </a>,
-                        <div 
-                            className={lineClasses} 
-                            key="mx_EventTile_line" 
+                        <div
+                            className={lineClasses}
+                            key="mx_EventTile_line"
                             onContextMenu={this.onContextMenu}
                             onClick={this.props.layout === Layout.Bubble ? this.onBubbleClick : undefined}
                         >
@@ -1555,9 +1576,9 @@ export class UnwrappedEventTile extends React.Component<EventTileProps, IState> 
                         {sender}
                         {ircPadlock}
                         {avatar}
-                        <div 
-                            className={lineClasses} 
-                            key="mx_EventTile_line" 
+                        <div
+                            className={lineClasses}
+                            key="mx_EventTile_line"
                             onContextMenu={this.onContextMenu}
                             onClick={this.props.layout === Layout.Bubble ? this.onBubbleClick : undefined}
                         >

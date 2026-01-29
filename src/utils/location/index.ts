@@ -9,6 +9,7 @@ Please see LICENSE files in the repository root for full details.
 export * from "./findMapStyleUrl";
 export * from "./isSelfLocation";
 export * from "./locationEventGeoUri";
+export * from "./cleanGeoUri";
 export * from "./LocationShareErrors";
 export * from "./links";
 export * from "./parseGeoUri";
