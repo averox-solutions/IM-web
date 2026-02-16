@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
  */
 
-import { type MatrixEvent, EventType, RelationType } from "matrix-js-sdk/src/matrix";
+import { type MatrixEvent, EventType, RelationType, MsgType } from "matrix-js-sdk/src/matrix";
 import { KnownMembership } from "matrix-js-sdk/src/types";
 
 import SettingsStore from "./settings/SettingsStore";
@@ -63,6 +63,17 @@ export default function shouldHideEvent(ev: MatrixEvent, ctx?: IRoomState): bool
 
     // Hide replacement events since they update the original tile (if enabled)
     if (ev.isRelation(RelationType.Replace)) return true;
+
+    // Hide beacon location update events - they are m.room.message with m.location that reference
+    // beacon_info. They should only update the MBeaconBody tile, not appear as separate MLocationBody tiles.
+    const content = ev.getContent();
+    if (
+        ev.getType() === EventType.RoomMessage &&
+        content?.msgtype === MsgType.Location &&
+        ev.isRelation(RelationType.Reference)
+    ) {
+        return true;
+    }
 
     const eventDiff = memberEventDiff(ev);
 

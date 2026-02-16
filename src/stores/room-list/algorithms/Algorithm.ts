@@ -1835,6 +1835,12 @@ export class Algorithm extends EventEmitter {
             changed = true;
         }
 
+        // For RoomRemoved, also remove from rooms array and clear tag mapping (mirrors Algorithm2/3)
+        if (cause === RoomUpdateCause.RoomRemoved) {
+            this.rooms = this.rooms.filter((r) => r.roomId !== room.roomId);
+            delete this.roomIdsToTags[room.roomId];
+        }
+
         return changed;
     }
 }

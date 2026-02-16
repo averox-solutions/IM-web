@@ -268,11 +268,16 @@ export default class RoomSublist extends React.Component<IProps, IState> {
 
         const currentRooms = this.state.rooms;
         const newRooms = arrayFastClone(RoomListStore.instance.orderedLists[this.props.tagId] || []);
-        if (arrayHasOrderChange(currentRooms, newRooms)) {
+        const hasChange = arrayHasOrderChange(currentRooms, newRooms);
+        
+        console.log(`[RoomSublist ${this.props.tagId}] onListsUpdated - current: ${currentRooms?.length}, new: ${newRooms.length}, hasChange: ${hasChange}`);
+        
+        if (hasChange) {
             stateUpdates.rooms = newRooms;
         }
 
         if (Object.keys(stateUpdates).length > 0) {
+            console.log(`[RoomSublist ${this.props.tagId}] Updating state with ${newRooms.length} rooms`);
             this.setState(stateUpdates);
         }
     };

@@ -89,6 +89,7 @@ const SmartMarker: React.FC<SmartMarkerProps> = ({ id, map, geoUri, roomMember, 
                 roomMember={roomMember}
                 useMemberColor={useMemberColor}
                 tooltip={tooltip}
+                geoUri={geoUri}
             />
         </span>
     );

@@ -10,6 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
+// Must run before matrix-js-sdk - patches fetch to use POST for /_matrix/client/versions (custom server)
+import "../fetch-versions-patch";
+
+// Patch RoomState to accept m.room.message with m.location as beacon updates (FluffyChat compat)
+import "../beacon-room-state-patch";
+
 import { logger } from "matrix-js-sdk/src/logger";
 import { shouldPolyfill as shouldPolyFillIntlSegmenter } from "@formatjs/intl-segmenter/should-polyfill";
 
