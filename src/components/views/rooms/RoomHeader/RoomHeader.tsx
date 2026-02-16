@@ -41,7 +41,6 @@ import { useRoomState } from "../../../../hooks/useRoomState";
 import { formatCount } from "../../../../utils/FormattingUtils";
 import type { ButtonEvent } from "../../elements/AccessibleButton";
 import defaultDispatcher from "../../../../dispatcher/dispatcher";
-import { type AfterLeaveRoomPayload } from "../../../../dispatcher/payloads/AfterLeaveRoomPayload";
 import { RoomSettingsTab } from "../../dialogs/RoomSettingsDialog";
 import FacePile from "../../elements/FacePile";
 import RoomAvatar from "../../avatars/RoomAvatar";
@@ -585,12 +584,6 @@ export default function RoomHeader({
 
     // Function to close any active LiveKit call
     const closeLiveKitCall = (): void => {
-        // Remove the room from the list immediately so one Leave click closes call and hides from list
-        defaultDispatcher.dispatch<AfterLeaveRoomPayload>(
-            { action: Action.AfterLeaveRoom, room_id: room.roomId },
-            true, // sync
-        );
-
         console.log("📞 closeLiveKitCall: Function called to close LiveKit call");
         console.log("📞 closeLiveKitCall: Current state:", {
             isLiveKitCallActive,

@@ -107,9 +107,9 @@ import { type SummarizedNotificationState } from "../../stores/notifications/Sum
 import Views from "../../Views";
 import { type FocusNextType, type ViewRoomPayload } from "../../dispatcher/payloads/ViewRoomPayload";
 import { type ViewHomePagePayload } from "../../dispatcher/payloads/ViewHomePagePayload";
+import { type AfterLeaveRoomPayload } from "../../dispatcher/payloads/AfterLeaveRoomPayload";
 import { type DoAfterSyncPreparedPayload } from "../../dispatcher/payloads/DoAfterSyncPreparedPayload";
 import { type ViewStartChatOrReusePayload } from "../../dispatcher/payloads/ViewStartChatOrReusePayload";
-import { type AfterLeaveRoomPayload } from "../../dispatcher/payloads/AfterLeaveRoomPayload";
 import { leaveRoomBehaviour } from "../../utils/leave-behaviour";
 import { CallStore } from "../../stores/CallStore";
 import { type IRoomStateEventsActionPayload } from "../../actions/MatrixActionCreators";
@@ -722,7 +722,6 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 });
                 break;
             case "leave_room":
-                console.log(`[MatrixChat] leave_room action received for room: ${payload.room_id}`);
                 this.leaveRoom(payload.room_id);
                 break;
             case "forget_room":
@@ -1391,13 +1390,12 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             danger: warnings.length > 0,
             onFinished: async (shouldLeave) => {
                 if (shouldLeave) {
-                    // Remove from list synchronously so one Leave click hides the room before navigation
-                    RoomListStore.instance.removeRoomFromListImmediately(roomId);
-                    dis.dispatch<AfterLeaveRoomPayload>(
-                        { action: Action.AfterLeaveRoom, room_id: roomId },
-                        true,
-                    );
                     await leaveRoomBehaviour(cli, roomId);
+
+                    dis.dispatch<AfterLeaveRoomPayload>({
+                        action: Action.AfterLeaveRoom,
+                        room_id: roomId,
+                    });
                 }
             },
         });

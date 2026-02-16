@@ -12,7 +12,6 @@ import { type RoomMember } from "matrix-js-sdk/src/matrix";
 import LocationIcon from "@vector-im/compound-design-tokens/assets/web/icons/location-pin-solid";
 
 import { getUserNameColorClass } from "../../../utils/FormattingUtils";
-import { parseGeoUri } from "../../../utils/location";
 import MemberAvatar from "../avatars/MemberAvatar";
 
 interface Props {
@@ -22,8 +21,6 @@ interface Props {
     // use member text color as background
     useMemberColor?: boolean;
     tooltip?: ReactNode;
-    // show coordinates below the marker when provided
-    geoUri?: string;
 }
 
 /**
@@ -58,13 +55,8 @@ const OptionalTooltip: React.FC<{
 /**
  * Generic location marker
  */
-const Marker = React.forwardRef<HTMLDivElement, Props>(({ id, roomMember, useMemberColor, tooltip, geoUri }, ref) => {
+const Marker = React.forwardRef<HTMLDivElement, Props>(({ id, roomMember, useMemberColor, tooltip }, ref) => {
     const memberColorClass = useMemberColor && roomMember ? getUserNameColorClass(roomMember.userId) : "";
-    const coords = geoUri ? parseGeoUri(geoUri) : undefined;
-    const coordinatesText =
-        coords && coords.latitude != null && coords.longitude != null
-            ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
-            : undefined;
     return (
         <div
             ref={ref}
@@ -88,11 +80,6 @@ const Marker = React.forwardRef<HTMLDivElement, Props>(({ id, roomMember, useMem
                     )}
                 </div>
             </OptionalTooltip>
-            {coordinatesText && (
-                <div className="mx_Marker_coordinates" title={coordinatesText}>
-                    {coordinatesText}
-                </div>
-            )}
         </div>
     );
 });

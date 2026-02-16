@@ -13,9 +13,7 @@ import { type Optional } from "matrix-events-sdk";
 
 import { type RoomUpdateCause, type TagID, OrderedDefaultTagIDs, DefaultTagID } from "./models";
 import { type ITagMap, ListAlgorithm, SortAlgorithm } from "./algorithms/models";
-import { Action } from "../../dispatcher/actions";
 import { type ActionPayload } from "../../dispatcher/payloads";
-import { type AfterLeaveRoomPayload } from "../../dispatcher/payloads/AfterLeaveRoomPayload";
 import { type MatrixDispatcher } from "../../dispatcher/dispatcher";
 import { type IFilterCondition } from "./filters/IFilterCondition";
 import { VisibilityProvider } from "./filters/VisibilityProvider";
@@ -58,6 +56,7 @@ const filterConditions: Record<TagID, MSC3575Filter> = {
         not_tags: ["m.favourite"],
     },
     [DefaultTagID.OneOnOneLeftChat]: {
+        tags: ["1-1_left_chat"],
         not_tags: ["m.favourite"],
     },
     // TODO https://github.com/vector-im/element-web/issues/23207
@@ -183,20 +182,6 @@ export class SlidingRoomListStoreClass extends AsyncStoreWithClient<EmptyObject>
      */
     public async manualRoomUpdate(room: Room, cause: RoomUpdateCause): Promise<void> {
         // TODO: this is only used when you forget a room, not that important for now.
-    }
-
-    public removeRoomFromListImmediately(roomId: string): void {
-        let hasRemovedFromAnyList = false;
-        for (const tagId in this.tagMap) {
-            const listRooms = this.tagMap[tagId];
-            if (listRooms.some((r) => r.roomId === roomId)) {
-                this.tagMap[tagId] = listRooms.filter((r) => r.roomId !== roomId);
-                hasRemovedFromAnyList = true;
-            }
-        }
-        if (hasRemovedFromAnyList) {
-            this.emit(LISTS_UPDATE_EVENT);
-        }
     }
 
     public get orderedLists(): ITagMap {
@@ -413,40 +398,13 @@ export class SlidingRoomListStoreClass extends AsyncStoreWithClient<EmptyObject>
     }
 
     protected async onAction(payload: ActionPayload): Promise<void> {
-        // Handle AfterLeaveRoom immediately
-        if (payload.action === Action.AfterLeaveRoom) {
-            const leavePayload = payload as AfterLeaveRoomPayload;
-            console.log(`[SlidingRoomListStore] AfterLeaveRoom received: ${leavePayload.room_id}, hasClient: ${!!this.matrixClient}`);
-            if (leavePayload.room_id && this.matrixClient) {
-                let hasRemovedFromAnyList = false;
-                for (const tagId in this.tagMap) {
-                    const listRooms = this.tagMap[tagId];
-                    const roomIndex = listRooms.findIndex((r) => r.roomId === leavePayload.room_id);
-                    if (roomIndex >= 0) {
-                        console.log(`[SlidingRoomListStore] Removing room ${leavePayload.room_id} from list ${tagId} (at index ${roomIndex})`);
-                        this.tagMap[tagId] = listRooms.filter((r) => r.roomId !== leavePayload.room_id);
-                        hasRemovedFromAnyList = true;
-                    }
-                }
-                if (hasRemovedFromAnyList) {
-                    console.log(`[SlidingRoomListStore] Room ${leavePayload.room_id} removed, emitting update`);
-                    this.emit(LISTS_UPDATE_EVENT);
-                } else {
-                    console.log(`[SlidingRoomListStore] Room ${leavePayload.room_id} not found in any list`);
-                }
-            }
-            return;
-        }
-        
-        // Don't process other actions if we're not ready
+        // Don't process actions if we're not ready
         if (!this.matrixClient) {
+            console.log(`[SlidingRoomListStore] onAction skipped - no matrix client yet`);
             return;
         }
 
-        // Log only leave-related actions to avoid spam
-        if (payload.action === "MatrixActions.Room.myMembership") {
-            console.log(`[SlidingRoomListStore] onAction called with action: ${payload.action}`);
-        }
+        console.log(`[SlidingRoomListStore] onAction called with action: ${payload.action}`);
 
         // Handle membership changes to update lists in real-time
         if (payload.action === "MatrixActions.Room.myMembership") {
@@ -488,21 +446,6 @@ export class SlidingRoomListStoreClass extends AsyncStoreWithClient<EmptyObject>
                     this.emit(LISTS_UPDATE_EVENT);
                 } else {
                     console.log(`[SlidingRoomListStore] Room ${room.roomId} was not in any list`);
-                }
-            }
-        } else if (payload.action === Action.AfterLeaveRoom) {
-            const leavePayload = payload as AfterLeaveRoomPayload;
-            if (leavePayload.room_id) {
-                let hasRemovedFromAnyList = false;
-                for (const tagId in this.tagMap) {
-                    const listRooms = this.tagMap[tagId];
-                    if (listRooms.some((r) => r.roomId === leavePayload.room_id)) {
-                        this.tagMap[tagId] = listRooms.filter((r) => r.roomId !== leavePayload.room_id);
-                        hasRemovedFromAnyList = true;
-                    }
-                }
-                if (hasRemovedFromAnyList) {
-                    this.emit(LISTS_UPDATE_EVENT);
                 }
             }
         }

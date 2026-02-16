@@ -108,12 +108,4 @@ export interface RoomListStore extends EventEmitter {
      * @param {RoomUpdateCause} cause The cause to update for.
      */
     manualRoomUpdate(room: Room, cause: RoomUpdateCause): Promise<void>;
-
-    /**
-     * Remove a room from the list immediately (synchronous). Use when the user
-     * confirms leave so the room disappears from the list in the same click
-     * before any navigation.
-     * @param roomId The room to remove.
-     */
-    removeRoomFromListImmediately(roomId: string): void;
 }

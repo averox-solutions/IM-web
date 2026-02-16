@@ -420,17 +420,6 @@ export async function leaveRoomBehaviour(
                 console.warn(`[leave-behaviour] Failed to store left room in localStorage:`, storageError);
             }
 
-            // Notify RoomListStore to remove the room from the list before we forget it.
-            // Dispatch synchronously so the store can still getRoom(roomId) and remove the room.
-            // Once forget() runs, getRoom(roomId) returns null and the store cannot remove the room.
-            dis.dispatch<AfterLeaveRoomPayload>(
-                {
-                    action: Action.AfterLeaveRoom,
-                    room_id: roomId,
-                },
-                true, // sync: run handlers now so room is still in client
-            );
-
             // Force the matrix client to forget the room
             await matrixClient.forget(roomId);
             console.log(`[leave-behaviour] Forgot room ${roomId} from matrix client`);

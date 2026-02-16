@@ -18,7 +18,7 @@ export enum DefaultTagID {
     Suggested = "im.vector.fake.suggested",
     Calllog="Call log",
     OneOnOneChatLeave = "1-1_chat_leave",
-  
+    OneOnOneLeftChat = "1-1_left_chat"
 }
 
 export const OrderedDefaultTagIDs = [
