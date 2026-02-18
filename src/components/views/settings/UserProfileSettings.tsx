@@ -197,7 +197,7 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
     const [designationLoading, setDesignationLoading] = useState<boolean>(true);
     const toastRack = useToastContext();
     const client = useMatrixClientContext();
-    const DISPLAY_NAME_REGEX = /^[a-zA-Z0-9 ]{1,15}$/;
+    const DISPLAY_NAME_REGEX = /^[a-zA-Z0-9 ]{1,50}$/;
 
     useEffect(() => {
         (async () => {
@@ -290,10 +290,10 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
     );
 
     const onDisplayNameChanged = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.slice(0, 15);
+        const value = e.target.value.slice(0, 50);
         setDisplayName(value);
         setDisplayNameError(!DISPLAY_NAME_REGEX.test(value));
-    }, []);
+    }, [DISPLAY_NAME_REGEX]);
 
     const onDisplayNameCancel = useCallback(() => {
         const originalName = OwnProfileStore.instance.displayName ?? "";
@@ -358,15 +358,15 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                         onSave={onDisplayNameSave}
                         disabled={!canSetDisplayName}
                         inputProps={{
-                            maxLength: 20,
-                            pattern: "[a-zA-Z0-9 ]{1,15}",
+                            maxLength: 50,
+                            pattern: "[a-zA-Z0-9 ]{1,50}",
                             autoComplete: "off",
                         }}
                     >
-                        {(displayName.length > 15 || !DISPLAY_NAME_REGEX.test(displayName)) && (
+                        {(displayName.length > 50 || !DISPLAY_NAME_REGEX.test(displayName)) && (
                             <ErrorMessage>
                                 {_t("settings|general|display_name_error") +
-                                    ": Max 15 characters. Only letters, numbers, and spaces allowed."}
+                                    ": Max 50 characters. Only letters, numbers, and spaces allowed."}
                             </ErrorMessage>
                         )}
                     </EditInPlace>

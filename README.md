@@ -1,5 +1,4 @@
 
-<<<<<<< HEAD
 # BEEP IM Web Frontend Client
 
 A web-based frontend client for **BEEP IM**, focused on real-time messaging and collaboration.
@@ -8,9 +7,10 @@ A web-based frontend client for **BEEP IM**, focused on real-time messaging and 
 
 ## Release Notes
 
-### v4.2.3
+### v4.3
    add toggle to enable and disable the encryption for Secure Video Conference.
-   
+   fixed the issue of room leave disapearing and live location sharing.
+   name character limit is 50 now
 - Initial release
 
 ## 💻 Installation & Setup
@@ -49,5 +49,3 @@ To deploy the application in a production environment, follow these steps:
 
 
 
-=======
->>>>>>> origin/new_changes
