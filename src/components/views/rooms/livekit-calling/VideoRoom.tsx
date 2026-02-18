@@ -6,6 +6,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React, { useEffect, useRef, useState } from "react";
+import { MicOff, VideoOff } from "lucide-react";
 
 import {
     ParticipantTile,
@@ -574,7 +575,8 @@ const livekitCallStyles = `
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        min-height: calc(var(--name-font-size, 12px) + 8px) !important;
+        /* Fixed min-height so bar doesn't change height when icons appear; accommodates 16px icons centered */
+        min-height: max(calc(var(--name-font-size, 12px) + 8px), 28px) !important;
         border-radius: calc(var(--name-font-size, 12px) + 4px) !important;
         flex-shrink: 0 !important;
         margin: 0 !important;
@@ -585,7 +587,7 @@ const livekitCallStyles = `
         gap: 4px !important;
     }
 
-    /* Participant name styling - centered with responsive font size */
+    /* Participant name styling - centered with responsive font size; center in bar height */
     .lk-participant-name {
         color: white !important;
         /* Use CSS custom property for responsive font size */
@@ -600,21 +602,24 @@ const livekitCallStyles = `
         flex: 1 1 auto !important;
         min-width: 0 !important;
         line-height: 1.2 !important;
+        align-self: center !important;
     }
 
-    /* Participant indicators container - shown with name */
+    /* Participant indicators container - shown with name; center icons vertically in bar */
     .lk-participant-indicators {
         display: flex !important;
         align-items: center !important;
+        align-self: center !important;
         gap: 4px !important;
         flex-shrink: 0 !important;
     }
 
-    /* Microphone muted indicator and other metadata with responsive sizing */
+    /* Microphone muted indicator and other metadata with responsive sizing; keep icon centered in bar */
     .lk-participant-metadata {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        align-self: center !important;
         font-size: calc(var(--name-font-size, 12px) + 2px) !important;
         opacity: 0.9 !important;
         flex: 0 0 auto !important;
@@ -623,10 +628,7 @@ const livekitCallStyles = `
         min-width: calc(var(--name-font-size, 12px) + 4px) !important;
         text-align: center !important;
         position: relative !important;
-        line-height: 1 !important;
-        vertical-align: middle !important;
-        line-height: 1 !important;
-        vertical-align: middle !important;
+        line-height: 0 !important;
     }
 
     .lk-participant-metadata.muted {
@@ -1302,6 +1304,11 @@ const livekitCallStyles = `
         color: white !important;
     }
 
+    .audio-control-button.video-toggle {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+    }
+
     .audio-control-button.speaker {
         background: rgba(255, 255, 255, 0.1) !important;
         color: white !important;
@@ -1545,12 +1552,12 @@ const ProfessionalParticipantTile: React.FC<{ trackRef: TrackReference }> = ({ t
                 <div className="lk-participant-indicators">
                     {isMuted && (
                         <div className="lk-participant-metadata muted" title="Microphone muted">
-                            🎙️
+                            <MicOff size={16} />
                         </div>
                     )}
                     {participant.isCameraEnabled === false && (
                         <div className="lk-participant-metadata camera-off" title="Camera off">
-                            📹
+                            <VideoOff size={16} />
                         </div>
                     )}
                 </div>
@@ -2132,7 +2139,11 @@ const AudioCallInterface: React.FC<{
                                         }}
                                     >
                                         {isLocalUser ? "You" : displayName}
-                                        {participant.isMicrophoneEnabled === false && " 🔇"}
+                                        {participant.isMicrophoneEnabled === false && (
+                                            <span style={{ display: "inline-flex", marginLeft: "4px", verticalAlign: "middle" }}>
+                                                <MicOff size={16} />
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -2148,8 +2159,12 @@ const AudioCallInterface: React.FC<{
                             borderTop: "1px solid rgba(255, 255, 255, 0.1)",
                         }}
                     >
-                        <div style={{ marginBottom: "8px", fontSize: "16px", opacity: 0.9 }}>
-                            {isMuted && <span>🔇 </span>}
+                        <div style={{ marginBottom: "8px", fontSize: "16px", opacity: 0.9, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                            {isMuted && (
+                                <span style={{ display: "inline-flex" }}>
+                                    <MicOff size={16} />
+                                </span>
+                            )}
                             <span>{getStatusText()}</span>
                         </div>
                         {globalCallTimer > 0 && (
@@ -2290,9 +2305,19 @@ const AudioCallInterface: React.FC<{
     }
 
     // 1-to-1 Call Interface (2 participants or less)
+    // When calling (no remote participant yet), show callee name from room data so it's clear whom we're calling
+    const roomData = (window as any).__currentLiveKitRoomData;
+    const calleeName =
+        !singleRemoteParticipant &&
+        roomData?.toUserIds?.length >= 1 &&
+        roomData?.toUsernames
+            ? roomData.toUsernames[roomData.toUserIds[0]] || roomData.toUserIds[0]
+            : null;
     const displayName = singleRemoteParticipant
         ? normalizeDisplayName(singleRemoteParticipant.name || singleRemoteParticipant.identity || "Unknown User")
-        : normalizeDisplayName(localParticipant?.name || localParticipant?.identity || "Unknown User");
+        : calleeName
+          ? normalizeDisplayName(calleeName)
+          : normalizeDisplayName(localParticipant?.name || localParticipant?.identity || "Unknown User");
 
     const isRemoteParticipantSpeaking = singleRemoteParticipant?.isSpeaking || false;
 
@@ -2387,8 +2412,12 @@ const AudioCallInterface: React.FC<{
                 <div className="audio-call-name">{displayName}</div>
 
                 {/* Status */}
-                <div className="audio-call-status">
-                    {isMuted && <span>🔇</span>}
+                <div className="audio-call-status" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    {isMuted && (
+                        <span style={{ display: "inline-flex" }}>
+                            <MicOff size={16} />
+                        </span>
+                    )}
                     <span>{getStatusText()}</span>
                 </div>
 

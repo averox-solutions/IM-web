@@ -553,6 +553,9 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
             createOpts.visibility = Visibility.Public;
             createOpts.preset = Preset.PublicChat;
             opts.guestAccess = false;
+            if (isVideoRoom) {
+                opts.encryption = this.state.isEncrypted;
+            }
             if (this.state.alias) {
                 const { alias } = this.state;
                 createOpts.room_alias_name = alias.substring(1, alias.indexOf(":"));
@@ -583,7 +586,10 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
 
     public componentDidMount(): void {
         const cli = MatrixClientPeg.safeGet();
-        checkUserIsAllowedToChangeEncryption(cli, Preset.PrivateChat).then(({ allowChange, forcedValue }) =>
+        const isVideoRoom =
+            this.props.type === RoomType.ElementVideo || this.props.type === RoomType.UnstableCall;
+        const preset = isVideoRoom ? Preset.PublicChat : Preset.PrivateChat;
+        checkUserIsAllowedToChangeEncryption(cli, preset).then(({ allowChange, forcedValue }) =>
             this.setState((state) => ({
                 canChangeEncryption: allowChange,
                 isEncrypted: forcedValue ?? state.isEncrypted,
@@ -749,9 +755,11 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         }
 
         let e2eeSection: JSX.Element | undefined;
-        if (!isVideoRoom && this.state.joinRule !== JoinRule.Public) {
+        if (isVideoRoom || this.state.joinRule !== JoinRule.Public) {
             let microcopy: string;
-            if (privateShouldBeEncrypted(MatrixClientPeg.safeGet())) {
+            if (isVideoRoom) {
+                microcopy = "";
+            } else if (privateShouldBeEncrypted(MatrixClientPeg.safeGet())) {
                 if (this.state.canChangeEncryption) {
                     microcopy = _t("create_room|encrypted_warning");
                 } else {

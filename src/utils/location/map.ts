@@ -6,7 +6,6 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import * as maplibregl from "maplibre-gl";
 import { type MatrixClient } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
 
@@ -14,13 +13,19 @@ import { _t } from "../../languageHandler";
 import { findMapStyleUrl } from "./findMapStyleUrl";
 import { LocationShareError } from "./LocationShareErrors";
 
+// Use require at runtime so the bundler does not mangle the Map/Marker constructors in the chunk
+export const getMaplibre = (): typeof import("maplibre-gl") =>
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require("maplibre-gl") as typeof import("maplibre-gl");
+
 export const createMap = (
     client: MatrixClient,
     interactive: boolean,
     bodyId: string,
     onError?: (error: Error) => void,
-): maplibregl.Map => {
+): import("maplibre-gl").Map => {
     try {
+        const maplibregl = getMaplibre();
         const styleUrl = findMapStyleUrl(client);
 
         const map = new maplibregl.Map({
@@ -57,11 +62,19 @@ export const createMap = (
     }
 };
 
-export const createMarker = (coords: GeolocationCoordinates, element: HTMLElement): maplibregl.Marker => {
+export const createMarker = (
+    coords: GeolocationCoordinates,
+    element: HTMLElement,
+    options?: {
+        anchor?: import("maplibre-gl").PositionAnchor;
+        offset?: import("maplibre-gl").PointLike;
+    },
+): import("maplibre-gl").Marker => {
+    const maplibregl = getMaplibre();
     const marker = new maplibregl.Marker({
         element,
-        anchor: "bottom",
-        offset: [0, -1],
-    }).setLngLat({ lon: coords.longitude, lat: coords.latitude });
+        anchor: options?.anchor ?? "bottom",
+        offset: options?.offset ?? [0, -1],
+    }).setLngLat({ lng: coords.longitude, lat: coords.latitude });
     return marker;
 };

@@ -46,10 +46,15 @@ export default class LocationViewDialog extends React.Component<IProps, IState> 
     };
 
     public render(): React.ReactNode {
-        const { mxEvent } = this.props;
+        const { matrixClient, mxEvent } = this.props;
 
-        // only pass member to marker when should render avatar marker
-        const markerRoomMember = (isSelfLocation(mxEvent.getContent()) && mxEvent.sender) || undefined;
+        // pass room member so marker shows avatar for "my" location
+        let markerRoomMember;
+        if (isSelfLocation(mxEvent.getContent())) {
+            const room = matrixClient.getRoom(mxEvent.getRoomId() ?? undefined);
+            const userId = mxEvent.getSender() ?? matrixClient.getUserId();
+            markerRoomMember = room?.getMember(userId ?? "") ?? undefined;
+        }
         const geoUri = locationEventGeoUri(mxEvent);
         return (
             <BaseDialog className="mx_LocationViewDialog" onFinished={this.props.onFinished} fixedWidth={false}>

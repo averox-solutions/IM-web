@@ -108,8 +108,9 @@ const handleShareError = (error: unknown, openMenu: () => void, shareType: Locat
 
 export const shareLiveLocation =
     (client: MatrixClient, roomId: string, displayName: string, openMenu: () => void): ShareLocationFn =>
-        async ({ timeout }): Promise<void> => {
+        async ({ timeout, uri, timestamp }): Promise<void> => {
             const description = _t("location_sharing|live_description", { displayName });
+            const initialLocation = uri ? { geoUri: uri, timestamp: timestamp ?? Date.now() } : undefined;
             try {
                 await OwnBeaconStore.instance.createLiveBeacon(
                     roomId,
@@ -119,6 +120,7 @@ export const shareLiveLocation =
                         description,
                         LocationAssetType.Self,
                     ),
+                    initialLocation,
                 );
             } catch (error) {
                 handleShareError(error, openMenu, LocationShareType.Live);

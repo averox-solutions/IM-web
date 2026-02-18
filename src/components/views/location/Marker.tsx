@@ -9,7 +9,6 @@ Please see LICENSE files in the repository root for full details.
 import React, { type ReactNode, useState } from "react";
 import classNames from "classnames";
 import { type RoomMember } from "matrix-js-sdk/src/matrix";
-import LocationIcon from "@vector-im/compound-design-tokens/assets/web/icons/location-pin-solid";
 
 import { getUserNameColorClass } from "../../../utils/FormattingUtils";
 import MemberAvatar from "../avatars/MemberAvatar";
@@ -21,6 +20,8 @@ interface Props {
     // use member text color as background
     useMemberColor?: boolean;
     tooltip?: ReactNode;
+    // when provided and roomMember is set (my location), show coordinates below the marker (same as pin position)
+    coords?: { latitude: number; longitude: number };
 }
 
 /**
@@ -55,8 +56,13 @@ const OptionalTooltip: React.FC<{
 /**
  * Generic location marker
  */
-const Marker = React.forwardRef<HTMLDivElement, Props>(({ id, roomMember, useMemberColor, tooltip }, ref) => {
+const Marker = React.forwardRef<HTMLDivElement, Props>(({ id, roomMember, useMemberColor, tooltip, coords }, ref) => {
     const memberColorClass = useMemberColor && roomMember ? getUserNameColorClass(roomMember.userId) : "";
+    const showLocationIconBelow =
+        roomMember && coords && coords.latitude != null && coords.longitude != null;
+    const coordinatesTitle = showLocationIconBelow
+        ? `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`
+        : undefined;
     return (
         <div
             ref={ref}
@@ -65,21 +71,29 @@ const Marker = React.forwardRef<HTMLDivElement, Props>(({ id, roomMember, useMem
                 mx_Marker_defaultColor: !memberColorClass,
             })}
         >
-            <OptionalTooltip tooltip={tooltip}>
-                <div className="mx_Marker_border">
-                    {roomMember ? (
-                        <MemberAvatar
-                            member={roomMember}
-                            size="36px"
-                            viewUserOnClick={false}
-                            // no mxid on hover when marker has tooltip
-                            hideTitle={!!tooltip}
-                        />
-                    ) : (
-                        <LocationIcon className="mx_Marker_icon" />
-                    )}
+      {showLocationIconBelow && roomMember && (
+    <OptionalTooltip
+        tooltip={
+            tooltip || coordinatesTitle ? (
+                <div>
+                    {tooltip}
                 </div>
-            </OptionalTooltip>
+            ) : undefined
+        }
+    >
+        <div className="mx_Marker_coordinates">
+            <div className="mx_Marker_border mx_Marker_border_small">
+                <MemberAvatar
+                    member={roomMember}
+                    size="24px"
+                    viewUserOnClick={false}
+                    hideTitle
+                />
+            </div>
+        </div>
+    </OptionalTooltip>
+)}
+
         </div>
     );
 });

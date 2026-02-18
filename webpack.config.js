@@ -139,6 +139,16 @@ module.exports = (env, argv) => {
     return {
         ...development,
 
+        // Persist cache to disk in development for much faster subsequent starts
+        ...(!isProduction && {
+            cache: {
+                type: "filesystem",
+                buildDependencies: {
+                    config: [__filename],
+                },
+            },
+        }),
+
         experiments: {
             asyncWebAssembly: true,
         },
@@ -698,8 +708,19 @@ module.exports = (env, argv) => {
                     { from: "decoder-ring/**", context: path.resolve(__dirname, "res") },
                     { from: "img/**", context: path.resolve(__dirname, "res/") },
                     { from: "media/**", context: path.resolve(__dirname, "res/") },
-                    { from: "config.json", noErrorOnMissing: true },
+                    {
+                        from: "config.json",
+                        context: path.resolve(__dirname),
+                        to: "config.json",
+                        noErrorOnMissing: true,
+                    },
                     "contribute.json",
+                    {
+                        from: "sounds",
+                        context: path.resolve(__dirname, "public"),
+                        to: "sounds",
+                        noErrorOnMissing: true,
+                    },
                 ],
             }),
 
@@ -772,6 +793,8 @@ module.exports = (env, argv) => {
                 // Only output errors, warnings, or new compilations.
                 // This hides the massive list of modules.
                 stats: "minimal",
+                // Write config.json to disk so it's available for static serving
+                writeToDisk: (filePath) => filePath.includes("config.json"),
             },
 
             // Enable Hot Module Replacement without page refresh as a fallback in

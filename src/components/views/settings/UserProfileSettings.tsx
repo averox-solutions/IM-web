@@ -197,7 +197,7 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
     const [designationLoading, setDesignationLoading] = useState<boolean>(true);
     const toastRack = useToastContext();
     const client = useMatrixClientContext();
-    const DISPLAY_NAME_REGEX = /^[a-zA-Z0-9 ]{1,50}$/;
+    const DISPLAY_NAME_REGEX = /^[a-zA-Z0-9 ]{1,15}$/;
 
     useEffect(() => {
         (async () => {
@@ -363,10 +363,10 @@ const UserProfileSettings: React.FC<UserProfileSettingsProps> = ({
                             autoComplete: "off",
                         }}
                     >
-                        {(displayName.length > 50 || !DISPLAY_NAME_REGEX.test(displayName)) && (
+                        {(displayName.length > 15 || !DISPLAY_NAME_REGEX.test(displayName)) && (
                             <ErrorMessage>
                                 {_t("settings|general|display_name_error") +
-                                    ": Max 50 characters. Only letters, numbers, and spaces allowed."}
+                                    ": Max 15 characters. Only letters, numbers, and spaces allowed."}
                             </ErrorMessage>
                         )}
                     </EditInPlace>

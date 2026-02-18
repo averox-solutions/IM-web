@@ -8,7 +8,7 @@ Please see LICENSE files in the repository root for full details.
 
 import React, { type ReactNode, useContext, useEffect, useState } from "react";
 import classNames from "classnames";
-import * as maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { ClientEvent, type IClientWellKnown } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
 
@@ -16,6 +16,7 @@ import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import { useEventEmitterState } from "../../../hooks/useEventEmitter";
 import { parseGeoUri, positionFailureMessage } from "../../../utils/location";
 import { tileServerFromWellKnown } from "../../../utils/WellKnownUtils";
+import { getMaplibre } from "../../../utils/location/map";
 import { useMap } from "../../../utils/location/useMap";
 import { type Bounds } from "../../../utils/beacon/bounds";
 import Modal from "../../../Modal";
@@ -65,7 +66,7 @@ const useMapWithStyle = ({
                 if (!coords) {
                     throw new Error("Invalid geo URI");
                 }
-                map.setCenter({ lon: coords.longitude, lat: coords.latitude });
+                map.setCenter({ lng: coords.longitude, lat: coords.latitude });
             } catch (e) {
                 logger.error("Could not set map center", e);
             }
@@ -75,7 +76,8 @@ const useMapWithStyle = ({
     useEffect(() => {
         if (map && bounds) {
             try {
-                const lngLatBounds = new maplibregl.LngLatBounds(
+                const ml = getMaplibre();
+                const lngLatBounds = new ml.LngLatBounds(
                     [bounds.west, bounds.south],
                     [bounds.east, bounds.north],
                 );
@@ -93,7 +95,8 @@ const useMapWithStyle = ({
             return;
         }
         if (allowGeolocate && !geolocate) {
-            const geolocate = new maplibregl.GeolocateControl({
+            const ml = getMaplibre();
+            const geolocate = new ml.GeolocateControl({
                 positionOptions: {
                     enableHighAccuracy: true,
                 },

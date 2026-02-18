@@ -19,7 +19,9 @@ import {
     ListAlgorithm,
     SortAlgorithm,
 } from "./algorithms/models";
+import { Action } from "../../dispatcher/actions";
 import { type ActionPayload } from "../../dispatcher/payloads";
+import { type AfterLeaveRoomPayload } from "../../dispatcher/payloads/AfterLeaveRoomPayload";
 import defaultDispatcher, { type MatrixDispatcher } from "../../dispatcher/dispatcher";
 import { readReceiptChangeIsFor } from "../../utils/read-receipts";
 import { FILTER_CHANGED, type IFilterCondition } from "./filters/IFilterCondition";
@@ -58,6 +60,7 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         for (const tagId of Object.keys(this.orderedLists)) {
             RoomNotificationStateStore.instance.getListState(tagId).setRooms(this.orderedLists[tagId]);
         }
+        console.log(`[RoomListStore] Emitting LISTS_UPDATE_EVENT, orderedLists keys: ${Object.keys(this.orderedLists)}`);
         this.emit(LISTS_UPDATE_EVENT);
     });
 
@@ -183,6 +186,34 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
         // This is repeated in the handler just in case things change between a decision here and
         // when the timer fires.
         const logicallyReady = this.matrixClient && this.initialListsGenerated;
+        
+        // Handle AfterLeaveRoom immediately even if not fully ready
+        if (payload.action === Action.AfterLeaveRoom) {
+            const leavePayload = payload as AfterLeaveRoomPayload;
+            console.log(`[RoomListStore] onAction AfterLeaveRoom received: ${leavePayload.room_id}, ready: ${logicallyReady}`);
+            if (leavePayload.room_id && this.matrixClient) {
+                this.markRoomAsLeft(leavePayload.room_id);
+                const room = this.matrixClient.getRoom(leavePayload.room_id);
+                console.log(`[RoomListStore] Room found: ${!!room}, logicallyReady: ${logicallyReady}`);
+                if (room && logicallyReady) {
+                    await this.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
+                    console.log(`[RoomListStore] handleRoomUpdate complete, triggering updateFn`);
+                    this.updateFn.trigger();
+                    console.log(`[RoomListStore] updateFn.trigger() called - should emit LISTS_UPDATE_EVENT`);
+                } else if (!room && logicallyReady) {
+                    // Room was already forgotten (e.g. second AfterLeaveRoom from MessageComposer).
+                    // Rebuild the list from getPlausibleRooms() so the left room is dropped.
+                    if (this.algorithm?.hasTagSortingMap) {
+                        await this.recalculatePrefiltering();
+                    }
+                    this.updateFn.mark();
+                    this.updateFn.trigger();
+                    console.log(`[RoomListStore] AfterLeaveRoom: room null, list refresh triggered`);
+                }
+            }
+            return;
+        }
+        
         if (!logicallyReady) return;
 
         // When we're running tests we can't reliably use setImmediate out of timing concerns.
@@ -199,11 +230,21 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
 
     protected async onDispatchAsync(payload: ActionPayload): Promise<void> {
         // Everything here requires a MatrixClient or some sort of logical readiness.
-        if (!this.matrixClient || !this.initialListsGenerated) return;
+        if (!this.matrixClient || !this.initialListsGenerated) {
+            if (payload.action === Action.AfterLeaveRoom) {
+                console.log(`[RoomListStore] onDispatchAsync called but store not ready: ${payload.action}`);
+            }
+            return;
+        }
 
         if (!this.algorithm) {
             // This shouldn't happen because `initialListsGenerated` implies we have an algorithm.
             throw new Error("Room list store has no algorithm to process dispatcher update with");
+        }
+
+        // Log only leave-related actions to avoid spam
+        if (payload.action === Action.AfterLeaveRoom || payload.action === "MatrixActions.Room.myMembership") {
+            console.log(`[RoomListStore] onDispatchAsync received action: ${payload.action}`);
         }
 
         if (payload.action === "MatrixActions.Room.receipt") {
@@ -302,6 +343,18 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
             this.updateFn.trigger();
         } else if (payload.action === "MatrixActions.Room.myMembership") {
             this.onDispatchMyMembership(<any>payload);
+            return;
+        } else if (payload.action === Action.AfterLeaveRoom) {
+            const leavePayload = payload as AfterLeaveRoomPayload;
+            if (leavePayload.room_id) {
+                this.markRoomAsLeft(leavePayload.room_id);
+                const room = this.matrixClient.getRoom(leavePayload.room_id);
+                if (room) {
+                    await this.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
+                }
+                this.updateFn.mark();
+                this.updateFn.trigger();
+            }
             return;
         }
 
@@ -961,6 +1014,24 @@ export class RoomListStoreClass extends AsyncStoreWithClient<EmptyObject> implem
     public async manualRoomUpdate(room: Room, cause: RoomUpdateCause): Promise<void> {
         await this.handleRoomUpdate(room, cause);
         this.updateFn.trigger();
+    }
+
+    /**
+     * Remove the room from the list synchronously so one Leave click updates the UI
+     * before leaveRoomBehaviour runs (and may navigate away).
+     */
+    public removeRoomFromListImmediately(roomId: string): void {
+        if (!this.matrixClient || !this.initialListsGenerated) return;
+        this.markRoomAsLeft(roomId);
+        const room = this.matrixClient.getRoom(roomId);
+        if (room && this.algorithm) {
+            this.handleRoomUpdate(room, RoomUpdateCause.RoomRemoved);
+            this.updateFn.mark();
+            this.updateFn.trigger();
+        } else if (!room) {
+            this.updateFn.mark();
+            this.updateFn.trigger();
+        }
     }
 }
 

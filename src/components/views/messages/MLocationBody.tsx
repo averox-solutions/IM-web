@@ -7,7 +7,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import React from "react";
-import { type MatrixEvent, ClientEvent, type ClientEventHandlerMap } from "matrix-js-sdk/src/matrix";
+import { type MatrixEvent, type RoomMember, ClientEvent, type ClientEventHandlerMap } from "matrix-js-sdk/src/matrix";
 import { secureRandomString } from "matrix-js-sdk/src/randomstring";
 import { Tooltip } from "@vector-im/compound-web";
 
@@ -85,15 +85,24 @@ export default class MLocationBody extends React.Component<IBodyProps, IState> {
     }
 
     public render(): React.ReactElement<HTMLDivElement> {
+        const { mxEvent } = this.props;
+        const matrixClient = this.context;
+        let markerRoomMember;
+        if (isSelfLocation(mxEvent.getContent())) {
+            const room = matrixClient.getRoom(mxEvent.getRoomId() ?? undefined);
+            const userId = mxEvent.getSender() ?? matrixClient.getUserId();
+            markerRoomMember = room?.getMember(userId ?? "") ?? undefined;
+        }
         return this.state.error ? (
-            <LocationBodyFallbackContent error={this.state.error} event={this.props.mxEvent} />
+            <LocationBodyFallbackContent error={this.state.error} event={mxEvent} />
         ) : (
             <LocationBodyContent
-                mxEvent={this.props.mxEvent}
+                mxEvent={mxEvent}
                 mapId={this.mapId}
                 onError={this.onError}
                 tooltip={_t("location_sharing|expand_map")}
                 onClick={this.onClick}
+                markerRoomMember={markerRoomMember}
             />
         );
     }
@@ -124,6 +133,7 @@ interface LocationBodyContentProps {
     tooltip: string;
     onError: (error: Error) => void;
     onClick?: () => void;
+    markerRoomMember?: RoomMember;
 }
 export const LocationBodyContent: React.FC<LocationBodyContentProps> = ({
     mxEvent,
@@ -131,13 +141,12 @@ export const LocationBodyContent: React.FC<LocationBodyContentProps> = ({
     tooltip,
     onError,
     onClick,
+    markerRoomMember,
 }) => {
-    // only pass member to marker when should render avatar marker
-    const markerRoomMember = isSelfLocation(mxEvent.getContent()) ? mxEvent.sender : undefined;
-    const geoUri = locationEventGeoUri(mxEvent);
+    const geoUri = locationEventGeoUri(mxEvent) || "";
 
     const mapElement = (
-        <Map id={mapId} centerGeoUri={geoUri} onClick={onClick} onError={onError} className="mx_MLocationBody_map">
+        <Map id={mapId} centerGeoUri={geoUri || undefined} onClick={onClick} onError={onError} className="mx_MLocationBody_map">
             {({ map }) => (
                 <SmartMarker
                     map={map}

@@ -139,7 +139,12 @@ const MBeaconBody = React.forwardRef<HTMLDivElement, IBodyProps>(({ mxEvent, get
         isMapDisplayError ? undefined : error,
         waitingToStart,
     );
-    const markerRoomMember = isSelfLocation(mxEvent.getContent()) ? mxEvent.sender : undefined;
+    let markerRoomMember;
+    if (isSelfLocation(mxEvent.getContent())) {
+        const room = matrixClient.getRoom(mxEvent.getRoomId() ?? undefined);
+        const userId = mxEvent.getSender() ?? matrixClient.getUserId();
+        markerRoomMember = room?.getMember(userId ?? "") ?? undefined;
+    }
     const isOwnBeacon = beacon?.beaconInfoOwner === matrixClient.getUserId();
 
     useHandleBeaconRedaction(mxEvent, matrixClient, getRelationsForEvent);

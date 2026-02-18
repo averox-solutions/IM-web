@@ -592,7 +592,7 @@ export const SETTINGS: Settings = {
         displayName: _td("labs|location_share_live"),
         description: _td("labs|location_share_live_description"),
         shouldWarn: true,
-        default: false,
+        default: true,
     },
     "feature_dynamic_room_predecessors": {
         isFeature: true,

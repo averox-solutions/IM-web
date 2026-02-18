@@ -41,12 +41,10 @@ Please see LICENSE files in the repository root for full details.
             margin-top: 50px;
         }
 
-        .maplibregl-user-location-accuracy-circle {
-            display: none;
-        }
-
+        /* Show MapLibre's blue dot for "my location" so user can see where they are before sending */
+        .maplibregl-user-location-accuracy-circle,
         .maplibregl-user-location-dot {
-            display: none;
+            display: block;
         }
     }
 

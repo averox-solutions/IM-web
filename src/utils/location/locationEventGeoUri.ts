@@ -10,16 +10,20 @@ import { type MatrixEvent, M_LOCATION } from "matrix-js-sdk/src/matrix";
 
 /**
  * Find the geo-URI contained within a location event.
+ * Returns a string so coordinates can be passed to the map; empty string if none found.
  */
 export const locationEventGeoUri = (mxEvent: MatrixEvent): string => {
-    // unfortunately we're stuck supporting legacy `content.geo_uri`
-    // events until the end of days, or until we figure out mutable
-    // events - so folks can read their old chat history correctly.
-    // https://github.com/matrix-org/matrix-doc/issues/3516
     const content = mxEvent.getContent();
-    const loc = M_LOCATION.findIn(content) as { uri?: string };
-    if (loc?.uri) {
-        return loc.uri;
+    if (!content || typeof content !== "object") return "";
+
+    const loc = M_LOCATION.findIn(content) as { uri?: string } | undefined;
+    if (loc?.uri && typeof loc.uri === "string") {
+        return loc.uri.trim();
     }
-    return content["geo_uri"];
+    const geoUri = content["geo_uri"];
+    if (typeof geoUri === "string") return geoUri.trim();
+    // Legacy / FluffyChat: some clients send m.location with uri
+    const mLoc = content["m.location"] as { uri?: string } | undefined;
+    if (mLoc?.uri && typeof mLoc.uri === "string") return mLoc.uri.trim();
+    return "";
 };

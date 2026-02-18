@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Changes in [Unreleased] (2026-02-16)
 ==================================================================================================
 ## ✨ Features
@@ -5,6 +6,8 @@ Changes in [Unreleased] (2026-02-16)
 * Added encryption toggle for secure video conferencing.
 
 
+=======
+>>>>>>> origin/new_changes
 Changes in [1.11.91](https://github.com/element-hq/element-web/releases/tag/v1.11.91) (2025-01-28)
 ==================================================================================================
 ## ✨ Features
