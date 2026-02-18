@@ -40,7 +40,6 @@ import {
     sortBeaconsByLatestCreation,
     type TimedGeoUri,
     watchPosition,
-    getCurrentPosition,
 } from "../utils/beacon";
 import { cleanGeoUri } from "../utils/location/cleanGeoUri";
 import { doMaybeLocalRoomAction } from "../utils/local-room";
@@ -116,10 +115,11 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
     private clearPositionWatch?: ClearWatchCallback;
     /**
      * Track when the last position was published
-     * So we can manually get position on slow interval
-     * when the target is stationary
+     * So we can re-publish on interval when the target is stationary
      */
     private lastPublishedPositionTimestamp?: number;
+    /** Last position from watchPosition; used for interval re-publish to avoid getCurrentPosition (user-gesture violation) */
+    private lastTimedGeoPosition?: TimedGeoUri;
     /**
      * Ref returned from watchSetting for the MSC3946 labs flag
      */
@@ -425,6 +425,7 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
     public createLiveBeacon = async (
         roomId: Room["roomId"],
         beaconInfoContent: MBeaconInfoEventContent,
+        initialLocation?: TimedGeoUri,
     ): Promise<void> => {
         if (!this.matrixClient) return;
         // explicitly stop any live beacons this user has
@@ -441,6 +442,10 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
         );
 
         storeLocallyCreateBeaconEventId(event_id);
+
+        if (initialLocation) {
+            await this.publishLocationToBeacons(initialLocation);
+        }
     };
 
     /**
@@ -489,6 +494,7 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
         clearInterval(this.locationInterval);
         this.locationInterval = undefined;
         this.lastPublishedPositionTimestamp = undefined;
+        this.lastTimedGeoPosition = undefined;
 
         if (this.clearPositionWatch) {
             this.clearPositionWatch();
@@ -498,10 +504,17 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
         this.emit(OwnBeaconStoreEvent.MonitoringLivePosition);
     };
 
-    private onWatchedPosition = (position: GeolocationPosition): void => {
-        const timedGeoPosition = mapGeolocationPositionToTimedGeo(position);
+    // Skip publishing if accuracy is worse than this (meters) to avoid showing pin 1–2 km off
+    private static readonly MAX_ACCURACY_TO_PUBLISH_M = 2000;
 
-        // if this is our first position, publish immediately
+    private onWatchedPosition = (position: GeolocationPosition): void => {
+        const accuracy = position.coords.accuracy;
+        if (accuracy != null && accuracy > OwnBeaconStore.MAX_ACCURACY_TO_PUBLISH_M) {
+            return;
+        }
+        const timedGeoPosition = mapGeolocationPositionToTimedGeo(position);
+        this.lastTimedGeoPosition = timedGeoPosition;
+
         if (!this.lastPublishedPositionTimestamp) {
             this.publishLocationToBeacons(timedGeoPosition);
         } else {
@@ -524,21 +537,13 @@ export class OwnBeaconStore extends AsyncStoreWithClient<OwnBeaconStoreState> {
     };
 
     /**
-     * Gets the current location
-     * (as opposed to using watched location)
-     * and publishes it to all live beacons
+     * Re-publishes last known position to live beacons.
+     * Uses last position from watchPosition only (no getCurrentPosition) to avoid
+     * "Only request geolocation information in response to a user gesture" violation.
      */
     private publishCurrentLocationToBeacons = async (): Promise<void> => {
-        try {
-            const position = await getCurrentPosition();
-            this.publishLocationToBeacons(mapGeolocationPositionToTimedGeo(position));
-        } catch (error) {
-            if (error instanceof Error) {
-                this.onGeolocationError(error.message as GeolocationError);
-            } else {
-                console.error("Unexpected error", error);
-            }
-        }
+        if (!this.lastTimedGeoPosition) return;
+        await this.publishLocationToBeacons(this.lastTimedGeoPosition);
     };
 
     /**

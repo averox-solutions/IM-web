@@ -23,9 +23,11 @@ export enum GeolocationError {
     Default = "Default",
 }
 
-const GeolocationOptions = {
-    timeout: 10000,
-    maximumAge: 60000,
+// Prefer GPS and avoid cached position so the pin is not 1–2 km off (e.g. near Cordon vs F-7)
+const GeolocationOptions: PositionOptions = {
+    enableHighAccuracy: true,
+    timeout: 20000,
+    maximumAge: 0,
 };
 
 const isGeolocationPositionError = (error: unknown): error is GeolocationPositionError =>

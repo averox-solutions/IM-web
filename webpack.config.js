@@ -139,6 +139,16 @@ module.exports = (env, argv) => {
     return {
         ...development,
 
+        // Persist cache to disk in development for much faster subsequent starts
+        ...(!isProduction && {
+            cache: {
+                type: "filesystem",
+                buildDependencies: {
+                    config: [__filename],
+                },
+            },
+        }),
+
         experiments: {
             asyncWebAssembly: true,
         },

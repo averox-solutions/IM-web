@@ -758,7 +758,7 @@ export default class CreateRoomDialog extends React.Component<IProps, IState> {
         if (isVideoRoom || this.state.joinRule !== JoinRule.Public) {
             let microcopy: string;
             if (isVideoRoom) {
-                microcopy = _t("create_room|encrypted_video_room_warning");
+                microcopy = "";
             } else if (privateShouldBeEncrypted(MatrixClientPeg.safeGet())) {
                 if (this.state.canChangeEncryption) {
                     microcopy = _t("create_room|encrypted_warning");

@@ -15,6 +15,7 @@ Please see LICENSE files in the repository root for full details.
 }
 
 .mx_Marker_border {
+    position: relative;
     width: 42px;
     height: 42px;
     border-radius: 50%;
@@ -34,6 +35,19 @@ Please see LICENSE files in the repository root for full details.
         position: absolute;
         bottom: -4px;
     }
+
+    /* small variant for coordinates-area avatar */
+    &.mx_Marker_border_small {
+        width: 28px;
+        height: 28px;
+
+        &::before {
+            border-left-width: 3px;
+            border-right-width: 3px;
+            border-top-width: 3px;
+            bottom: -3px;
+        }
+    }
 }
 
 .mx_Marker_icon {
@@ -47,15 +61,9 @@ Please see LICENSE files in the repository root for full details.
     left: 50%;
     transform: translateX(-50%);
     margin-top: 4px;
-    padding: 2px 6px;
-    font-size: 10px;
-    line-height: 1.2;
-    white-space: nowrap;
-    background: rgba(0, 0, 0, 0.75);
-    color: white;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 4px;
-    font-family: monospace;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }

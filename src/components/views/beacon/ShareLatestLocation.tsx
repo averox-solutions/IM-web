@@ -35,6 +35,7 @@ const ShareLatestLocation: React.FC<Props> = ({ latestLocationState }) => {
 
     const latLonString = `${coords.latitude},${coords.longitude}`;
     const mapLink = makeMapSiteLink(coords);
+    console.log("mapLink", mapLink);
 
     return (
         <>

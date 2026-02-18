@@ -14,7 +14,7 @@ import { Icon as LiveLocationIcon } from "../../../../res/img/location/live-loca
 import { useLiveBeacons } from "../../../utils/beacon/useLiveBeacons";
 import MatrixClientContext from "../../../contexts/MatrixClientContext";
 import BaseDialog from "../dialogs/BaseDialog";
-import Map from "../location/Map";
+import MapView from "../location/Map";
 import ZoomButtons from "../location/ZoomButtons";
 import BeaconMarker from "./BeaconMarker";
 import { type Bounds, getBeaconBounds } from "../../../utils/beacon/bounds";
@@ -90,10 +90,28 @@ const useMapPosition = (
 };
 
 /**
+ * One beacon per user: keep the one with the most recent location so the map shows a single point per user.
+ */
+const deduplicateBeaconsByUser = (beacons: Beacon[]): Beacon[] => {
+    const byUser = new Map<string, Beacon>();
+    for (const beacon of beacons) {
+        const owner = beacon.beaconInfoOwner;
+        const existing = byUser.get(owner);
+        const existingTs = existing?.latestLocationState?.timestamp ?? 0;
+        const ts = beacon.latestLocationState?.timestamp ?? 0;
+        if (!existing || ts > existingTs) {
+            byUser.set(owner, beacon);
+        }
+    }
+    return Array.from(byUser.values());
+};
+
+/**
  * Dialog to view live beacons maximised
  */
 const BeaconViewDialog: React.FC<IProps> = ({ initialFocusedBeacon, roomId, matrixClient, onFinished }) => {
-    const liveBeacons = useLiveBeacons(roomId, matrixClient);
+    const liveBeaconsRaw = useLiveBeacons(roomId, matrixClient);
+    const liveBeacons = React.useMemo(() => deduplicateBeaconsByUser(liveBeaconsRaw), [liveBeaconsRaw]);
     const [focusedBeaconState, setFocusedBeaconState] = useState<FocusedBeaconState>({
         beacon: initialFocusedBeacon,
         ts: 0,
@@ -123,7 +141,7 @@ const BeaconViewDialog: React.FC<IProps> = ({ initialFocusedBeacon, roomId, matr
         <BaseDialog className="mx_BeaconViewDialog" onFinished={onFinished} fixedWidth={false}>
             <MatrixClientContext.Provider value={matrixClient}>
                 {centerGeoUri && !mapDisplayError && (
-                    <Map
+                    <MapView
                         id="mx_BeaconViewDialog"
                         bounds={bounds}
                         centerGeoUri={centerGeoUri}
@@ -145,7 +163,7 @@ const BeaconViewDialog: React.FC<IProps> = ({ initialFocusedBeacon, roomId, matr
                                 <ZoomButtons map={map} />
                             </>
                         )}
-                    </Map>
+                    </MapView>
                 )}
                 {mapDisplayError instanceof Error && (
                     <MapError error={mapDisplayError.message as LocationShareError} isMinimised />

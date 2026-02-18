@@ -131,8 +131,8 @@ class LocationPicker extends React.Component<ILocationPickerProps, IState> {
     private addMarkerToMap = (): void => {
         this.marker = new maplibregl.Marker({
             element: document.getElementById(this.getMarkerId()) ?? undefined,
-            anchor: "bottom",
-            offset: [0, -1],
+            anchor: "center",
+            offset: [0, 0],
         })
             .setLngLat(new maplibregl.LngLat(0, 0))
             .addTo(this.map!);
@@ -252,7 +252,7 @@ class LocationPicker extends React.Component<ILocationPickerProps, IState> {
 
                     {!!this.marker && (
                         <Marker
-                            roomMember={isSharingOwnLocation(this.props.shareType) ? this.props.sender : undefined}
+                            roomMember={this.props.sender}
                             useMemberColor={this.props.shareType === LocationShareType.Live}
                         />
                     )}

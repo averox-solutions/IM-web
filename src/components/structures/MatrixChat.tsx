@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only OR GPL-3.0-only OR LicenseRef-Element-Com
 Please see LICENSE files in the repository root for full details.
 */
 
-import React, { createRef, JSX, lazy } from "react";
+import React, { createRef, lazy } from "react";
 import {
     ClientEvent,
     createClient,
@@ -107,9 +107,9 @@ import { type SummarizedNotificationState } from "../../stores/notifications/Sum
 import Views from "../../Views";
 import { type FocusNextType, type ViewRoomPayload } from "../../dispatcher/payloads/ViewRoomPayload";
 import { type ViewHomePagePayload } from "../../dispatcher/payloads/ViewHomePagePayload";
+import { type AfterLeaveRoomPayload } from "../../dispatcher/payloads/AfterLeaveRoomPayload";
 import { type DoAfterSyncPreparedPayload } from "../../dispatcher/payloads/DoAfterSyncPreparedPayload";
 import { type ViewStartChatOrReusePayload } from "../../dispatcher/payloads/ViewStartChatOrReusePayload";
-import { type AfterLeaveRoomPayload } from "../../dispatcher/payloads/AfterLeaveRoomPayload";
 import { leaveRoomBehaviour } from "../../utils/leave-behaviour";
 import { CallStore } from "../../stores/CallStore";
 import { type IRoomStateEventsActionPayload } from "../../actions/MatrixActionCreators";
@@ -219,7 +219,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         realQueryParams: {},
         startingFragmentQueryParams: {},
         config: {},
-        onTokenLoginCompleted: (): void => { },
+        onTokenLoginCompleted: (): void => {},
     };
 
     private firstSyncComplete = false;
@@ -482,6 +482,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         }
 
         window.addEventListener("resize", this.onWindowResized);
+        document.addEventListener("contextmenu", this.onContextMenuPreventDefault);
     }
 
     public componentDidUpdate(prevProps: IProps, prevState: IState): void {
@@ -508,7 +509,13 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         UIStore.destroy();
         this.state.resizeNotifier.removeListener("middlePanelResized", this.dispatchTimelineResize);
         window.removeEventListener("resize", this.onWindowResized);
+        document.removeEventListener("contextmenu", this.onContextMenuPreventDefault);
     }
+
+    /** Disable browser's native right-click menu; app context menus still work via their onContextMenu handlers. */
+    private onContextMenuPreventDefault = (e: MouseEvent): void => {
+        e.preventDefault();
+    };
 
     private onWindowResized = (): void => {
         // XXX: This is a very unreliable way to detect whether or not the the devtools are open
@@ -519,9 +526,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         const largeFontSize = "50px";
         const normalFontSize = "15px";
 
-        const waitText = null;
-        const scamText = null;
-        const devText = null;
+        const waitText = _t("console_wait");
+        const scamText = _t("console_scam_warning");
+        const devText = _t("console_dev_note");
 
         global.mx_rage_logger.bypassRageshake(
             "log",
@@ -722,7 +729,6 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 });
                 break;
             case "leave_room":
-                console.log(`[MatrixChat] leave_room action received for room: ${payload.room_id}`);
                 this.leaveRoom(payload.room_id);
                 break;
             case "forget_room":
@@ -737,17 +743,31 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                     description: _t("reject_invitation_dialog|confirmation"),
                     onFinished: (confirm) => {
                         if (confirm) {
-                            // FIXME: controller shouldn't be loading a view :(
-                            const modal = Modal.createDialog(Spinner, undefined, "mx_Dialog_spinner");
+                            // 1. Navigation: If we're viewing the room, navigate away FIRST.
+                            if (this.state.currentRoomId === payload.room_id) {
+                                dis.dispatch({ action: Action.ViewHomePage });
+                            }
 
-                            MatrixClientPeg.safeGet()
-                                .leave(payload.room_id)
-                                .then(
+                            // 2. Schedule the leave logic after a brief delay to allow navigation to clear sticky state
+                            setTimeout(() => {
+                                const modal = Modal.createDialog(Spinner, undefined, "mx_Dialog_spinner");
+                                const client = MatrixClientPeg.safeGet();
+                                const room = client.getRoom(payload.room_id);
+
+                                // 3. UI Update: Remove from room list immediately
+                                if (room) {
+                                    RoomListStore.instance
+                                        .manualRoomUpdate(room, RoomUpdateCause.RoomRemoved)
+                                        .catch(() => {});
+                                }
+
+                                client.leave(payload.room_id).then(
                                     () => {
                                         modal.close();
-                                        if (this.state.currentRoomId === payload.room_id) {
-                                            dis.dispatch({ action: Action.ViewHomePage });
-                                        }
+                                        // 4. Forget the room
+                                        client.forget(payload.room_id).catch((e) => {
+                                            console.warn("Failed to forget room after reject:", e);
+                                        });
                                     },
                                     (err) => {
                                         modal.close();
@@ -757,6 +777,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                                         });
                                     },
                                 );
+                            }, 50);
                         }
                     },
                 });
@@ -795,12 +816,12 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                     if (roomPayload.event_id) {
                         roomScreen += `/${roomPayload.event_id}`;
                     }
-
+                    
                     const params: QueryDict = {};
                     if (roomPayload.via_servers && roomPayload.via_servers.length > 0) {
                         params.via = roomPayload.via_servers;
                     }
-
+                    
                     dis.dispatch({
                         action: "start_registration",
                         screenAfterLogin: {
@@ -814,7 +835,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                     this.notifyNewScreen("new");
                     return;
                 }
-
+                
                 // Takes either a room ID or room alias: if switching to a room the client is already
                 // known to be in (eg. user clicks on a room in the recents panel), supply the ID
                 // If the user is clicking on a room in the context of the alias being presented
@@ -1092,12 +1113,12 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             if (roomInfo.event_id) {
                 roomScreen += `/${roomInfo.event_id}`;
             }
-
+            
             const params: QueryDict = {};
             if (roomInfo.via_servers && roomInfo.via_servers.length > 0) {
                 params.via = roomInfo.via_servers;
             }
-
+            
             dis.dispatch({
                 action: "start_registration",
                 screenAfterLogin: {
@@ -1209,7 +1230,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             this.notifyNewScreen("new");
             return;
         }
-
+        
         if (shouldUseLoginForWelcome(SdkConfig.get())) {
             return this.viewLogin();
         }
@@ -1314,6 +1335,7 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
         if (memberCount === 1) {
             warnings.push(
                 <strong className="warning" key="only_member_warning">
+                    {" " /* Whitespace, otherwise the sentences get smashed together */}
                     {_t("leave_room_dialog|last_person_warning")}
                 </strong>,
             );
@@ -1379,11 +1401,11 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 <span>
                     {isSpace
                         ? _t("leave_room_dialog|leave_space_question", {
-                            spaceName: roomToLeave?.name ?? _t("common|unnamed_space"),
-                        })
+                              spaceName: roomToLeave?.name ?? _t("common|unnamed_space"),
+                          })
                         : _t("leave_room_dialog|leave_room_question", {
-                            roomName: roomToLeave?.name ?? _t("common|unnamed_room"),
-                        })}
+                              roomName: roomToLeave?.name ?? _t("common|unnamed_room"),
+                          })}
                     {warnings}
                 </span>
             ),
@@ -1391,13 +1413,12 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
             danger: warnings.length > 0,
             onFinished: async (shouldLeave) => {
                 if (shouldLeave) {
-                    // Remove from list synchronously so one Leave click hides the room before navigation
-                    RoomListStore.instance.removeRoomFromListImmediately(roomId);
-                    dis.dispatch<AfterLeaveRoomPayload>(
-                        { action: Action.AfterLeaveRoom, room_id: roomId },
-                        true,
-                    );
                     await leaveRoomBehaviour(cli, roomId);
+
+                    dis.dispatch<AfterLeaveRoomPayload>({
+                        action: Action.AfterLeaveRoom,
+                        room_id: roomId,
+                    });
                 }
             },
         });
@@ -1426,7 +1447,6 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 });
             });
     }
-
 
     private async copyRoom(roomId: string): Promise<void> {
         const roomLink = makeRoomPermalink(MatrixClientPeg.safeGet(), roomId);
@@ -1873,9 +1893,9 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
                 PerformanceMonitor.instance.start(PerformanceEntryNames.REGISTER);
             } else {
                 // If logged in, "new" still means create room
-                dis.dispatch({
-                    action: "view_create_room",
-                });
+            dis.dispatch({
+                action: "view_create_room",
+            });
             }
         } else if (screen === "dm") {
             dis.dispatch({
